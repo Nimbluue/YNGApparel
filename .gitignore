@@ -1,0 +1,26 @@
+# Dependensi & build
+node_modules/
+dist/
+build/
+coverage/
+
+# SECRET: jangan pernah di-commit
+.env
+.env.*
+!.env.example
+
+# Log & file sistem
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+
+# Backup database & file sementara
+backups/
+*.dump
+*.sql.gz
+backend/uploads/
