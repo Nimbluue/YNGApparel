@@ -8,10 +8,11 @@
 --   * *_uuid / *_code       -> publik : URL, tracker, magic link
 -- =========================================================
 -- CARA MENJALANKAN
---   Supabase : buka SQL Editor, tempel seluruh file ini, Run.
---              (atau: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f yng_apparel_db_v2_1_postgres.sql)
---   Lokal    : createdb -U postgres yng_apparel_db
---              psql -U postgres -d yng_apparel_db -v ON_ERROR_STOP=1 -f yng_apparel_db_v2_1_postgres.sql
+--   Jangan dijalankan manual. Gunakan runner migrasi:  npm run db:migrate
+--   (mencatat versi + checksum di tabel schema_migrations).
+--   Data contoh (placeholder):                         npm run db:seed
+--   File ini = migrasi 001 (skema dasar). Perubahan berikutnya = file baru
+--   002_xxx.sql, dst. JANGAN mengedit migrasi yang sudah di-merge ke main.
 --
 -- BAGIAN
 --   0. Persiapan (tipe ENUM, fungsi trigger)
@@ -22,7 +23,7 @@
 --   E. Riwayat status                     (MVP)
 --   F. FASE 2: Production Log, Kolektif Link, Ready Drops
 --   G. Trigger updated_at, Row Level Security
---   H. Seed data (placeholder)
+--   (Data contoh ada di backend/db/seeds/, bukan di migrasi)
 -- =========================================================
 -- CATATAN DESAIN
 -- 1. Tidak ada akun customer. Pelanggan diidentifikasi lewat nomor WhatsApp
@@ -679,60 +680,8 @@ BEGIN
 END $$;
 
 
--- #########################################################
--- H. SEED DATA  (*** PLACEHOLDER: WAJIB diganti dengan data asli client ***)
--- #########################################################
-
-INSERT INTO sizes (code, sort_order, extra_charge) VALUES
-('S', 1, 0), ('M', 2, 0), ('L', 3, 0), ('XL', 4, 0), ('XXL', 5, 10000);
-
-INSERT INTO print_sizes (code, name, dimensions_cm, width_cm, height_cm, price_per_spot, sort_order) VALUES
-('LOGO', 'Logo',  '10 x 10',     10.00, 10.00, 10000, 1),
-('A5',   'A5',    '14.8 x 21',   14.80, 21.00, 15000, 2),
-('A4',   'A4',    '21 x 29.7',   21.00, 29.70, 25000, 3),
-('A3',   'A3',    '29.7 x 42',   29.70, 42.00, 35000, 4);
-
-INSERT INTO garment_models (slug, name, base_price, sort_order, mockup_template) VALUES
-('kaos-lengan-pendek', 'Kaos Lengan Pendek',  65000, 1, 'tee-short'),
-('kaos-lengan-panjang','Kaos Lengan Panjang', 75000, 2, 'tee-long'),
-('polo',               'Polo',                95000, 3, 'polo'),
-('sweatshirt',         'Sweatshirt',         140000, 4, 'sweatshirt'),
-('hoodie',             'Hoodie',             160000, 5, 'hoodie'),
-('jacket-zipper',      'Jacket Zipper',      175000, 6, 'jacket-zip');
-
-INSERT INTO fabrics (code, name, gsm_weight, thickness_level, comfort_level, additional_price, sort_order) VALUES
-('CC30S',  'Cotton Combed 30s', 150, 2, 5, 0,     1),
-('CC24S',  'Cotton Combed 24s', 175, 3, 4, 10000, 2),
-('PQCVC',  'Pique CVC',         210, 3, 4, 15000, 3),
-('BTERRY', 'Baby Terry',        240, 4, 4, 0,     4),
-('CF280',  'Cotton Fleece 280', 280, 5, 5, 15000, 5);
-
-INSERT INTO model_fabrics (model_id, fabric_id)
-SELECT m.id, f.id FROM garment_models m JOIN fabrics f ON
-    (m.slug IN ('kaos-lengan-pendek','kaos-lengan-panjang') AND f.code IN ('CC30S','CC24S'))
- OR (m.slug = 'polo' AND f.code = 'PQCVC')
- OR (m.slug IN ('sweatshirt','hoodie','jacket-zipper') AND f.code IN ('BTERRY','CF280'));
-
--- PLACEHOLDER warna: ganti dengan warna yang benar-benar ada di stok per bahan
-INSERT INTO fabric_colors (fabric_id, color_name, color_hex, sort_order)
-SELECT f.id, c.color_name, c.color_hex, c.ord
-FROM fabrics f
-CROSS JOIN (VALUES
-    ('Hitam',     '#111111', 1),
-    ('Putih',     '#FFFFFF', 2),
-    ('Navy',      '#1F2A44', 3),
-    ('Abu Misty', '#9CA3AF', 4),
-    ('Maroon',    '#6B1F2A', 5)
-) AS c(color_name, color_hex, ord);
-
-INSERT INTO payment_accounts (method, provider_name, account_number, account_holder, instructions) VALUES
-('QRIS', 'QRIS YNG Apparel', NULL, 'YNG Apparel', 'Scan QRIS, bayar sesuai nominal, lalu upload bukti.'),
-('BANK_TRANSFER', 'BCA', '0000000000', 'YNG Apparel', 'Transfer sesuai nominal, lalu upload bukti.');
-
--- ADMIN PERTAMA: jangan insert password manual. Jalankan:
---   node backend/scripts/seedAdmin.js
--- (membaca ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME dari .env, hash bcrypt,
---  email disimpan huruf kecil)
---
--- BUCKET STORAGE: jangan dibuat manual. Jalankan:
---   node backend/scripts/initStorage.js
+-- =========================================================
+-- Setelah migrasi:
+--   Admin pertama : npm run seed:admin   (baca ADMIN_* dari .env, hash bcrypt)
+--   Bucket storage: npm run storage:init
+-- =========================================================

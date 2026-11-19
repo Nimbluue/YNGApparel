@@ -10,7 +10,7 @@ Aturan kerja:
 
 1. Kerjakan **satu tahap per respons**. Di akhir tampilkan: daftar file dibuat/diubah, cara menjalankan, dan cara menguji (contoh request).
 2. Jangan lanjut ke tahap berikutnya sebelum saya bilang "lanjut".
-3. Database **PostgreSQL (di-host di Supabase)** mengacu **persis** pada file `yng_apparel_db_v2_1_postgres.sql` (sumber kebenaran skema). Skema ini belum pernah dijalankan; jika perlu mengubahnya **sebelum Tahap 0 selesai**, edit langsung file tersebut dan beri tahu saya. **Setelah Tahap 0 dijalankan**, semua perubahan skema lewat file migrasi terpisah (`002_xxx.sql`, dst.) dan beri tahu saya. Jangan menulis SQL dengan sintaks MySQL.
+3. Database **PostgreSQL (di-host di Supabase)** mengacu **persis** pada `backend/db/migrations/001_init.sql` (sumber kebenaran skema dasar; sudah final). Semua perubahan skema berikutnya hanya boleh lewat file migrasi bernomor baru (`002_xxx.sql`, dst.) dan beri tahu tim/owner setiap kali skema berubah. File migrasi yang sudah di-merge ke `main` **tidak boleh diedit**. Data contoh placeholder terpisah di `backend/db/seeds/`. Jangan menulis SQL dengan sintaks MySQL.
 4. Jika ada ambiguitas kecil, ambil asumsi paling masuk akal, tulis asumsinya, lalu lanjut.
 5. Bahasa UI: **Bahasa Indonesia**. Nama variabel/tabel/endpoint: Inggris.
 6. Backend harus **stateless**: tidak boleh menyimpan file di disk server dan tidak boleh bergantung pada satu mesin (lihat 6.10 dan 6.4). Semua file lewat object storage.
@@ -295,7 +295,7 @@ Endpoint `PUT /api/admin/orders/:id/items` (mengganti seluruh item/ukuran/sablon
 
 ## 7. STRUKTUR DATABASE (22 TABEL)
 
-Lihat **`yng_apparel_db_v2_1_postgres.sql`**. Ringkasan:
+Lihat **`backend/db/migrations/`** (skema dasar di `backend/db/migrations/001_init.sql`) dan data placeholder di **`backend/db/seeds/`**. Tabel tambahan `schema_migrations` dibuat otomatis oleh runner migrasi untuk mencatat `version` dan checksum tiap file migrasi. Ringkasan 22 tabel aplikasi:
 
 - **Admin & pengaturan:** `admin_users`, `app_settings`
 - **Master & harga:** `garment_models`, `fabrics`, `fabric_colors`, `model_fabrics`, `sizes`, `print_sizes`, `payment_accounts`
@@ -316,9 +316,9 @@ Catatan penting:
 ### Aturan khusus PostgreSQL / Supabase (WAJIB diikuti di semua kode backend)
 1. **Placeholder** memakai `$1, $2, $3, ...` (bukan `?`). Dilarang menggabungkan input ke string SQL.
 2. **Ambil id hasil insert** dengan `INSERT ... RETURNING id` (tidak ada `insertId`). Untuk update/hapus yang perlu datanya kembali, gunakan `RETURNING *`.
-3. **Transaksi:** `const client = await pool.connect(); try { await client.query('BEGIN'); ...; await client.query('COMMIT'); } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }`. Seluruh query dalam satu transaksi **harus lewat `client`**, bukan `pool`. Buat helper `withTransaction(fn)` di `config/database.js`.
+3. **Transaksi:** `const client = await pool.connect(); try { await client.query('BEGIN'); ...; await client.query('COMMIT'); } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }`. Seluruh query dalam satu transaksi **harus lewat `client`**, bukan `pool`. Buat helper `withTransaction(fn)` di `config/database.ts`.
 4. **Penguncian baris:** gunakan `SELECT ... FOR UPDATE` pada baris `orders`/`payments` saat mengubah status atau menghitung ulang `remaining_balance`, agar dua klik admin tidak saling menimpa.
-5. **Tipe data hasil query:** `pg` mengembalikan `BIGINT` dan `NUMERIC` sebagai **string**. Daftarkan type parser di `config/database.js`: `types.setTypeParser(20, Number)` untuk `BIGINT` (id aman karena kecil) dan `types.setTypeParser(1700, Number)` untuk `NUMERIC` (harga dalam rupiah bulat). Hitung uang hanya di server memakai bilangan bulat rupiah.
+5. **Tipe data hasil query:** `pg` mengembalikan `BIGINT` dan `NUMERIC` sebagai **string**. Daftarkan type parser di `config/database.ts`: `types.setTypeParser(20, Number)` untuk `BIGINT` (id aman karena kecil) dan `types.setTypeParser(1700, Number)` untuk `NUMERIC` (harga dalam rupiah bulat). Hitung uang hanya di server memakai bilangan bulat rupiah.
 6. **Waktu:** semua kolom waktu bertipe `TIMESTAMPTZ` (disimpan UTC). **Jangan bergantung pada timezone sesi** (connection pooler tidak menjaganya). Konversi ke WIB eksplisit: untuk laporan gunakan `date_trunc('day', created_at AT TIME ZONE 'Asia/Jakarta')`; untuk tampilan format di aplikasi dengan zona `Asia/Jakarta`. `node-cron` dijadwalkan dengan `timezone: 'Asia/Jakarta'`.
 7. **Enum:** kolom status memakai tipe enum PostgreSQL. Nilai di kode harus **persis** sama dengan di SQL (huruf besar): `payment_scheme_t` = `FULL`/`DP`; `payment_stage_t` = `DP`/`SETTLEMENT`/`FULL`/`SHIPPING_FEE`; `fulfillment_t` = `SHIP`/`PICKUP`. Penambahan nilai di masa depan lewat `ALTER TYPE ... ADD VALUE` di file migrasi.
 8. **Pencarian teks** (nama pelanggan, kode order) memakai `ILIKE` agar tidak peka huruf besar/kecil.
@@ -337,70 +337,100 @@ Catatan penting:
 
 ```
 yng-apparel/
-├── backend/
+├── shared/                              # paket tipe bersama (@yng/shared)
 │   ├── src/
-│   │   ├── config/        database.js, constants.js, env.js
+│   │   ├── enums.ts                     # seluruh enum status PostgreSQL & union types
+│   │   ├── statusLabels.ts              # pemetaan label DB -> UI Bahasa Indonesia
+│   │   ├── api.ts                       # Rupiah, ApiSuccessResponse/ApiErrorResponse, DTO bersama
+│   │   └── index.ts
+│   ├── package.json
+│   └── tsconfig.json                    # strict: true, declaration: true
+│
+├── backend/
+│   ├── db/
+│   │   ├── migrations/                  # 001_init.sql, 002_xxx.sql, ... (immutable setelah merge)
+│   │   └── seeds/                       # 001_placeholder_catalog.sql, ...
+│   ├── src/
+│   │   ├── config/        database.ts, constants.ts, env.ts
+│   │   ├── types/         express.d.ts
 │   │   ├── controllers/
-│   │   │   ├── catalogController.js      # model, bahan+warna, ukuran, sablon, settings publik
-│   │   │   ├── pricingController.js
-│   │   │   ├── orderController.js        # buat order publik
-│   │   │   ├── paymentController.js
-│   │   │   ├── trackerController.js
-│   │   │   ├── uploadController.js
-│   │   │   ├── adminAuthController.js
-│   │   │   ├── adminOrderController.js   # kanban, status, SPK, QC, ongkir, resi, diskon, alamat, edit item, cancel
-│   │   │   ├── adminMasterController.js  # CRUD master data (termasuk fabric_colors) & settings
-│   │   │   ├── adminPaymentController.js
-│   │   │   ├── dashboardController.js
-│   │   │   ├── reportController.js
-│   │   │   ├── productionLogController.js   # fase 2
-│   │   │   ├── collectiveController.js      # fase 2
-│   │   │   └── readyProductController.js    # fase 2
+│   │   │   ├── catalogController.ts      # model, bahan+warna, ukuran, sablon, settings publik
+│   │   │   ├── pricingController.ts
+│   │   │   ├── orderController.ts        # buat order publik
+│   │   │   ├── paymentController.ts
+│   │   │   ├── trackerController.ts
+│   │   │   ├── uploadController.ts
+│   │   │   ├── adminAuthController.ts
+│   │   │   ├── adminOrderController.ts   # kanban, status, SPK, QC, ongkir, resi, diskon, alamat, edit item, cancel
+│   │   │   ├── adminMasterController.ts  # CRUD master data (termasuk fabric_colors) & settings
+│   │   │   ├── adminPaymentController.ts
+│   │   │   ├── dashboardController.ts
+│   │   │   ├── reportController.ts
+│   │   │   ├── productionLogController.ts   # fase 2
+│   │   │   ├── collectiveController.ts      # fase 2
+│   │   │   └── readyProductController.ts    # fase 2
 │   │   ├── models/        fungsi query pg (node-postgres) per entitas
-│   │   ├── routes/        publicRoutes.js, adminRoutes.js, index.js
-│   │   ├── middleware/    adminAuth.js, uploadMiddleware.js (memoryStorage + magic bytes),
-│   │   │                  validate.js, rateLimiter.js, originCheck.js, errorHandler.js
+│   │   ├── routes/        publicRoutes.ts, adminRoutes.ts, index.ts
+│   │   ├── middleware/    adminAuth.ts, uploadMiddleware.ts (memoryStorage + magic bytes),
+│   │   │                  validate.ts (Zod), rateLimiter.ts, originCheck.ts, errorHandler.ts
 │   │   ├── services/
-│   │   │   ├── pricingService.js       # satu-satunya tempat rumus harga
-│   │   │   ├── orderService.js         # buat/edit order (transaksi), status machine
-│   │   │   ├── paymentService.js       # buat tagihan, verifikasi, revisi ongkir, hitung remaining
-│   │   │   ├── storageService.js       # abstraksi object storage (Supabase / S3-compatible)
-│   │   │   ├── spkService.js           # PDF (pdfkit)
-│   │   │   ├── whatsappService.js      # pembuat link wa.me + template
-│   │   │   ├── notificationService.js  # Telegram (opsional, no-op bila env kosong)
-│   │   │   ├── imageService.js         # sharp: resize, DPI
-│   │   │   └── csvService.js
-│   │   ├── jobs/scheduler.js           # node-cron + advisory lock + pembersih tmp upload
-│   │   └── utils/         orderCode.js, phone.js, response.js, constants status
-│   ├── scripts/           seedAdmin.js, initStorage.js, backup.sh (pg_dump)
+│   │   │   ├── pricingService.ts       # satu-satunya tempat rumus harga
+│   │   │   ├── orderService.ts         # buat/edit order (transaksi), status machine
+│   │   │   ├── paymentService.ts       # buat tagihan, verifikasi, revisi ongkir, hitung remaining
+│   │   │   ├── storageService.ts       # abstraksi object storage (Supabase / S3-compatible)
+│   │   │   ├── spkService.ts           # PDF (pdfkit)
+│   │   │   ├── whatsappService.ts      # pembuat link wa.me + template
+│   │   │   ├── notificationService.ts  # Telegram (opsional, no-op bila env kosong)
+│   │   │   ├── imageService.ts         # sharp: resize, DPI
+│   │   │   └── csvService.ts
+│   │   ├── jobs/scheduler.ts           # node-cron + advisory lock + pembersih tmp upload
+│   │   ├── utils/         orderCode.ts, phone.ts, response.ts, asyncHandler.ts, migrationHelpers.ts
+│   │   └── app.ts
+│   ├── scripts/           migrate.ts, seed.ts, dbCheck.ts, initStorage.ts, seedAdmin.ts, backup.sh (pg_dump)
+│   ├── tests/             stage0.test.ts (Vitest)
 │   ├── .env.example
 │   ├── package.json
-│   └── server.js
+│   ├── tsconfig.json      # strict: true
+│   ├── tsconfig.build.json
+│   ├── vitest.config.ts
+│   └── server.ts
 │
-└── frontend/
-    ├── src/
-    │   ├── components/    StatusBadge, PriceSummary, SizeMatrix, PrintSpotPicker, ColorPicker (preset + custom),
-    │   │                  FileDropzone, KanbanColumn, OrderCard, ...
-    │   ├── layouts/       PublicLayout, AdminLayout
-    │   ├── pages/
-    │   │   ├── Home.jsx
-    │   │   ├── custom-lab/   CustomLab.jsx (wizard), Checkout.jsx, OrderSuccess.jsx
-    │   │   ├── track/        TrackLookup.jsx, TrackDetail.jsx
-    │   │   ├── pay/          UploadProof.jsx
-    │   │   ├── fabric-lab/       # fase 2
-    │   │   ├── collective/       # fase 2
-    │   │   ├── ready-drops/      # fase 2
-    │   │   └── admin/        Login, Kanban, OrderDetail, ManualOrder, Payments,
-    │   │                     Master (models, fabrics+colors, sizes, prints), Settings,
-    │   │                     PaymentAccounts, Reports, ProductionLogs (fase 2)
-    │   ├── services/      api.js (axios, withCredentials) + service per modul
-    │   ├── context/       AdminAuthContext
-    │   ├── routes/        AppRoutes, AdminRoute
-    │   ├── utils/         formatRupiah, statusLabels, whatsapp, pricing (UX saja)
-    │   ├── App.jsx
-    │   └── main.jsx
-    ├── index.html
-    └── tailwind.config.js
+├── frontend/
+│   ├── src/
+│   │   ├── components/    StatusBadge.tsx, PriceSummary.tsx, SizeMatrix.tsx, PrintSpotPicker.tsx,
+│   │   │                  ColorPicker.tsx (preset + custom), FileDropzone.tsx, KanbanColumn.tsx, OrderCard.tsx, ...
+│   │   ├── layouts/       PublicLayout.tsx, AdminLayout.tsx
+│   │   ├── pages/
+│   │   │   ├── Home.tsx
+│   │   │   ├── custom-lab/   CustomLab.tsx (wizard), Checkout.tsx, OrderSuccess.tsx
+│   │   │   ├── track/        TrackLookup.tsx, TrackDetail.tsx
+│   │   │   ├── pay/          UploadProof.tsx
+│   │   │   ├── fabric-lab/       # fase 2
+│   │   │   ├── collective/       # fase 2
+│   │   │   ├── ready-drops/      # fase 2
+│   │   │   └── admin/        Login.tsx, Kanban.tsx, OrderDetail.tsx, ManualOrder.tsx, Payments.tsx,
+│   │   │                     Master (models, fabrics+colors, sizes, prints), Settings.tsx,
+│   │   │                     PaymentAccounts.tsx, Reports.tsx, ProductionLogs.tsx (fase 2)
+│   │   ├── services/      api.ts (axios, withCredentials) + service per modul
+│   │   ├── context/       AdminAuthContext.tsx
+│   │   ├── routes/        AppRoutes.tsx, AdminRoute.tsx
+│   │   ├── utils/         formatRupiah.ts, statusLabels.ts (re-export @yng/shared), whatsapp.ts, pricing.ts (UX saja)
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   └── vite-env.d.ts
+│   ├── index.html
+│   ├── package.json
+│   ├── postcss.config.js  # tetap .js (dibutuhkan postcss-load-config secara native)
+│   ├── tailwind.config.ts
+│   ├── tsconfig.json      # strict: true
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
+│
+├── .gitattributes         # *.sql text eol=lf
+├── .prettierrc
+├── eslint.config.js       # ESLint 9 flat config (.js native)
+├── package.json           # npm workspaces (shared, backend, frontend)
+└── README.md
 ```
 
 ---
@@ -544,7 +574,7 @@ POST /api/uploads/design  (DPI Guard aktif)      P
 
 | Tahap | Cakupan | Deliverable |
 |---|---|---|
-| **0** | Setup | Struktur folder, `.env.example` (`DATABASE_URL`, `JWT_SECRET`, `FRONTEND_ORIGIN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STORAGE_DRIVER`, `TELEGRAM_*` opsional, `ADMIN_*` untuk seed), koneksi DB (`pg` Pool, type parser, helper `withTransaction`), runner SQL untuk `yng_apparel_db_v2_1_postgres.sql`, `storageService` + `scripts/initStorage.js`, error handler (petakan 23505/23514/23503), response helper, rate limiter, helmet, CORS (credentials), `originCheck`, cookie httpOnly untuk JWT, `seedAdmin.js`, `backup.sh`; Vite + Tailwind + Router + axios; design tokens monokrom; panduan setup project Supabase di README |
+| **0** | Setup | Monorepo npm workspaces + TypeScript `strict: true` di `shared/`, `backend/`, dan `frontend/`; paket tipe bersama `shared/` (`@yng/shared`); ESLint + Prettier; `.env.example` (`DATABASE_URL`, `JWT_SECRET`, `FRONTEND_ORIGIN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STORAGE_DRIVER`, `TELEGRAM_*` opsional, `ADMIN_*` untuk seed); koneksi DB (`pg` Pool, type parser, `withTransaction`); runner migrasi `scripts/migrate.ts` (`backend/db/migrations/*.sql`, tabel `schema_migrations` + checksum + `pg_advisory_lock`); runner seed `scripts/seed.ts` (`backend/db/seeds/*.sql`, blokir production tanpa `--force`); `storageService.ts` + `scripts/initStorage.ts`; error handler (petakan 23505/23514/23503), response helper, rate limiter, helmet, CORS (credentials), `originCheck`, cookie httpOnly JWT, validasi Zod, `seedAdmin.ts`, `backup.sh`; Vitest smoke/unit test; Vite + Tailwind + Router + Axios TypeScript; design tokens monokrom; skrip npm (`db:check`, `db:migrate`, `db:seed`, `seed:admin`, `storage:init`, `dev`, `build`, `typecheck`, `lint`, `test`); panduan setup Supabase & alur kerja tim di README |
 | **1** | Admin auth + Master data | Login admin (JWT di cookie httpOnly), CRUD model/bahan/**warna per bahan**/ukuran/sablon/rekening, settings, upload gambar ke bucket `catalog`, form admin responsif |
 | **2** | Custom Lab publik | Endpoint katalog (bahan+warna), `pricingService` + `/pricing/quote`, wizard Custom Lab, ColorPicker (preset + custom), SizeMatrix, PrintSpotPicker, upload desain ke `tmp/`, panel harga real-time, gatekeeper DP dinamis |
 | **3** | Pembuatan order & pembayaran awal | `POST /api/orders` (transaksi, idempotency key), order code 6 karakter, snapshot harga, SHIP/PICKUP, pindahkan file `tmp/` → `orders/`, tagihan awal, halaman instruksi bayar + upload bukti, link WhatsApp |
@@ -593,10 +623,12 @@ POST /api/uploads/design  (DPI Guard aktif)      P
 
 ## 12. TEKNOLOGI
 
-**Frontend:** React.js (Vite), React Router, Axios, Tailwind CSS
-**Backend:** Node.js, Express.js, REST API, JWT (admin saja, cookie httpOnly), bcrypt, Multer (`memoryStorage`), `file-type`, `pg`, `@supabase/supabase-js` (khusus storage), `express-validator`, `helmet`, `cors`, `cookie-parser`, `express-rate-limit`, `node-cron`, `sharp`, `pdfkit`, `dotenv`
-**Database & storage:** PostgreSQL 14+ (Supabase) + Supabase Storage
-Arsitektur: `React.js → REST API → Node.js/Express.js → PostgreSQL (Supabase) + Object Storage`
+**Paket Bersama (`shared/`):** TypeScript strict (`@yng/shared`) untuk enum status, label UI, tipe respons API, dan DTO bersama backend/frontend
+**Frontend:** React.js (Vite + TypeScript strict), React Router, Axios, Tailwind CSS
+**Backend:** Node.js, Express.js, TypeScript strict (`tsx` untuk development/skrip, `tsc` untuk build produksi), REST API, **`zod`** untuk validasi input (*dipilih dibanding `express-validator` karena menyediakan satu sumber kebenaran validasi runtime sekaligus inferensi tipe statis `z.infer`, bersih untuk payload bersarang Custom Lab dan aturan kondisional lintas field tanpa `any`, serta mudah diuji di Vitest*), JWT (admin saja, cookie httpOnly), bcrypt, Multer (`memoryStorage`), `file-type`, `pg`, `@supabase/supabase-js` (khusus storage), `helmet`, `cors`, `cookie-parser`, `express-rate-limit`, `node-cron`, `sharp`, `pdfkit`, `dotenv`
+**Testing & Kualitas Kode:** Vitest (unit test, terutama `pricingService`, validasi, dan helper bisnis), ESLint + Prettier
+**Database & storage:** PostgreSQL 14+ (Supabase, dikelola lewat migrasi bernomor di `backend/db/migrations/`) + Supabase Storage
+Arsitektur: `React.js (TS) → REST API → Node.js/Express.js (TS) → PostgreSQL (Supabase) + Object Storage`
 
 ---
 
@@ -616,6 +648,10 @@ Arsitektur: `React.js → REST API → Node.js/Express.js → PostgreSQL (Supaba
   - Tetap sediakan `scripts/backup.sh` (`pg_dump` ke file terenkripsi, dijadwalkan dari luar, mis. GitHub Actions/cron di mesin lain) dan catat di README. Data order adalah aset bisnis. Backup database **tidak** mencakup isi bucket storage; ekspor berkala untuk bucket `designs` dan `payment-proofs` dicatat sebagai tugas operasional.
   - Backend: host Node.js mana pun yang menjalankan proses terus-menerus (Railway/Render/Fly.io/VPS). Hindari serverless murni karena `node-cron` dan upload memori butuh proses yang hidup. Frontend: static host (Vercel/Netlify/Cloudflare Pages).
 - Data pribadi pelanggan (alamat, nomor HP) hanya terlihat oleh admin dan, sebagian tersamarkan, oleh pemilik order lewat tracker. Pesan notifikasi Telegram tidak memuat alamat lengkap.
+- **Alur Kerja Tim (5 Orang):**
+  - Gunakan branch terpisah per fitur/tahap (`feat/...`, `fix/...`, `chore/...`) dan gabungkan ke `main` lewat Pull Request (PR) dengan code review.
+  - CI wajib menjalankan `npm run typecheck`, `npm run lint`, `npm run test`, dan `npm run build` sebelum PR boleh di-merge ke `main`.
+  - **Aturan migrasi DB dalam tim:** jangan pernah mengedit file migrasi yang sudah di-merge ke `main`. Jika dua PR secara bersamaan membuat nomor migrasi yang sama (mis. sama-sama `002_xxx.sql`), PR yang menyusul wajib menyelesaikan bentrok nomor (mengganti ke `003_xxx.sql`) saat rebase terhadap `main` sebelum merge.
 
 ---
 
