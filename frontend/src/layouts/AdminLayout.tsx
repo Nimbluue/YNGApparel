@@ -1,8 +1,8 @@
 import { Link, Outlet } from 'react-router-dom';
-import { useAdminAuth } from '../context/AdminAuthContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function AdminLayout() {
-  const { admin, logout } = useAdminAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen flex-col bg-bone text-ink">
@@ -23,9 +23,9 @@ export default function AdminLayout() {
           </Link>
 
           <div className="flex items-center gap-3">
-            {admin ? (
+            {user ? (
               <>
-                <span className="hidden text-xs text-neutral-300 sm:inline">{admin.email}</span>
+                <span className="hidden text-xs text-neutral-300 sm:inline">{user.email}</span>
                 <button
                   type="button"
                   onClick={() => void logout()}

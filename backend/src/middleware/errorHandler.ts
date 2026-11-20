@@ -25,7 +25,8 @@ export interface MappedHttpError {
 }
 
 const UNIQUE_CONSTRAINT_MESSAGES: Readonly<Record<string, MappedHttpError>> = {
-  uq_admin_users_email: { status: 409, message: 'Email admin sudah terdaftar.' },
+  uq_users_email: { status: 409, message: 'Email sudah terdaftar.' },
+  uq_ua_one_default: { status: 409, message: 'Hanya satu alamat utama yang diperbolehkan.' },
   garment_models_slug_key: { status: 409, message: 'Slug model pakaian sudah digunakan.' },
   fabrics_code_key: { status: 409, message: 'Kode bahan sudah digunakan.' },
   uq_fabric_color: { status: 409, message: 'Nama warna tersebut sudah ada pada bahan ini.' },
@@ -52,6 +53,11 @@ const UNIQUE_CONSTRAINT_MESSAGES: Readonly<Record<string, MappedHttpError>> = {
 };
 
 const CHECK_CONSTRAINT_MESSAGES: Readonly<Record<string, string>> = {
+  chk_users_wa_format: 'Nomor WhatsApp harus berformat 62xxxxxxxxxx (diawali 62, 9–17 digit).',
+  chk_users_user_wa: 'Nomor WhatsApp wajib diisi untuk akun pelanggan.',
+  chk_ua_wa_format:
+    'Nomor WhatsApp penerima harus berformat 62xxxxxxxxxx (diawali 62, 9–17 digit).',
+  chk_cart_config_object: 'Konfigurasi item keranjang harus berupa objek JSON yang valid.',
   chk_gm_price: 'Harga dasar model tidak boleh negatif.',
   chk_fabric_thickness: 'Tingkat ketebalan bahan harus di antara 1 sampai 5.',
   chk_fabric_comfort: 'Tingkat kenyamanan bahan harus di antara 1 sampai 5.',
@@ -174,7 +180,7 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
     if (name === 'JsonWebTokenError' || name === 'TokenExpiredError') {
       return sendError(res, {
         status: 401,
-        message: 'Sesi admin tidak valid atau telah berakhir. Silakan login kembali.',
+        message: 'Sesi tidak valid atau telah berakhir. Silakan login kembali.',
       });
     }
   }

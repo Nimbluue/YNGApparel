@@ -4,6 +4,15 @@ export const ORDER_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const ORDER_CODE_PREFIX = 'YNG-';
 export const ORDER_CODE_RANDOM_LENGTH = 6;
 
+export const PASSWORD_MIN_LENGTH = 8;
+export const ADMIN_PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MAX_BYTES = 72;
+
+// ASSUMPTION: batas wajar operasional untuk satu akun pelanggan dan pembersih keranjang pasif
+export const CART_MAX_ITEMS = 20;
+export const USER_MAX_ADDRESSES = 5;
+export const CART_INACTIVE_TTL_DAYS = 30;
+
 export const STORAGE_BUCKETS = {
   CATALOG: 'catalog',
   DESIGNS: 'designs',
@@ -69,4 +78,5 @@ export const ADVISORY_LOCKS = {
   EXPIRE_UNPAID_ORDERS: 910001,
   AUTO_COMPLETE_SHIPPING: 910002,
   CLEANUP_TMP_DESIGNS: 910003,
+  CLEANUP_STALE_CARTS: 910004,
 } as const;

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 function NavItem({ to, children }: { to: string; children: ReactNode }) {
   return (
@@ -19,6 +20,8 @@ function NavItem({ to, children }: { to: string; children: ReactNode }) {
 }
 
 export default function PublicLayout() {
+  const { user, isGuest } = useAuth();
+
   return (
     <div className="flex min-h-screen flex-col bg-bone text-ink">
       <header className="sticky top-0 z-30 border-b border-line-strong bg-surface">
@@ -39,8 +42,15 @@ export default function PublicLayout() {
 
           <nav className="flex items-center gap-4 sm:gap-6">
             <NavItem to="/custom-lab">Custom Lab</NavItem>
+            <NavItem to="/keranjang">Keranjang</NavItem>
             <NavItem to="/track">Lacak Pesanan</NavItem>
-            <NavItem to="/admin">Admin</NavItem>
+            {isGuest ? (
+              <NavItem to="/login">Masuk</NavItem>
+            ) : (
+              <NavItem to={user?.role === 'ADMIN' ? '/admin' : '/akun'}>
+                {user?.role === 'ADMIN' ? 'Admin' : 'Akun'}
+              </NavItem>
+            )}
           </nav>
         </div>
       </header>

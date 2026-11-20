@@ -13,8 +13,8 @@ shared/ (@yng/shared) ──▶ backend/ (Express + TypeScript) ──▶ Postgr
 
 - **`shared/` (`@yng/shared`):** Paket tipe TypeScript bersama (`strict: true`) untuk enum status PostgreSQL, pemetaan label UI Bahasa Indonesia, bentuk respons `{ success, message, data }`, dan DTO API.
 - **Frontend (`frontend/`):** React 18, Vite, TypeScript (`strict: true`), React Router, Axios, Tailwind CSS. **Tidak pernah** memegang kunci Supabase ataupun memanggil Data API/PostgREST Supabase secara langsung.
-- **Backend (`backend/`):** Node.js, Express.js, TypeScript (`strict: true`, `tsx` untuk dev, `tsc` untuk build), `zod` (validasi input), `pg` (node-postgres raw query berparameter + transaksi manual), `@supabase/supabase-js` (khusus object storage menggunakan _service role key_ di sisi server), JWT admin di cookie `httpOnly`, Multer `memoryStorage` (stateless, tidak menulis file ke disk server), Vitest untuk unit test.
-- **Database & Storage:** PostgreSQL 15+ di Supabase (dikelola lewat migrasi bernomor di `backend/db/migrations/` + tabel pelacak `schema_migrations`; RLS aktif di seluruh tabel `public` tanpa policy) + 4 bucket Supabase Storage (`catalog`, `designs`, `payment-proofs`, `qc-photos`).
+- **Backend (`backend/`):** Node.js, Express.js, TypeScript (`strict: true`, `tsx` untuk dev, `tsc` untuk build), `zod` (validasi input), `pg` (node-postgres raw query berparameter + transaksi manual), `@supabase/supabase-js` (khusus object storage menggunakan _service role key_ di sisi server), JWT terpadu (`USER` & `ADMIN`) di cookie `httpOnly`, Multer `memoryStorage` (stateless, tidak menulis file ke disk server), Vitest untuk unit test.
+- **Database & Storage:** PostgreSQL 15+ di Supabase (dikelola lewat migrasi bernomor di `backend/db/migrations/`, `001_init.sql` + `002_accounts_cart.sql` + tabel pelacak `schema_migrations`; RLS aktif di seluruh tabel `public` tanpa policy) + 4 bucket Supabase Storage (`catalog`, `designs`, `payment-proofs`, `qc-photos`).
 
 ---
 
@@ -76,7 +76,8 @@ npm install
 # 2. Cek koneksi database PostgreSQL
 npm run db:check
 
-# 3. Jalankan seluruh migrasi skema bernomor (backend/db/migrations/*.sql)
+# 3. Jalankan seluruh migrasi skema bernomor (backend/db/migrations/*.sql -> 001 + 002)
+#    Setelah selesai: total 25 tabel public (24 tabel aplikasi + schema_migrations)
 npm run db:migrate
 
 # 4. Isi data katalog placeholder (backend/db/seeds/*.sql)
@@ -86,9 +87,11 @@ npm run db:seed
 # 5. Buat & konfigurasi 4 bucket Supabase Storage (idempoten)
 npm run storage:init
 
-# 6. Buat akun admin pertama dari ADMIN_* di backend/.env
+# 6. Buat akun ADMIN pertama di tabel users (role ADMIN) dari ADMIN_* di backend/.env
 npm run seed:admin
 ```
+
+> **PERINGATAN PENTING (`seed:admin`):** Ganti nilai `ADMIN_NAME`, `ADMIN_EMAIL`, dan `ADMIN_PASSWORD` di `backend/.env` dengan data asli milik Anda sebelum menjalankan `npm run seed:admin`. Password minimal **12 karakter** (maksimal **72 byte**), dan nilai placeholder (seperti email berakhiran `@anda.com` / `@example.com` atau nama `"Nama Anda"`) akan ditolak secara otomatis. Akun `seed:admin` kini dibuat pada tabel **`users`** dengan role **`ADMIN`**.
 
 ---
 

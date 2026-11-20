@@ -1,3 +1,5 @@
+import type { UserRole } from './enums.js';
+
 /**
  * Nilai uang dalam aplikasi YNG Apparel selalu memakai bilangan bulat rupiah (integer).
  */
@@ -48,9 +50,9 @@ export interface DbHealthStatusDto {
   wibNow: string | Date;
 }
 
-export interface AdminUserDto {
-  id: number;
-  name: string;
+export interface AuthUserDto {
+  userUuid: string;
+  fullName: string;
   email: string;
-  is_active: boolean;
+  role: UserRole;
 }

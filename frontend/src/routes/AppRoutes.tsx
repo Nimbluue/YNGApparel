@@ -4,6 +4,7 @@ import PublicLayout from '../layouts/PublicLayout';
 import Home from '../pages/Home';
 import NotFound from '../pages/NotFound';
 import AdminRoute from './AdminRoute';
+import ProtectedRoute from './ProtectedRoute';
 
 interface StagePlaceholderProps {
   stage: string;
@@ -32,6 +33,26 @@ export default function AppRoutes() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
         <Route
+          path="/login"
+          element={
+            <StagePlaceholder
+              stage="Tahap 1b"
+              title="Masuk Akun"
+              description="Halaman login terpadu untuk pelanggan (USER) dan pemilik (ADMIN) akan dibangun pada Tahap 1."
+            />
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <StagePlaceholder
+              stage="Tahap 1b"
+              title="Daftar Akun"
+              description="Halaman registrasi pelanggan baru akan dibangun pada Tahap 1."
+            />
+          }
+        />
+        <Route
           path="/custom-lab"
           element={
             <StagePlaceholder
@@ -51,20 +72,64 @@ export default function AppRoutes() {
             />
           }
         />
+
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="/akun"
+            element={
+              <StagePlaceholder
+                stage="Tahap 1b"
+                title="Profil & Alamat Tersimpan"
+                description="Halaman kelola profil, ganti password, dan alamat tersimpan akan dibangun pada Tahap 1b."
+              />
+            }
+          />
+          <Route
+            path="/keranjang"
+            element={
+              <StagePlaceholder
+                stage="Tahap 3a"
+                title="Keranjang Custom Lab"
+                description="Halaman keranjang dengan hitung ulang harga server dan pemilihan item checkout akan dibangun pada Tahap 3a."
+              />
+            }
+          />
+          <Route
+            path="/checkout"
+            element={
+              <StagePlaceholder
+                stage="Tahap 3b"
+                title="Checkout Pesanan"
+                description="Halaman checkout dari item keranjang tercentang dengan gatekeeper DP akan dibangun pada Tahap 3b."
+              />
+            }
+          />
+          <Route
+            path="/pesanan"
+            element={
+              <StagePlaceholder
+                stage="Tahap 3b"
+                title="Pesanan Saya"
+                description="Daftar pesanan milik akun Anda akan dibangun pada Tahap 3b."
+              />
+            }
+          />
+          <Route
+            path="/pesanan/:uuid"
+            element={
+              <StagePlaceholder
+                stage="Tahap 3b"
+                title="Detail Pesanan"
+                description="Detail pesanan beserta rincian pembayaran dan tombol lacak resi kurir akan dibangun pada Tahap 3b."
+              />
+            }
+          />
+        </Route>
+
         <Route path="*" element={<NotFound />} />
       </Route>
 
       <Route element={<AdminLayout />}>
-        <Route
-          path="/admin/login"
-          element={
-            <StagePlaceholder
-              stage="Tahap 1"
-              title="Login Admin"
-              description="Halaman login admin dan manajemen master data akan dibangun pada Tahap 1."
-            />
-          }
-        />
         <Route path="/admin" element={<AdminRoute />}>
           <Route
             index

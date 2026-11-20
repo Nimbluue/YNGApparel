@@ -1,13 +1,13 @@
 import { BrowserRouter } from 'react-router-dom';
-import { AdminAuthProvider } from './context/AdminAuthContext';
+import { AuthProvider } from './context/AuthContext';
 import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AdminAuthProvider>
+      <AuthProvider>
         <AppRoutes />
-      </AdminAuthProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

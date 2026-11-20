@@ -3,7 +3,7 @@
 Sumber kebenaran:
 
 - Spesifikasi: `docs/SPEC.md`
-- Skema database: `backend/db/migrations/` (dan data contoh placeholder di `backend/db/seeds/`)
+- Skema database: `backend/db/migrations/` (saat ini `001_init.sql` dan `002_accounts_cart.sql`, dan migrasi bernomor berikutnya; data contoh placeholder di `backend/db/seeds/`)
 - Kemajuan: `docs/PROGRESS.md` (update di akhir setiap tahap)
 
 Baca ketiganya sebelum mengerjakan tugas apa pun.
@@ -20,10 +20,13 @@ Baca ketiganya sebelum mengerjakan tugas apa pun.
 
 - Bahasa & tipe: gunakan **TypeScript `strict: true`** di seluruh `shared/`, `backend/`, dan `frontend/`. Dilarang memakai `any` tanpa komentar alasan yang jelas (`// eslint-disable-next-line @typescript-eslint/no-explicit-any -- <alasan>`).
 - Tipe API, enum status, dan bentuk respons `{ success, message, data }` dibagi lewat paket `shared/` (`@yng/shared`).
+- Akun, role, & otorisasi: role di DB hanya `ADMIN` dan `USER` (`user_role_t`). `"Guest"` bukan role (hanya pengunjung tanpa token). Role **tidak pernah** diterima dari input client (registrasi publik selalu membuat `USER`). Middleware wajib memuat user aktif dari DB (`is_active = TRUE` dan `token_version` cocok).
+- Isolasi data user: seluruh query resource milik pelanggan (`user_addresses`, `cart_items`, `orders` pada rute `/me/*`) **wajib** difilter berdasarkan `user_id = req.user.id`; akses ke resource milik orang lain wajib dijawab `404`.
+- Keranjang & harga: `cart_items` **tidak** menyimpan harga. Harga, DP, diskon, ongkir, dan sisa tagihan SELALU dihitung server (`pricingService`) dan selalu memakai **integer rupiah** (tanpa angka desimal pecahan). `grand_total` dan `is_dp_eligible` adalah generated column: jangan ditulis dari aplikasi.
+- Tracking kurir eksternal: URL tracking kurir **hanya** dibuat dari daftar kurir tetap di `shared/` (`shared/src/couriers.ts`), tidak pernah menerima URL bebas dari input admin atau customer.
 - DB: PostgreSQL via `pg` raw query (`$1, $2, ...`), tanpa ORM, tanpa sintaks MySQL. Transaksi lewat `withTransaction`; `SELECT ... FOR UPDATE` untuk `orders`/`payments`.
-- Skema database: perubahan skema hanya boleh lewat file migrasi bernomor baru (`backend/db/migrations/002_xxx.sql`, dst.). **Jangan pernah mengedit file migrasi yang sudah ada / sudah di-merge.** Beri tahu saya setiap kali skema berubah.
-- Harga, DP, diskon, ongkir, dan sisa tagihan SELALU dihitung server (`pricingService`) dan selalu memakai **integer rupiah** (tanpa angka desimal pecahan). `grand_total` dan `is_dp_eligible` adalah generated column: jangan ditulis dari aplikasi.
-- Backend stateless: tidak boleh menyimpan file di disk server. Semua file lewat `storageService` (Supabase Storage). Kolom `*_path` = path objek, bukan URL.
+- Skema database: perubahan skema hanya boleh lewat file migrasi bernomor baru (`backend/db/migrations/003_xxx.sql`, dst.). **Jangan pernah mengedit file migrasi yang sudah ada / sudah di-merge.** Beri tahu saya setiap kali skema berubah.
+- Backend stateless: tidak boleh menyimpan file di disk server. Semua file lewat `storageService` (Supabase Storage). Kolom `*_path` = path objek, bukan URL. File desain keranjang disimpan di prefix `designs/carts/<user_uuid>/...` (bukan `tmp/`) dan dipindahkan ke `designs/orders/<transaction_uuid>/...` saat checkout.
 - Frontend TIDAK memakai Supabase langsung dan tidak memegang kunci apa pun. RLS aktif; jangan menambah policy.
 - Jangan mengekspos `id` internal di API publik.
 - Bahasa UI: Indonesia. Nama variabel/tabel/endpoint: Inggris. Tandai asumsi dengan komentar `// ASSUMPTION`.

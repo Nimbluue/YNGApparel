@@ -40,8 +40,14 @@ export const uploadLimiter = createLimiter({
   message: 'Batas unggahan sementara tercapai. Silakan coba lagi dalam beberapa menit.',
 });
 
-export const adminLoginLimiter = createLimiter({
+export const authLoginLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: 'Terlalu banyak percobaan login. Silakan tunggu 15 menit.',
+});
+
+export const authRegisterLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Terlalu banyak percobaan pendaftaran akun. Silakan tunggu 15 menit.',
 });

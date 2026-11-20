@@ -1,9 +1,9 @@
-import type { AdminUserDto } from '@yng/shared';
+import type { AuthenticatedUser } from './auth.js';
 
 declare global {
   namespace Express {
     interface Request {
-      admin?: AdminUserDto;
+      user?: AuthenticatedUser;
     }
   }
 }
