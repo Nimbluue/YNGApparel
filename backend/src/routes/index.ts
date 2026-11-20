@@ -4,7 +4,9 @@ import { checkDbConnection } from '../config/database.js';
 import { env } from '../config/env.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/response.js';
+import accountRoutes from './accountRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import authRoutes from './authRoutes.js';
 import publicRoutes from './publicRoutes.js';
 
 const router = Router();
@@ -37,6 +39,8 @@ router.get(
   })
 );
 
+router.use('/auth', authRoutes);
+router.use('/me', accountRoutes);
 router.use('/', publicRoutes);
 router.use('/admin', adminRoutes);
 

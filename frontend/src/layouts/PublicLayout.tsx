@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { USER_ROLE } from '@yng/shared';
+import { useState, type ReactNode } from 'react';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 function NavItem({ to, children }: { to: string; children: ReactNode }) {
@@ -20,12 +21,24 @@ function NavItem({ to, children }: { to: string; children: ReactNode }) {
 }
 
 export default function PublicLayout() {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, logout } = useAuth();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate('/');
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-bone text-ink">
       <header className="sticky top-0 z-30 border-b border-line-strong bg-surface">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
           <Link to="/" className="flex items-center gap-3">
             <span className="inline-flex h-9 w-9 items-center justify-center border border-ink bg-ink font-display text-xs font-bold tracking-[0.12em] text-bone">
               YNG
@@ -40,16 +53,35 @@ export default function PublicLayout() {
             </div>
           </Link>
 
-          <nav className="flex items-center gap-4 sm:gap-6">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-6">
             <NavItem to="/custom-lab">Custom Lab</NavItem>
-            <NavItem to="/keranjang">Keranjang</NavItem>
+            {isGuest ? (
+              <Link
+                to="/login"
+                state={{ from: { pathname: '/keranjang' } }}
+                className="inline-flex min-h-touch items-center border-b-2 border-transparent px-1 font-display text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
+              >
+                Keranjang
+              </Link>
+            ) : (
+              <NavItem to="/keranjang">Keranjang</NavItem>
+            )}
             <NavItem to="/track">Lacak Pesanan</NavItem>
             {isGuest ? (
               <NavItem to="/login">Masuk</NavItem>
             ) : (
-              <NavItem to={user?.role === 'ADMIN' ? '/admin' : '/akun'}>
-                {user?.role === 'ADMIN' ? 'Admin' : 'Akun'}
-              </NavItem>
+              <>
+                {user?.role === USER_ROLE.ADMIN ? <NavItem to="/admin">Admin</NavItem> : null}
+                <NavItem to="/akun">Akun</NavItem>
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  disabled={loggingOut}
+                  className="inline-flex min-h-touch items-center border border-line-strong px-3 font-display text-xs uppercase tracking-[0.14em] text-ink transition-colors hover:bg-ink hover:text-bone disabled:opacity-40"
+                >
+                  {loggingOut ? 'Keluar...' : 'Keluar'}
+                </button>
+              </>
             )}
           </nav>
         </div>

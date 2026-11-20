@@ -70,9 +70,10 @@ export default function Home() {
               YNG Apparel Custom Lab &amp; Production Tracker
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-neutral-600 sm:text-base">
-              Studio pemesanan pakaian custom tanpa akun. Pilih model, bahan, warna, matriks ukuran,
-              dan titik sablon dengan kalkulasi harga real-time serta pelacakan produksi transparan
-              dari desain hingga pengiriman.
+              Studio pemesanan pakaian custom. Coba konfigurasi model, bahan, warna, matriks ukuran,
+              dan titik sablon dengan kalkulasi harga real-time, lalu masuk ke akun Anda untuk
+              menyimpan keranjang, mengunggah desain, dan melakukan checkout dengan pelacakan
+              produksi transparan.
             </p>
           </div>
 
@@ -127,7 +128,7 @@ export default function Home() {
       </section>
 
       <section className="border border-line bg-surface px-5 py-4 text-xs text-muted">
-        Status fondasi (Tahap 0): {health.message}
+        Status API: {health.message}
       </section>
     </div>
   );

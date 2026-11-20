@@ -33,6 +33,11 @@ function parseDurationToMs(raw: string): number {
 }
 
 export function getAuthCookieOptions(): CookieOptions {
+  // ASSUMPTION: Default COOKIE_SAMESITE=lax (direkomendasikan SPEC Bagian 13 untuk domain induk sama
+  // atau localhost via Vite proxy) sehingga browser memblokir pengiriman cookie pada POST/PUT/DELETE
+  // lintas situs dan originCheck berfungsi sebagai lapisan kedua (defense-in-depth).
+  // Jika deployment frontend & backend lintas domain, set COOKIE_SAMESITE=none (otomatis secure=true)
+  // dan originCheck menjadi perlindungan CSRF utama.
   return {
     httpOnly: true,
     secure: env.cookieSecure,
@@ -48,6 +53,7 @@ export function signAuthToken(input: {
   tokenVersion: number;
 }): string {
   const signOptions: SignOptions = {
+    algorithm: 'HS256',
     expiresIn: env.jwtExpiresIn as SignOptions['expiresIn'],
   };
 
@@ -63,11 +69,13 @@ export function signAuthToken(input: {
 }
 
 export function verifyAuthToken(token: string): AuthTokenPayload {
-  const decoded = jwt.verify(token, env.jwtSecret);
+  const decoded = jwt.verify(token, env.jwtSecret, { algorithms: ['HS256'] });
   if (
     typeof decoded === 'string' ||
     typeof decoded.sub !== 'string' ||
-    typeof decoded.token_version !== 'number'
+    decoded.sub.length === 0 ||
+    typeof decoded.token_version !== 'number' ||
+    !Number.isInteger(decoded.token_version)
   ) {
     throw new Error('Format token sesi tidak valid.');
   }
@@ -100,6 +108,7 @@ export function toAuthUserDto(user: AuthenticatedUser): AuthUserDto {
     userUuid: user.userUuid,
     fullName: user.fullName,
     email: user.email,
+    whatsapp: user.whatsapp,
     role: user.role,
   };
 }
@@ -115,23 +124,28 @@ export async function defaultFindUserByUuid(userUuid: string): Promise<AuthDbUse
   return result.rows[0] ?? null;
 }
 
+type SessionResolution =
+  | { ok: true; user: AuthenticatedUser }
+  | { ok: false; reason: 'invalid_token' | 'revoked_or_inactive' };
+
 async function resolveSessionUser(
   token: string,
   findUserByUuid: FindUserByUuidFn
-): Promise<AuthenticatedUser | null> {
-  const decoded = verifyAuthToken(token);
-  const dbUser = await findUserByUuid(decoded.sub);
-
-  if (!dbUser || !dbUser.is_active) {
-    return null;
+): Promise<SessionResolution> {
+  let decoded: AuthTokenPayload;
+  try {
+    decoded = verifyAuthToken(token);
+  } catch {
+    return { ok: false, reason: 'invalid_token' };
   }
 
-  if (dbUser.token_version !== decoded.token_version) {
-    return null;
+  const dbUser = await findUserByUuid(decoded.sub);
+  if (!dbUser || !dbUser.is_active || dbUser.token_version !== decoded.token_version) {
+    return { ok: false, reason: 'revoked_or_inactive' };
   }
 
   // Role dan identitas selalu diambil dari DB (bukan klaim role di JWT).
-  return toAuthenticatedUser(dbUser);
+  return { ok: true, user: toAuthenticatedUser(dbUser) };
 }
 
 export function createRequireAuth(
@@ -148,25 +162,20 @@ export function createRequireAuth(
       });
     }
 
-    try {
-      const user = await resolveSessionUser(token, findUserByUuid);
-      if (!user) {
-        clearAuthCookie(res);
-        return sendError(res, {
-          status: 401,
-          message: 'Sesi tidak valid, akun nonaktif, atau sesi telah dicabut.',
-        });
-      }
-
-      req.user = user;
-      return next();
-    } catch {
+    const resolution = await resolveSessionUser(token, findUserByUuid);
+    if (!resolution.ok) {
       clearAuthCookie(res);
       return sendError(res, {
         status: 401,
-        message: 'Sesi tidak valid atau telah berakhir.',
+        message:
+          resolution.reason === 'revoked_or_inactive'
+            ? 'Sesi tidak valid, akun nonaktif, atau sesi telah dicabut.'
+            : 'Sesi tidak valid atau telah berakhir.',
       });
     }
+
+    req.user = resolution.user;
+    return next();
   });
 }
 
@@ -182,21 +191,15 @@ export function createOptionalAuth(
       return next();
     }
 
-    try {
-      const user = await resolveSessionUser(token, findUserByUuid);
-      if (!user) {
-        clearAuthCookie(res);
-        req.user = undefined;
-        return next();
-      }
-
-      req.user = user;
-      return next();
-    } catch {
+    const resolution = await resolveSessionUser(token, findUserByUuid);
+    if (!resolution.ok) {
       clearAuthCookie(res);
       req.user = undefined;
       return next();
     }
+
+    req.user = resolution.user;
+    return next();
   });
 }
 

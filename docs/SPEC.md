@@ -503,7 +503,7 @@ Akses: **P** = publik (termasuk Guest), **U** = login (`requireAuth`, akun `USER
 ```
 POST /api/auth/register                  P (rate-limited; selalu role USER, abaikan field role dari client)
 POST /api/auth/login                     P (rate-limited; satu endpoint untuk USER & ADMIN, set cookie httpOnly, error generik)
-POST /api/auth/logout                    U (hapus cookie)
+POST /api/auth/logout                    P/U (idempoten tanpa requireAuth; selalu hapus cookie & balas 200)
 GET  /api/auth/me                        U (muat profil user aktif dari DB)
 PUT  /api/auth/password                  U (naikkan token_version untuk cabut sesi lama)
 ```
@@ -523,6 +523,8 @@ POST /api/uploads/design                 U  # rate-limited; simpan ke designs/ca
 
 **AKUN, ALAMAT & PESANAN SAYA (U)**
 ```
+PUT  /api/me/profile                                  # perbarui nama lengkap & nomor WhatsApp akun aktif
+POST /api/me/deactivate                               # nonaktifkan akun pelanggan (is_active=FALSE + token_version+1; wajib password)
 GET/POST/PUT/DELETE /api/me/addresses(/:addressUuid)  # maks 5 alamat per user (ASSUMPTION); filter user_id
 GET  /api/me/orders                                   # daftar pesanan milik user (filter user_id)
 GET  /api/me/orders/:uuid                             # detail pesanan milik user; milik orang lain -> 404
@@ -626,8 +628,10 @@ POST /api/uploads/design  (DPI Guard aktif)      P
 | Tahap | Cakupan | Deliverable |
 |---|---|---|
 | **0** | Setup | Monorepo npm workspaces + TypeScript `strict: true` di `shared/`, `backend/`, dan `frontend/`; paket tipe bersama `shared/` (`@yng/shared`: enum `USER_ROLE`, `AuthUserDto`, `couriers.ts` + `buildTrackingUrl()`, label status); ESLint + Prettier; `.env.example`; koneksi DB (`pg` Pool, type parser, `withTransaction`); runner migrasi `scripts/migrate.ts` (`backend/db/migrations/*.sql`, `001_init.sql` + `002_accounts_cart.sql`, `schema_migrations` + checksum + `pg_advisory_lock`); runner seed `scripts/seed.ts`; `storageService.ts` + `scripts/initStorage.ts`; error handler, response helper, rate limiter, helmet, CORS, `originCheck`, `middleware/auth.ts` (`requireAuth`, `requireRole`, `optionalAuth`, cookie httpOnly JWT), validasi Zod, `seedAdmin.ts` (menulis ke `users` role `ADMIN` + tolak placeholder), `backup.sh`; Vitest smoke/unit test; Vite + Tailwind + Router + Axios TypeScript (`AuthContext`, `ProtectedRoute`, `AdminRoute`); design tokens monokrom; skrip npm; panduan setup Supabase & alur kerja tim di README |
-| **1a** | Auth terpadu (`USER`+`ADMIN`) + Master data | Endpoint auth terpadu (`/api/auth/register`, `/login`, `/logout`, `/me`, `/password`), `requireAuth` + `requireRole('ADMIN')`, CRUD master data model/bahan/**warna per bahan**/ukuran/sablon/rekening, settings, upload gambar ke bucket `catalog`, form admin responsif |
-| **1b** | Akun pelanggan & alamat tersimpan | Halaman `/login`, `/register`, `/akun` (profil, ganti password, nonaktifkan akun `is_active = FALSE`, kelola maks 5 alamat tersimpan via `/api/me/addresses`), alur redirect kembali ke rute asal setelah login |
+| **1a-1** | Auth terpadu (`USER`+`ADMIN`) | Endpoint auth terpadu (`/api/auth/register`, `/login`, `/logout`, `/me`, `/password`), `requireAuth` + `requireRole('ADMIN')` pada `/api/admin/*`, halaman `/login` & `/register`, `AuthContext` auto-cek `/api/auth/me`, navigasi publik/admin, guard rute `/admin/*`, alur redirect `state.from` setelah login |
+| **1a-2a** | Master data admin (Backend) | `@yng/shared` master DTO, CRUD API master data model/bahan/**warna per bahan**/relasi model-bahan/ukuran/sablon/rekening, `app_settings` atomik, upload gambar ke bucket `catalog` (`multer` memori + magic bytes + `sharp` tanpa EXIF) |
+| **1a-2b** | Master data admin (Frontend) | Navigasi admin responsif serta halaman/form admin mobile-first untuk model, bahan & warna, ukuran, ukuran sablon, rekening/QRIS, pengaturan, dan unggah gambar |
+| **1b** | Akun pelanggan & alamat tersimpan | Halaman `/akun` (profil, ganti password via UI akun, nonaktifkan akun `is_active = FALSE`, kelola maks 5 alamat tersimpan via `/api/me/addresses`) |
 | **2** | Custom Lab publik | Endpoint katalog (bahan+warna), `pricingService` + `/pricing/quote`, wizard Custom Lab (Guest bebas konfigurasi & hitung harga; login diminta saat tambah keranjang / upload desain), ColorPicker (preset + custom), SizeMatrix, PrintSpotPicker, panel harga real-time, gatekeeper DP dinamis |
 | **3a** | Keranjang Custom Lab | Endpoint `/api/cart/items` (`GET/POST/PUT/DELETE`, hitung ulang harga & peringatan jika harga/status master berubah, maks 20 item), upload desain ke `designs/carts/<user_uuid>/...`, halaman `/keranjang` dengan checklist item & estimasi DP |
 | **3b** | Order dari keranjang, pembayaran awal & tracking resi | `POST /api/orders` dari item tercentang di `/checkout` (transaksi, idempotency key, order code 6 karakter, snapshot harga, SHIP/PICKUP, hapus item terbeli, pindahkan `carts/` → `orders/`), gatekeeper DP dari qty tercentang, tagihan awal, halaman instruksi bayar + upload bukti, `/pesanan` & `/pesanan/:uuid` + tombol lacak resi eksternal (`shared/src/couriers.ts`), link WhatsApp |

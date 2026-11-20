@@ -1,6 +1,14 @@
-import type { ApiSuccessResponse, AuthUserDto, UserRole } from '@yng/shared';
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import api from '../services/api';
+import type { AuthUserDto, RegisterRequestDto, UserRole } from '@yng/shared';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import * as authService from '../services/authService';
 
 interface AuthContextValue {
   user: AuthUserDto | null;
@@ -10,7 +18,8 @@ interface AuthContextValue {
   loading: boolean;
   checked: boolean;
   checkSession: () => Promise<void>;
-  login: (email: string, password: string) => Promise<AuthUserDto | null>;
+  login: (email: string, password: string) => Promise<AuthUserDto>;
+  register: (payload: RegisterRequestDto) => Promise<AuthUserDto>;
   logout: () => Promise<void>;
 }
 
@@ -18,41 +27,51 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUserDto | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState(false);
+  const inFlightCheckRef = useRef<Promise<void> | null>(null);
 
   const checkSession = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.get<ApiSuccessResponse<AuthUserDto | null>>('/auth/me');
-      setUser(response.data.data || null);
-    } catch {
-      setUser(null);
-    } finally {
-      setChecked(true);
-      setLoading(false);
+    if (inFlightCheckRef.current) {
+      return inFlightCheckRef.current;
     }
+
+    const task = (async () => {
+      setLoading(true);
+      try {
+        const currentUser = await authService.getMe();
+        setUser(currentUser);
+      } catch {
+        setUser(null);
+      } finally {
+        setChecked(true);
+        setLoading(false);
+        inFlightCheckRef.current = null;
+      }
+    })();
+
+    inFlightCheckRef.current = task;
+    return task;
   }, []);
 
+  useEffect(() => {
+    void checkSession();
+  }, [checkSession]);
+
   const login = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const response = await api.post<ApiSuccessResponse<AuthUserDto | null>>('/auth/login', {
-        email,
-        password,
-      });
-      const loggedInUser = response.data.data || null;
-      setUser(loggedInUser);
-      setChecked(true);
-      return loggedInUser;
-    } finally {
-      setLoading(false);
-    }
+    const loggedInUser = await authService.login({ email, password });
+    setUser(loggedInUser);
+    setChecked(true);
+    return loggedInUser;
+  }, []);
+
+  const register = useCallback(async (payload: RegisterRequestDto) => {
+    return authService.register(payload);
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/auth/logout');
+      await authService.logout();
     } finally {
       setUser(null);
       setChecked(true);
@@ -70,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checked,
         checkSession,
         login,
+        register,
         logout,
       }}
     >

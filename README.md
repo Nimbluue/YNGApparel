@@ -126,19 +126,21 @@ Uji endpoint kesehatan server setelah menyala:
 
 ## Alur Kerja Tim (5 Orang)
 
-1. **Branch & Pull Request:**
-   - Kerjakan **satu tahap atau fitur per branch** dari `main` (mis. `feat/tahap-1-admin-auth`, `fix/validasi-wa`, `chore/ci-setup`).
-   - Gabungkan perubahan ke `main` lewat **Pull Request (PR)** dengan code review minimal satu rekan tim.
+1. **Struktur 3 Branch Tetap (`main`, `Alpha`, `Beta`):**
+   - `main`: live / siap rilis, hanya menerima merge dari `Alpha`.
+   - `Alpha`: leader memeriksa kode setelah merge dari `Beta`.
+   - `Beta`: setiap developer melakukan `git pull` sebelum mulai bekerja dan push ke `Beta` setelah selesai mengerjakan task.
+   - Alur Pull Request: `Beta` → `Alpha` (diperiksa leader), lalu `Alpha` → `main`.
 2. **Syarat Lolos PR / CI:**
-   - Wajib lolos seluruh pemeriksaan dari root:
+   - CI menjalankan seluruh pemeriksaan berikut dari root pada setiap PR:
      ```bash
      npm run typecheck && npm run lint && npm run test && npm run build
      ```
    - Gunakan tipe bersama dari `@yng/shared` dan pertahankan `strict: true` (tanpa `any` tanpa alasan tertulis).
 3. **Aturan Migrasi Database dalam Tim:**
-   - Perubahan skema database **hanya** lewat file baru di `backend/db/migrations/` (mis. `002_add_notes_index.sql`).
-   - **Dilarang keras mengedit file migrasi yang sudah di-merge ke `main`.** Runner `db:migrate` memverifikasi checksum SHA-256 dan akan gagal jika isi migrasi terpasang berubah.
-   - Jika dua PR membuat nomor urut migrasi yang sama (mis. sama-sama `002_*.sql`), PR yang di-merge belakangan wajib me-rebase terhadap `main` dan menomori ulang filenya menjadi `003_*.sql` sebelum merge.
+   - Perubahan skema database **hanya** lewat file baru bernomor urut di `backend/db/migrations/` (mis. `003_add_notes_index.sql`).
+   - **Dilarang keras mengedit file migrasi yang sudah ada / sudah di-merge.** Runner `db:migrate` memverifikasi checksum SHA-256 dan akan gagal jika isi migrasi terpasang berubah.
+   - Nomor migrasi baru (`003`, dst.) wajib dikonfirmasi bersama pemilik/leader terlebih dahulu sebelum dibuat agar tidak bentrok antar developer.
    - `.gitattributes` menetapkan `*.sql text eol=lf` agar akhir baris SQL konsisten di Windows, macOS, dan Linux.
 
 ---

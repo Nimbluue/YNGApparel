@@ -11,9 +11,13 @@ export interface AuthDbUserRow {
   token_version: number;
 }
 
+export interface AuthDbUserWithPasswordRow extends AuthDbUserRow {
+  password_hash: string;
+  last_login_at: Date | string | null;
+}
+
 export interface AuthenticatedUser extends AuthUserDto {
   id: number;
-  whatsapp: string | null;
   tokenVersion: number;
 }
 
