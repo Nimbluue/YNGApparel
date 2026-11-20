@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --yng-ink: #09090b;
+  --yng-bone: #fafafa;
+  --yng-surface: #ffffff;
+  --yng-muted: #71717a;
+  --yng-line: #e4e4e7;
+  --yng-line-strong: #18181b;
+}
+
+@layer base {
+  html {
+    background-color: var(--yng-bone);
+    color: var(--yng-ink);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  * {
+    border-color: var(--yng-line);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-touch items-center justify-center border border-ink bg-ink px-5 py-2.5 font-display text-xs font-semibold uppercase tracking-[0.14em] text-bone transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-touch items-center justify-center border border-line-strong bg-surface px-5 py-2.5 font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-ink hover:text-bone disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .input-sharp {
+    @apply min-h-touch w-full border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-ink focus:outline-none;
+  }
+
+  .card-sharp {
+    @apply border border-line-strong bg-surface;
+  }
+
+  .tabular-price {
+    @apply font-mono tabular-nums;
+  }
+}
