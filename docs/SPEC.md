@@ -717,10 +717,14 @@ Arsitektur: `React.js (TS) → REST API → Node.js/Express.js (TS) → PostgreS
   - Tetap sediakan `scripts/backup.sh` (`pg_dump` ke file terenkripsi, dijadwalkan dari luar, mis. GitHub Actions/cron di mesin lain) dan catat di README. Data order adalah aset bisnis. Backup database **tidak** mencakup isi bucket storage; ekspor berkala untuk bucket `designs` dan `payment-proofs` dicatat sebagai tugas operasional.
   - Backend: host Node.js mana pun yang menjalankan proses terus-menerus (Railway/Render/Fly.io/VPS). Hindari serverless murni karena `node-cron` dan upload memori butuh proses yang hidup. Frontend: static host (Vercel/Netlify/Cloudflare Pages).
 - Data pribadi pelanggan (alamat, nomor HP) hanya terlihat oleh admin dan, sebagian tersamarkan, oleh pemilik order lewat tracker. Pesan notifikasi Telegram tidak memuat alamat lengkap.
-- **Alur Kerja Tim (5 Orang):**
-  - Gunakan branch terpisah per fitur/tahap (`feat/...`, `fix/...`, `chore/...`) dan gabungkan ke `main` lewat Pull Request (PR) dengan code review.
-  - CI wajib menjalankan `npm run typecheck`, `npm run lint`, `npm run test`, dan `npm run build` sebelum PR boleh di-merge ke `main`.
-  - **Aturan migrasi DB dalam tim:** jangan pernah mengedit file migrasi yang sudah di-merge ke `main`. Jika dua PR secara bersamaan membuat nomor migrasi yang sama (mis. sama-sama `002_xxx.sql`), PR yang menyusul wajib menyelesaikan bentrok nomor (mengganti ke `003_xxx.sql`) saat rebase terhadap `main` sebelum merge.
+- **Alur Git & Kerja Tim (5 Orang, satu monorepo `backend/`, `frontend/`, `shared/`):**
+  - Struktur 3 branch tetap:
+    - `main`: live / siap rilis, hanya menerima merge dari `Alpha`.
+    - `Alpha`: leader memeriksa kode setelah merge dari `Beta`.
+    - `Beta`: setiap developer melakukan `git pull` sebelum mulai bekerja dan push ke `Beta` setelah selesai mengerjakan task.
+  - **Pull Request & CI:** alur PR adalah `Beta` → `Alpha` (diperiksa leader), lalu `Alpha` → `main`. CI wajib menjalankan `npm run typecheck`, `npm run lint`, `npm run test`, dan `npm run build` pada setiap PR.
+  - **Aturan agent dalam alur Git:** agent **tidak** membuat branch, **tidak** `commit`, dan **tidak** `push`. Agent bekerja di branch aktif (seharusnya `Beta`); jika branch aktif adalah `main` atau `Alpha`, agent wajib berhenti dan memberi tahu pemilik/developer. Sebelum memulai tugas baru, agent mengingatkan untuk `git pull` terlebih dahulu dan menutup semua tab editor yang berisi file yang akan diubah.
+  - **Aturan migrasi DB dalam tim:** jangan pernah mengedit file migrasi yang sudah ada / sudah di-merge. Nomor migrasi baru (`003`, dst.) wajib dikonfirmasi terlebih dahulu sebelum dibuat agar tidak bentrok antar developer.
 
 ---
 

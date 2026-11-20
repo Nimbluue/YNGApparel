@@ -10,11 +10,23 @@ Baca ketiganya sebelum mengerjakan tugas apa pun.
 
 ## Cara kerja
 
-- Kerjakan SATU tahap per PR/sesi sesuai Bagian 11 SPEC. Jangan lanjut ke tahap berikutnya sebelum saya bilang "lanjut".
+- Kerjakan SATU tahap per sesi/task sesuai Bagian 11 SPEC. Jangan lanjut ke tahap berikutnya sebelum saya bilang "lanjut".
 - Jangan mengubah file di luar cakupan tahap yang sedang dikerjakan.
 - Sebelum menyatakan tahap selesai, WAJIB jalankan `npm run typecheck`, `npm run lint`, dan `npm run test` (serta `npm run build` jika menyentuh struktur build/deploy), pastikan semuanya lulus.
 - Di akhir tiap tahap tampilkan: daftar file dibuat/diubah/dihapus, cara menjalankan, cara menguji, lalu update `docs/PROGRESS.md`.
 - Ambiguitas kecil: ambil asumsi paling masuk akal, tulis asumsinya, lanjut. Jika bertentangan dengan SPEC: tanya dulu, jangan menyimpang diam-diam.
+
+## Alur Git & Kerja Tim
+
+Tim beranggotakan 5 orang bekerja di satu monorepo (`backend/`, `frontend/`, `shared/`) dengan 3 branch tetap:
+
+- `main`: live / siap rilis, hanya menerima merge dari `Alpha`.
+- `Alpha`: leader memeriksa kode setelah merge dari `Beta`.
+- `Beta`: setiap developer push ke branch ini setelah selesai mengerjakan task.
+- **Pull Request & CI:** alur PR adalah `Beta` → `Alpha` (diperiksa leader), lalu `Alpha` → `main`. CI menjalankan `npm run typecheck`, `npm run lint`, `npm run test`, dan `npm run build` pada setiap PR.
+- **Batas kerja agent di Git:** agent **TIDAK** membuat branch, **TIDAK** `commit`, dan **TIDAK** `push`. Agent bekerja di branch aktif (seharusnya `Beta`); jika branch aktif adalah `main` atau `Alpha`, agent wajib berhenti dan memberi tahu saya.
+- **Persiapan sebelum tugas baru:** sebelum memulai tugas baru, agent mengingatkan saya untuk `git pull` dulu dan menutup semua tab editor yang berisi file yang akan diubah.
+- **Koordinasi nomor migrasi:** nomor migrasi baru (`003`, dst.) harus dikonfirmasi saya dulu sebelum dibuat agar tidak bentrok antar developer.
 
 ## Aturan keras
 
@@ -25,7 +37,7 @@ Baca ketiganya sebelum mengerjakan tugas apa pun.
 - Keranjang & harga: `cart_items` **tidak** menyimpan harga. Harga, DP, diskon, ongkir, dan sisa tagihan SELALU dihitung server (`pricingService`) dan selalu memakai **integer rupiah** (tanpa angka desimal pecahan). `grand_total` dan `is_dp_eligible` adalah generated column: jangan ditulis dari aplikasi.
 - Tracking kurir eksternal: URL tracking kurir **hanya** dibuat dari daftar kurir tetap di `shared/` (`shared/src/couriers.ts`), tidak pernah menerima URL bebas dari input admin atau customer.
 - DB: PostgreSQL via `pg` raw query (`$1, $2, ...`), tanpa ORM, tanpa sintaks MySQL. Transaksi lewat `withTransaction`; `SELECT ... FOR UPDATE` untuk `orders`/`payments`.
-- Skema database: perubahan skema hanya boleh lewat file migrasi bernomor baru (`backend/db/migrations/003_xxx.sql`, dst.). **Jangan pernah mengedit file migrasi yang sudah ada / sudah di-merge.** Beri tahu saya setiap kali skema berubah.
+- Skema database: perubahan skema hanya boleh lewat file migrasi bernomor baru (`backend/db/migrations/003_xxx.sql`, dst.), dan nomor migrasi baru harus dikonfirmasi saya dulu agar tidak bentrok antar developer. **Jangan pernah mengedit file migrasi yang sudah ada / sudah di-merge.** Beri tahu saya setiap kali skema berubah.
 - Backend stateless: tidak boleh menyimpan file di disk server. Semua file lewat `storageService` (Supabase Storage). Kolom `*_path` = path objek, bukan URL. File desain keranjang disimpan di prefix `designs/carts/<user_uuid>/...` (bukan `tmp/`) dan dipindahkan ke `designs/orders/<transaction_uuid>/...` saat checkout.
 - Frontend TIDAK memakai Supabase langsung dan tidak memegang kunci apa pun. RLS aktif; jangan menambah policy.
 - Jangan mengekspos `id` internal di API publik.
@@ -35,7 +47,7 @@ Baca ketiganya sebelum mengerjakan tugas apa pun.
 
 - JANGAN membaca, mencetak, atau menyalin isi `.env` ke output, log, atau commit. Hanya `.env.example` (tanpa nilai rahasia) yang boleh di-commit.
 - JANGAN menjalankan perintah yang mengubah atau mengakses database maupun storage (mis. `db:check`, `db:migrate`, `db:seed`, `storage:init`, `seed:admin`) tanpa persetujuan eksplisit dari saya. Cukup sediakan skripnya dan beri tahu cara menjalankannya.
-- JANGAN menjalankan `git push` atau `git commit` sendiri kecuali saya minta.
+- JANGAN membuat branch, menjalankan `git commit`, atau menjalankan `git push`. Bekerjalah di branch aktif (seharusnya `Beta`); jika branch aktif adalah `main` atau `Alpha`, segera berhenti dan beri tahu saya.
 
 ## Lingkungan
 
