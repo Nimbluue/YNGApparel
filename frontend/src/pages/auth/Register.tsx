@@ -120,13 +120,28 @@ export default function Register() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <div className="card-sharp p-6 sm:p-8">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted">Akun Pelanggan</p>
-        <h1 className="mt-2 font-display text-2xl font-bold uppercase tracking-[0.08em]">
+    <div className="auth-page mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+      <aside className="auth-brand-panel relative flex min-h-64 flex-col justify-between bg-ink p-6 text-bone sm:p-10 lg:min-h-[720px]">
+        <span className="absolute right-5 top-5 font-mono text-xl text-accent" aria-hidden="true">
+          +
+        </span>
+        <div>
+          <p className="font-mono text-xs text-neutral-300">YNG APPAREL / BATAM</p>
+          <p className="mt-12 max-w-md font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+            SETIAP TIM PUNYA CERITA.
+          </p>
+        </div>
+        <p className="mt-8 max-w-sm font-editorial text-2xl italic text-accent sm:text-3xl">
+          Mulai dari satu desain, lanjut jadi identitas.
+        </p>
+      </aside>
+
+      <section className="auth-form-panel py-2 sm:py-8 lg:py-10">
+        <p className="eyebrow">Ruang pelanggan</p>
+        <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
           Daftar Akun
         </h1>
-        <p className="mt-2 text-sm text-neutral-600">
+        <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
           Buat akun untuk menyimpan konfigurasi Custom Lab di keranjang, alamat pengiriman, dan
           memantau pesanan Anda.
         </p>
@@ -134,11 +149,11 @@ export default function Register() {
         {errorMessage ? (
           <div
             role="alert"
-            className="mt-5 border border-status-err bg-surface px-4 py-3 text-sm text-status-err"
+            className="mt-6 border-l-4 border-status-err px-4 py-3 text-base text-status-err"
           >
             <p>{errorMessage}</p>
             {fieldErrors.length > 1 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
                 {fieldErrors.map((item, index) => (
                   <li key={`${item.field}-${index}`}>{item.message}</li>
                 ))}
@@ -147,12 +162,13 @@ export default function Register() {
           </div>
         ) : null}
 
-        <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-4" noValidate>
+        <form
+          onSubmit={(event) => void handleSubmit(event)}
+          className="mt-8 max-w-xl space-y-5"
+          noValidate
+        >
           <div>
-            <label
-              htmlFor="register-fullname"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="register-fullname" className="block text-sm font-semibold">
               Nama Lengkap
             </label>
             <input
@@ -170,10 +186,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label
-              htmlFor="register-email"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="register-email" className="block text-sm font-semibold">
               Email
             </label>
             <input
@@ -191,10 +204,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label
-              htmlFor="register-whatsapp"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="register-whatsapp" className="block text-sm font-semibold">
               Nomor WhatsApp
             </label>
             <input
@@ -209,16 +219,13 @@ export default function Register() {
               className="input-sharp mt-2"
               disabled={submitting}
             />
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-2 text-sm text-muted">
               Contoh: 081234567890 atau 6281234567890 (otomatis dinormalisasi ke format 62).
             </p>
           </div>
 
           <div>
-            <label
-              htmlFor="register-password"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="register-password" className="block text-sm font-semibold">
               Password
             </label>
             <input
@@ -236,10 +243,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label
-              htmlFor="register-confirm-password"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="register-confirm-password" className="block text-sm font-semibold">
               Konfirmasi Password
             </label>
             <input
@@ -261,17 +265,17 @@ export default function Register() {
           </button>
         </form>
 
-        <div className="mt-6 border-t border-line pt-5 text-sm text-neutral-600">
+        <div className="mt-8 border-t border-line pt-5 text-base text-muted">
           Sudah punya akun?{' '}
           <Link
             to="/login"
             state={routeState?.from ? { from: routeState.from } : undefined}
-            className="font-semibold text-ink underline underline-offset-4 hover:text-neutral-600"
+            className="font-semibold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-muted"
           >
             Masuk di sini
           </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

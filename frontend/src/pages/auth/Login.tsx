@@ -114,30 +114,42 @@ export default function Login() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <div className="card-sharp p-6 sm:p-8">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted">Autentikasi</p>
-        <h1 className="mt-2 font-display text-2xl font-bold uppercase tracking-[0.08em]">
+    <div className="auth-page mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+      <aside className="auth-brand-panel relative flex min-h-64 flex-col justify-between bg-ink p-6 text-bone sm:p-10 lg:min-h-[620px]">
+        <span className="absolute right-5 top-5 font-mono text-xl text-accent" aria-hidden="true">
+          +
+        </span>
+        <div>
+          <p className="font-mono text-xs text-neutral-300">YNG APPAREL / BATAM</p>
+          <p className="mt-12 max-w-md font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+            BIKIN IDE JADI SERAGAM.
+          </p>
+        </div>
+        <p className="mt-8 max-w-sm font-editorial text-2xl italic text-accent sm:text-3xl">
+          Pakaian custom, dikerjakan bareng dari awal.
+        </p>
+      </aside>
+
+      <section className="auth-form-panel py-2 sm:py-8 lg:py-10">
+        <p className="eyebrow">Akun pelanggan &amp; workshop</p>
+        <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
           Masuk Akun
         </h1>
-        <p className="mt-2 text-sm text-neutral-600">
+        <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
           Masuk untuk mengelola keranjang Custom Lab, pesanan Anda, atau akses dashboard admin.
         </p>
 
         {routeState?.registeredMessage ? (
           <div
             role="status"
-            className="mt-5 border border-status-ok bg-surface px-4 py-3 text-sm text-status-ok"
+            className="care-label mt-6 border-l-status-ok bg-transparent px-0 py-0 text-base text-status-ok"
           >
             {routeState.registeredMessage}
           </div>
         ) : null}
 
         {routeState?.statusMessage ? (
-          <div
-            role="status"
-            className="mt-5 border border-line-strong bg-bone px-4 py-3 text-sm text-ink"
-          >
+          <div role="status" className="mt-6 border-l-4 border-ink px-4 py-3 text-base">
             {routeState.statusMessage}
           </div>
         ) : null}
@@ -145,18 +157,19 @@ export default function Login() {
         {errorMessage ? (
           <div
             role="alert"
-            className="mt-5 border border-status-err bg-surface px-4 py-3 text-sm text-status-err"
+            className="mt-6 border-l-4 border-status-err px-4 py-3 text-base text-status-err"
           >
             {errorMessage}
           </div>
         ) : null}
 
-        <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-5" noValidate>
+        <form
+          onSubmit={(event) => void handleSubmit(event)}
+          className="mt-8 max-w-xl space-y-6"
+          noValidate
+        >
           <div>
-            <label
-              htmlFor="login-email"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="login-email" className="block text-sm font-semibold">
               Email
             </label>
             <input
@@ -174,10 +187,7 @@ export default function Login() {
           </div>
 
           <div>
-            <label
-              htmlFor="login-password"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="login-password" className="block text-sm font-semibold">
               Password
             </label>
             <input
@@ -199,17 +209,17 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-6 border-t border-line pt-5 text-sm text-neutral-600">
+        <div className="mt-8 border-t border-line pt-5 text-base text-muted">
           Belum punya akun pelanggan?{' '}
           <Link
             to="/register"
             state={routeState?.from ? { from: routeState.from } : undefined}
-            className="font-semibold text-ink underline underline-offset-4 hover:text-neutral-600"
+            className="font-semibold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-muted"
           >
             Daftar di sini
           </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

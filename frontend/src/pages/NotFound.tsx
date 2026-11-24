@@ -2,15 +2,17 @@ import { Link } from 'react-router-dom';
 
 export default function NotFound() {
   return (
-    <div className="card-sharp mx-auto max-w-lg p-8 text-center">
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">404</p>
-      <h1 className="mt-2 font-display text-2xl font-bold uppercase tracking-[0.1em]">
-        Halaman Tidak Ditemukan
+    <div className="mx-auto max-w-3xl py-12 sm:py-20">
+      <p className="inline-block bg-accent px-2 py-1 font-mono text-sm font-semibold text-ink">
+        404 / SALAH JALAN
+      </p>
+      <h1 className="mt-4 font-display text-6xl font-black leading-[0.86] tracking-[-0.06em] sm:text-8xl">
+        Halaman ini belum ada.
       </h1>
-      <p className="mt-3 text-sm text-neutral-600">
+      <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
         Tautan yang Anda tuju tidak tersedia atau telah dipindahkan.
       </p>
-      <div className="mt-6">
+      <div className="mt-8">
         <Link to="/" className="btn-primary">
           Kembali ke Beranda
         </Link>

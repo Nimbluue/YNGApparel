@@ -199,16 +199,14 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <section className="card-sharp p-4 sm:p-6">
+      <section className="border-b-2 border-ink pb-5 sm:pb-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted">
-              Admin · Konfigurasi
-            </p>
-            <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-[0.08em]">
+            <p className="eyebrow">Ruang produksi · Konfigurasi</p>
+            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
               Pengaturan Toko
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
               Nilai pengaturan (persentase DP, minimal qty DP, batas bayar, dan DPI Guard) akan
               dibaca dari server dan di-snapshot ke setiap order baru.
             </p>

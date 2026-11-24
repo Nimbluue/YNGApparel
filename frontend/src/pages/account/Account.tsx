@@ -398,33 +398,31 @@ export default function Account() {
     editingAddressUuid === null && addresses.length >= MAX_SAVED_ADDRESSES;
 
   return (
-    <div className="space-y-8">
-      <section className="card-sharp p-4 sm:p-6">
+    <div className="account-page space-y-10 sm:space-y-14">
+      <header className="grid gap-5 border-b-2 border-ink pb-8 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted">
-              Akun &amp; Preferensi
-            </p>
-            <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-[0.08em]">
-              Profil Saya
+            <p className="eyebrow">Ruang pelanggan</p>
+            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+              Profil saya
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
               Kelola data profil, alamat pengiriman tersimpan untuk checkout cepat, password, dan
               keamanan akun Anda.
             </p>
           </div>
           {user ? (
-            <span className="border border-ink bg-ink px-3 py-1 font-mono text-xs uppercase tracking-[0.14em] text-bone">
+            <span className="care-label self-start font-mono text-xs">
               {user.role === USER_ROLE.ADMIN ? 'ADMIN' : 'PELANGGAN'}
             </span>
           ) : null}
         </div>
-      </section>
+      </header>
 
       {/* 01 / Profil Akun */}
       <section className="card-sharp p-4 sm:p-6">
-        <h2 className="border-b border-line pb-3 font-display text-base font-bold uppercase tracking-[0.1em]">
-          01 / Informasi Profil
+        <h2 className="border-b border-line pb-3 font-display text-2xl font-bold">
+          Informasi profil
         </h2>
 
         {profileFeedback ? (
@@ -507,7 +505,7 @@ export default function Account() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <div>
             <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
-              02 / Alamat Tersimpan ({addresses.length}/{MAX_SAVED_ADDRESSES})
+              Alamat tersimpan ({addresses.length}/{MAX_SAVED_ADDRESSES})
             </h2>
             <p className="text-xs text-muted">
               Maksimal {MAX_SAVED_ADDRESSES} alamat tersimpan. Alamat yang dipilih saat checkout
@@ -849,10 +847,9 @@ export default function Account() {
         </div>
       </section>
 
-      {/* 03 / Keamanan — Ganti Password */}
       <section className="card-sharp p-4 sm:p-6">
-        <h2 className="border-b border-line pb-3 font-display text-base font-bold uppercase tracking-[0.1em]">
-          03 / Keamanan — Ganti Password
+        <h2 className="border-b border-line pb-3 font-display text-2xl font-bold">
+          Keamanan &amp; password
         </h2>
         <p className="mt-2 text-xs text-muted">
           Mengganti password akan langsung mencabut seluruh sesi login di browser/perangkat lain dan
@@ -938,10 +935,9 @@ export default function Account() {
         </form>
       </section>
 
-      {/* 04 / Nonaktifkan Akun */}
       <section className="card-sharp border-status-err p-4 sm:p-6">
-        <h2 className="border-b border-line pb-3 font-display text-base font-bold uppercase tracking-[0.1em] text-status-err">
-          04 / Nonaktifkan Akun
+        <h2 className="border-b border-line pb-3 font-display text-2xl font-bold text-status-err">
+          Nonaktifkan akun
         </h2>
 
         {user?.role === USER_ROLE.ADMIN ? (

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as authService from '../services/authService';
 
 interface AuthContextValue {
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState(false);
   const inFlightCheckRef = useRef<Promise<void> | null>(null);
+  const navigate = useNavigate();
 
   const checkSession = useCallback(async () => {
     if (inFlightCheckRef.current) {
@@ -53,6 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     inFlightCheckRef.current = task;
     return task;
   }, []);
+
+  // Tangani event 401 dari Axios interceptor → logout & redirect login
+  useEffect(() => {
+    const handler = () => {
+      setUser(null);
+      setChecked(true);
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('yng:unauthorized', handler);
+    return () => window.removeEventListener('yng:unauthorized', handler);
+  }, [navigate]);
 
   useEffect(() => {
     void checkSession();

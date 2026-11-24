@@ -176,16 +176,14 @@ export default function PaymentAccounts() {
 
   return (
     <div className="space-y-6">
-      <section className="card-sharp p-4 sm:p-6">
+      <section className="border-b-2 border-ink pb-5 sm:pb-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted">
-              Admin · Pembayaran
-            </p>
-            <h1 className="mt-1 font-display text-2xl font-bold uppercase tracking-[0.08em]">
+            <p className="eyebrow">Ruang produksi · Pembayaran</p>
+            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
               Rekening &amp; QRIS
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
               Kelola rekening bank dan kode QRIS resmi toko. Hanya akun pembayaran berstatus aktif
               yang akan ditampilkan ke pelanggan saat memilih metode bayar.
             </p>

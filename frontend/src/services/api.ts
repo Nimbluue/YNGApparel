@@ -22,13 +22,30 @@ const api = axios.create({
   timeout: 15000,
 });
 
+/**
+ * Interceptor response:
+ * - 401: sesi habis → dispatch event agar AuthContext bisa logout + redirect
+ * - 403: akses ditolak → dispatch event agar bisa ditangani UI
+ * - Error lain: normalisasi ke ApiClientError
+ */
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorResponse>) => {
+    const status = error.response?.status ?? 0;
     const serverMessage = error.response?.data?.message;
+
+    if (status === 401) {
+      // Dispatch custom event agar AuthContext / ProtectedRoute bisa logout
+      window.dispatchEvent(new CustomEvent('yng:unauthorized'));
+    }
+
+    if (status === 403) {
+      window.dispatchEvent(new CustomEvent('yng:forbidden'));
+    }
+
     const normalizedError = new ApiClientError(
       serverMessage || 'Gagal terhubung ke server. Periksa koneksi Anda dan coba lagi.',
-      error.response?.status || 0,
+      status,
       error.response?.data?.data ?? null
     );
     return Promise.reject(normalizedError);

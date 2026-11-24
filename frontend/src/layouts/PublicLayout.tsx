@@ -8,10 +8,10 @@ function NavItem({ to, children }: { to: string; children: ReactNode }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `inline-flex min-h-touch items-center border-b-2 px-1 font-display text-xs uppercase tracking-[0.16em] transition-colors ${
+        `inline-flex min-h-touch shrink-0 items-center border-b-2 px-3 font-display text-sm font-semibold transition-colors ${
           isActive
-            ? 'border-ink font-semibold text-ink'
-            : 'border-transparent text-muted hover:text-ink'
+            ? 'border-accent text-ink'
+            : 'border-transparent text-muted hover:border-line-strong hover:text-ink'
         }`
       }
     >
@@ -37,29 +37,32 @@ export default function PublicLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-bone text-ink">
-      <header className="sticky top-0 z-30 border-b border-line-strong bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex items-center gap-3">
-            <span className="inline-flex h-9 w-9 items-center justify-center border border-ink bg-ink font-display text-xs font-bold tracking-[0.12em] text-bone">
+      <header className="site-header sticky top-0 z-30 border-b-2 border-ink bg-bone">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6 lg:px-10">
+          <Link to="/" className="flex min-h-touch items-center gap-3">
+            <span className="relative inline-flex h-11 w-11 items-center justify-center bg-ink font-display text-sm font-black text-bone">
+              <span className="absolute -right-1 -top-1 font-mono text-sm leading-none text-accent">
+                +
+              </span>
               YNG
             </span>
             <div>
-              <p className="font-display text-sm font-bold uppercase tracking-[0.18em]">
-                YNG Apparel
+              <p className="font-display text-base font-extrabold leading-tight tracking-tightest">
+                YNG APPAREL
               </p>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-muted">
-                Custom Lab &amp; Production
+              <p className="font-mono text-[11px] leading-tight text-muted">
+                Batam · Garment &amp; Sablon
               </p>
             </div>
           </Link>
 
-          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-6">
+          <nav aria-label="Navigasi utama" className="site-nav flex items-center gap-1 sm:gap-2">
             <NavItem to="/custom-lab">Custom Lab</NavItem>
             {isGuest ? (
               <Link
                 to="/login"
                 state={{ from: { pathname: '/keranjang' } }}
-                className="inline-flex min-h-touch items-center border-b-2 border-transparent px-1 font-display text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
+                className="inline-flex min-h-touch shrink-0 items-center border-b-2 border-transparent px-3 font-display text-sm font-semibold text-muted transition-colors hover:text-ink"
               >
                 Keranjang
               </Link>
@@ -77,7 +80,7 @@ export default function PublicLayout() {
                   type="button"
                   onClick={() => void handleLogout()}
                   disabled={loggingOut}
-                  className="inline-flex min-h-touch items-center border border-line-strong px-3 font-display text-xs uppercase tracking-[0.14em] text-ink transition-colors hover:bg-ink hover:text-bone disabled:opacity-40"
+                  className="inline-flex min-h-touch shrink-0 items-center border border-line-strong px-3 font-display text-sm font-semibold text-ink transition-colors hover:bg-ink hover:text-bone disabled:opacity-40"
                 >
                   {loggingOut ? 'Keluar...' : 'Keluar'}
                 </button>
@@ -87,16 +90,16 @@ export default function PublicLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-8 sm:px-6 sm:py-12 lg:px-10">
         <Outlet />
       </main>
 
-      <footer className="border-t border-line-strong bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="font-display uppercase tracking-[0.14em] text-ink">
-            YNG Apparel — Batam, Indonesia
+      <footer className="border-t-2 border-ink bg-ink text-bone">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-sm text-neutral-300 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
+          <p className="font-display font-bold text-bone">YNG Apparel · Batam, Indonesia</p>
+          <p className="font-mono text-xs">
+            Custom pakaian satuan &amp; grosir · @yng.apparel.official
           </p>
-          <p>Custom Pakaian Satuan &amp; Grosir · @yng.apparel.official</p>
         </div>
       </footer>
     </div>
