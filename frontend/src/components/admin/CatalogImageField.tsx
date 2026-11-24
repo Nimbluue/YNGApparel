@@ -87,29 +87,22 @@ export default function CatalogImageField({
   }
 
   return (
-    <div className="space-y-2 border border-line bg-bone p-3.5">
+    <div className="space-y-2 rounded-2xl border border-line bg-surface/50 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <label
-          htmlFor={id}
-          className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-        >
+        <label htmlFor={id} className="block text-sm font-medium text-ink">
           {label}
         </label>
-        <span className="font-mono text-[11px] uppercase text-muted">
-          JPG / PNG / WEBP · MAKS 5 MB
-        </span>
+        <span className="text-xs text-muted">JPG / PNG / WebP · Maks 5 MB</span>
       </div>
 
       {helperText ? <p className="text-xs text-neutral-600">{helperText}</p> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center border border-line-strong bg-surface">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line-strong bg-white">
           {effectivePreviewUrl ? (
             <img src={effectivePreviewUrl} alt={label} className="h-full w-full object-contain" />
           ) : (
-            <span className="px-2 text-center font-mono text-[10px] uppercase text-muted">
-              Belum Ada Gambar
-            </span>
+            <span className="px-2 text-center text-xs text-muted">Belum ada gambar</span>
           )}
         </div>
 
@@ -139,7 +132,7 @@ export default function CatalogImageField({
                 type="button"
                 onClick={handleClear}
                 disabled={disabled || uploading}
-                className="inline-flex min-h-touch items-center justify-center border border-status-err px-4 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] text-status-err transition-colors hover:bg-status-err hover:text-bone disabled:opacity-40"
+                className="inline-flex min-h-touch items-center justify-center rounded-full border border-status-err px-4 py-2 text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white disabled:opacity-40"
               >
                 Hapus Gambar
               </button>
@@ -147,9 +140,11 @@ export default function CatalogImageField({
           </div>
 
           {pathValue ? (
-            <p className="break-all font-mono text-[11px] text-neutral-600">Path: {pathValue}</p>
+            <p className="break-all text-xs text-muted">
+              Path: <span className="font-mono text-ink">{pathValue}</span>
+            </p>
           ) : (
-            <p className="font-mono text-[11px] text-muted">Path objek belum diisi.</p>
+            <p className="text-xs text-muted">Path objek belum diisi.</p>
           )}
         </div>
       </div>

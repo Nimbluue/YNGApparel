@@ -34,8 +34,14 @@ api.interceptors.response.use(
     const status = error.response?.status ?? 0;
     const serverMessage = error.response?.data?.message;
 
-    if (status === 401) {
-      // Dispatch custom event agar AuthContext / ProtectedRoute bisa logout
+    const requestUrl = String(error.config?.url ?? '');
+    const isPublicAuthProbe =
+      requestUrl.includes('/auth/me') ||
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register');
+
+    if (status === 401 && !isPublicAuthProbe) {
+      // Dispatch custom event hanya untuk sesi yang habis pada rute terproteksi agar Guest bebas menjelajah
       window.dispatchEvent(new CustomEvent('yng:unauthorized'));
     }
 

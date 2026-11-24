@@ -1,6 +1,5 @@
 /**
- * Tombol workshop: bentuk tegas, aksi utama memakai tinta oranye.
- * Variasi: primary (hitam solid), secondary (outline), ghost, danger
+ * Tombol utama bergaya editorial monokrom dengan sudut pill proporsional dan target sentuh >= 44px.
  */
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
 
@@ -13,17 +12,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'inline-flex min-h-touch items-center justify-center border border-ink bg-accent px-5 py-3 font-display text-sm font-bold text-ink transition-colors hover:bg-ink hover:text-bone disabled:cursor-not-allowed disabled:opacity-40',
+    'inline-flex min-h-touch items-center justify-center rounded-full border border-ink bg-ink px-6 py-2.5 font-display text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40',
   secondary:
-    'inline-flex min-h-touch items-center justify-center border border-line-strong bg-transparent px-5 py-3 font-display text-sm font-semibold text-ink transition-colors hover:bg-ink hover:text-bone disabled:cursor-not-allowed disabled:opacity-40',
+    'inline-flex min-h-touch items-center justify-center rounded-full border border-line-strong bg-white px-6 py-2.5 font-display text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40',
   ghost:
-    'inline-flex min-h-touch items-center justify-center border border-transparent px-4 py-3 font-display text-sm font-semibold text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-accent disabled:cursor-not-allowed disabled:opacity-40',
+    'inline-flex min-h-touch items-center justify-center rounded-full border border-transparent px-4 py-2.5 font-display text-sm font-semibold text-ink transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40',
   danger:
-    'inline-flex min-h-touch items-center justify-center border border-status-err bg-status-err px-5 py-3 font-display text-sm font-bold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40',
+    'inline-flex min-h-touch items-center justify-center rounded-full border border-status-err bg-status-err px-6 py-2.5 font-display text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40',
 };
 
 const SIZE_CLASSES: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'px-3 py-2 text-sm min-h-touch',
+  sm: 'px-4 py-2 text-xs min-h-touch',
   md: '',
 };
 
@@ -46,7 +45,7 @@ export function Button({
         <span className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="inline-block h-3 w-3 animate-spin border border-current border-t-transparent"
+            className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
           />
           {children}
         </span>

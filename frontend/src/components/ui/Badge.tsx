@@ -1,6 +1,18 @@
 /**
- * Badge status semantik dengan aksen hemat dan penanda yang mudah dibaca.
+ * Badge status semantik dengan bentuk pill proporsional dan kontras monokrom bersih.
  */
+import {
+  DESIGN_STATUS,
+  PAYMENT_STATUS,
+  PRODUCTION_STATUS,
+  getDesignStatusLabel,
+  getPaymentStatusLabel,
+  getProductionStatusLabel,
+  type DesignStatus,
+  type FulfillmentType,
+  type PaymentStatus,
+  type ProductionStatus,
+} from '@yng/shared';
 import type { ReactNode } from 'react';
 
 type BadgeVariant = 'neutral' | 'ok' | 'warn' | 'err' | 'info';
@@ -13,11 +25,11 @@ interface BadgeProps {
 }
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
-  neutral: 'border-line-strong text-ink bg-surface',
-  ok: 'border-status-ok text-status-ok bg-surface',
-  warn: 'border-status-warn text-status-warn bg-surface',
-  err: 'border-status-err text-status-err bg-surface',
-  info: 'border-accent text-ink bg-accent',
+  neutral: 'border-line bg-surface text-ink',
+  ok: 'border-emerald-200 bg-emerald-50 text-status-ok',
+  warn: 'border-amber-200 bg-amber-50 text-status-warn',
+  err: 'border-red-200 bg-red-50 text-status-err',
+  info: 'border-ink bg-ink text-white',
 };
 
 const DOT_CLASSES: Record<BadgeVariant, string> = {
@@ -25,30 +37,24 @@ const DOT_CLASSES: Record<BadgeVariant, string> = {
   ok: 'bg-status-ok',
   warn: 'bg-status-warn',
   err: 'bg-status-err',
-  info: 'bg-ink',
+  info: 'bg-white',
 };
 
 export function Badge({ variant = 'neutral', children, className = '', dot = false }: BadgeProps) {
   return (
     <span
-      className={`inline-flex min-h-7 items-center gap-2 border px-2.5 py-1 font-mono text-xs ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex min-h-7 items-center gap-2 rounded-full border px-3 py-1 font-sans text-xs font-medium ${VARIANT_CLASSES[variant]} ${className}`}
     >
       {dot && (
         <span
           aria-hidden="true"
-          className={`inline-block h-1.5 w-1.5 shrink-0 ${DOT_CLASSES[variant]}`}
+          className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${DOT_CLASSES[variant]}`}
         />
       )}
       {children}
     </span>
   );
 }
-
-/**
- * Badge khusus untuk status produksi — mapping dari PRODUCTION_STATUS ke variant.
- */
-import type { ProductionStatus } from '@yng/shared';
-import { PRODUCTION_STATUS, getProductionStatusLabel, type FulfillmentType } from '@yng/shared';
 
 const PROD_STATUS_VARIANT: Record<ProductionStatus, BadgeVariant> = {
   [PRODUCTION_STATUS.NEW_ORDER]: 'info',
@@ -74,12 +80,6 @@ export function ProductionBadge({ status, fulfillmentType, className }: Producti
   );
 }
 
-/**
- * Badge untuk status pembayaran.
- */
-import type { PaymentStatus } from '@yng/shared';
-import { PAYMENT_STATUS, getPaymentStatusLabel } from '@yng/shared';
-
 const PAY_STATUS_VARIANT: Record<PaymentStatus, BadgeVariant> = {
   [PAYMENT_STATUS.PENDING]: 'warn',
   [PAYMENT_STATUS.VERIFIED]: 'ok',
@@ -99,12 +99,6 @@ export function PaymentBadge({ status, proofImagePath, className }: PaymentBadge
     </Badge>
   );
 }
-
-/**
- * Badge untuk status desain.
- */
-import type { DesignStatus } from '@yng/shared';
-import { DESIGN_STATUS, getDesignStatusLabel } from '@yng/shared';
 
 const DESIGN_STATUS_VARIANT: Record<DesignStatus, BadgeVariant> = {
   [DESIGN_STATUS.PENDING]: 'neutral',

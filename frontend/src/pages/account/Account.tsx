@@ -398,31 +398,29 @@ export default function Account() {
     editingAddressUuid === null && addresses.length >= MAX_SAVED_ADDRESSES;
 
   return (
-    <div className="account-page space-y-10 sm:space-y-14">
-      <header className="grid gap-5 border-b-2 border-ink pb-8 sm:grid-cols-[1fr_auto] sm:items-end">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="eyebrow">Ruang pelanggan</p>
-            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
-              Profil saya
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
-              Kelola data profil, alamat pengiriman tersimpan untuk checkout cepat, password, dan
-              keamanan akun Anda.
-            </p>
-          </div>
-          {user ? (
-            <span className="care-label self-start font-mono text-xs">
-              {user.role === USER_ROLE.ADMIN ? 'ADMIN' : 'PELANGGAN'}
-            </span>
-          ) : null}
+    <div className="account-page space-y-8">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
+        <div>
+          <p className="eyebrow">Ruang Pelanggan</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
+            Profil Saya
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+            Kelola data profil, alamat pengiriman tersimpan untuk checkout cepat, password, dan
+            keamanan akun Anda.
+          </p>
         </div>
+        {user ? (
+          <span className="inline-flex rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white">
+            {user.role === USER_ROLE.ADMIN ? 'Admin' : 'Pelanggan'}
+          </span>
+        ) : null}
       </header>
 
       {/* 01 / Profil Akun */}
-      <section className="card-sharp p-4 sm:p-6">
-        <h2 className="border-b border-line pb-3 font-display text-2xl font-bold">
-          Informasi profil
+      <section className="card-sharp p-5 sm:p-6">
+        <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-ink">
+          Informasi Profil
         </h2>
 
         {profileFeedback ? (
@@ -443,10 +441,7 @@ export default function Account() {
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label
-                htmlFor="acc-email"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="acc-email" className="block text-sm font-medium text-ink">
                 Email
               </label>
               <input
@@ -459,10 +454,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="acc-fullname"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="acc-fullname" className="block text-sm font-medium text-ink">
                 Nama Lengkap
               </label>
               <input
@@ -476,10 +468,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="acc-whatsapp"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="acc-whatsapp" className="block text-sm font-medium text-ink">
                 Nomor WhatsApp {user?.role === USER_ROLE.ADMIN ? '(Opsional)' : ''}
               </label>
               <input
@@ -501,11 +490,15 @@ export default function Account() {
       </section>
 
       {/* 02 / Alamat Tersimpan */}
-      <section className="card-sharp p-4 sm:p-6">
+      <section className="card-sharp p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <div>
-            <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
-              Alamat tersimpan ({addresses.length}/{MAX_SAVED_ADDRESSES})
+            <h2 className="font-display text-lg font-semibold text-ink">
+              Alamat Tersimpan (
+              <span className="tabular-price">
+                {addresses.length}/{MAX_SAVED_ADDRESSES}
+              </span>
+              )
             </h2>
             <p className="text-xs text-muted">
               Maksimal {MAX_SAVED_ADDRESSES} alamat tersimpan. Alamat yang dipilih saat checkout
@@ -535,16 +528,13 @@ export default function Account() {
           className="mt-4 space-y-4 border-b border-line pb-6"
           noValidate
         >
-          <p className="font-display text-xs font-semibold uppercase tracking-[0.14em]">
+          <p className="text-sm font-semibold text-ink">
             {editingAddressUuid !== null ? 'Edit Alamat Tersimpan' : 'Tambah Alamat Baru'}
           </p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label
-                htmlFor="addr-label"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-label" className="block text-sm font-medium text-ink">
                 Label Alamat
               </label>
               <input
@@ -561,10 +551,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="addr-recipient"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-recipient" className="block text-sm font-medium text-ink">
                 Nama Penerima
               </label>
               <input
@@ -581,10 +568,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="addr-wa"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-wa" className="block text-sm font-medium text-ink">
                 WhatsApp Penerima
               </label>
               <input
@@ -603,10 +587,7 @@ export default function Account() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label
-                htmlFor="addr-province"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-province" className="block text-sm font-medium text-ink">
                 Provinsi
               </label>
               <input
@@ -623,10 +604,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="addr-city"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-city" className="block text-sm font-medium text-ink">
                 Kota / Kabupaten
               </label>
               <input
@@ -643,10 +621,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="addr-district"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-district" className="block text-sm font-medium text-ink">
                 Kecamatan
               </label>
               <input
@@ -663,10 +638,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="addr-postal"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="addr-postal" className="block text-sm font-medium text-ink">
                 Kode Pos
               </label>
               <input
@@ -686,10 +658,7 @@ export default function Account() {
           </div>
 
           <div>
-            <label
-              htmlFor="addr-full"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="addr-full" className="block text-sm font-medium text-ink">
               Alamat Lengkap
             </label>
             <textarea
@@ -742,9 +711,7 @@ export default function Account() {
 
         <div className="mt-6 space-y-3">
           {loadingAddresses ? (
-            <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
-              Memuat alamat tersimpan...
-            </p>
+            <p className="text-sm text-muted">Memuat alamat tersimpan...</p>
           ) : addresses.length === 0 ? (
             <p className="text-sm text-muted">
               Belum ada alamat tersimpan. Tambahkan alamat pengiriman di atas agar checkout lebih
@@ -758,30 +725,30 @@ export default function Account() {
                 return (
                   <article
                     key={addr.addressUuid}
-                    className={`flex flex-col justify-between border p-4 ${
-                      addr.isDefault ? 'border-ink bg-bone' : 'border-line bg-surface'
+                    className={`flex min-w-0 flex-col justify-between rounded-2xl border p-4 ${
+                      addr.isDefault ? 'border-ink bg-white' : 'border-line bg-surface'
                     }`}
                   >
-                    <div className="space-y-1.5">
+                    <div className="min-w-0 space-y-1.5 break-words">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="font-display text-base font-bold uppercase tracking-[0.06em]">
+                        <h3 className="font-display text-base font-semibold text-ink">
                           {addr.label}
                         </h3>
                         {addr.isDefault ? (
-                          <span className="border border-ink bg-ink px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-bone">
-                            UTAMA
+                          <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
+                            Utama
                           </span>
                         ) : null}
                       </div>
 
                       <p className="text-sm font-medium">
                         {addr.recipientName} ·{' '}
-                        <span className="font-mono text-xs">{addr.recipientWhatsapp}</span>
+                        <span className="tabular-price text-xs">{addr.recipientWhatsapp}</span>
                       </p>
                       <p className="text-sm leading-relaxed text-neutral-600">{addr.fullAddress}</p>
-                      <p className="font-mono text-xs text-muted">
+                      <p className="text-xs text-muted">
                         {addr.districtName}, {addr.cityName}, {addr.provinceName} ·{' '}
-                        {addr.postalCode}
+                        <span className="tabular-price text-ink">{addr.postalCode}</span>
                       </p>
                     </div>
 
@@ -795,7 +762,7 @@ export default function Account() {
                             type="button"
                             onClick={() => void handleDeleteAddress(addr)}
                             disabled={isBusy}
-                            className="inline-flex min-h-touch flex-1 items-center justify-center border border-status-err bg-status-err px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.12em] text-bone disabled:opacity-40"
+                            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-full border border-status-err bg-status-err px-3 py-2 font-display text-xs font-semibold text-white disabled:opacity-40"
                           >
                             {isBusy ? 'Menghapus...' : 'Ya, Hapus'}
                           </button>
@@ -832,7 +799,7 @@ export default function Account() {
                             type="button"
                             onClick={() => setConfirmDeleteUuid(addr.addressUuid)}
                             disabled={isBusy}
-                            className="inline-flex min-h-touch flex-1 items-center justify-center border border-status-err px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] text-status-err transition-colors hover:bg-status-err hover:text-bone disabled:opacity-40 sm:flex-none"
+                            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-full border border-status-err px-3 py-2 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white disabled:opacity-40 sm:flex-none"
                           >
                             Hapus
                           </button>
@@ -847,9 +814,9 @@ export default function Account() {
         </div>
       </section>
 
-      <section className="card-sharp p-4 sm:p-6">
-        <h2 className="border-b border-line pb-3 font-display text-2xl font-bold">
-          Keamanan &amp; password
+      <section className="card-sharp p-5 sm:p-6">
+        <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-ink">
+          Keamanan &amp; Password
         </h2>
         <p className="mt-2 text-xs text-muted">
           Mengganti password akan langsung mencabut seluruh sesi login di browser/perangkat lain dan
@@ -874,10 +841,7 @@ export default function Account() {
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label
-                htmlFor="pw-current"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pw-current" className="block text-sm font-medium text-ink">
                 Password Saat Ini
               </label>
               <input
@@ -892,10 +856,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="pw-new"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pw-new" className="block text-sm font-medium text-ink">
                 Password Baru
               </label>
               <input
@@ -911,10 +872,7 @@ export default function Account() {
             </div>
 
             <div>
-              <label
-                htmlFor="pw-confirm"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pw-confirm" className="block text-sm font-medium text-ink">
                 Konfirmasi Password Baru
               </label>
               <input
@@ -935,9 +893,9 @@ export default function Account() {
         </form>
       </section>
 
-      <section className="card-sharp border-status-err p-4 sm:p-6">
-        <h2 className="border-b border-line pb-3 font-display text-2xl font-bold text-status-err">
-          Nonaktifkan akun
+      <section className="rounded-2xl border border-red-200 bg-white p-5 sm:p-6">
+        <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-status-err">
+          Nonaktifkan Akun
         </h2>
 
         {user?.role === USER_ROLE.ADMIN ? (
@@ -969,14 +927,14 @@ export default function Account() {
                   setDeactivateFeedback(null);
                   setShowDeactivateConfirm(true);
                 }}
-                className="inline-flex min-h-touch items-center justify-center border border-status-err px-5 py-2.5 font-display text-xs font-semibold uppercase tracking-[0.14em] text-status-err transition-colors hover:bg-status-err hover:text-bone"
+                className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-status-err px-5 py-2.5 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white sm:w-auto"
               >
                 Nonaktifkan Akun Saya
               </button>
             ) : (
               <form
                 onSubmit={(event) => void handleDeactivateSubmit(event)}
-                className="space-y-4 border border-status-err bg-bone p-4"
+                className="space-y-4 rounded-2xl border border-red-200 bg-red-50/40 p-4"
                 noValidate
               >
                 <label className="flex min-h-touch cursor-pointer items-start gap-2.5 text-sm">
@@ -996,7 +954,7 @@ export default function Account() {
                 <div className="max-w-sm">
                   <label
                     htmlFor="deactivate-password"
-                    className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
+                    className="block text-sm font-medium text-ink"
                   >
                     Konfirmasi Password Saat Ini
                   </label>
@@ -1016,7 +974,7 @@ export default function Account() {
                   <button
                     type="submit"
                     disabled={deactivating}
-                    className="inline-flex min-h-touch w-full items-center justify-center border border-status-err bg-status-err px-5 py-2.5 font-display text-xs font-semibold uppercase tracking-[0.14em] text-bone disabled:opacity-40 sm:w-auto"
+                    className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-status-err bg-status-err px-5 py-2.5 font-display text-xs font-semibold text-white disabled:opacity-40 sm:w-auto"
                   >
                     {deactivating ? 'Memproses...' : 'Konfirmasi Nonaktifkan Akun'}
                   </button>

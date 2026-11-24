@@ -1,6 +1,7 @@
 import { USER_ROLE } from '@yng/shared';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { BRAND_LOGO_ESSENTIAL_URL } from '../utils/brandAssets';
 
 const ADMIN_NAV_ITEMS: ReadonlyArray<{ to: string; label: string; end?: boolean }> = [
   { to: '/admin', label: 'Kanban', end: true },
@@ -22,42 +23,41 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bone text-ink">
-      <header className="sticky top-0 z-30 border-b-2 border-ink bg-ink text-bone">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-10">
-          <Link to="/admin" className="flex min-h-touch items-center gap-3">
-            <span className="relative inline-flex h-11 w-11 items-center justify-center bg-accent font-display text-sm font-black text-ink">
-              <span className="absolute -right-1 -top-1 font-mono text-sm leading-none text-bone">
-                +
-              </span>
-              YNG
+    <div className="flex min-h-screen flex-col bg-surface text-ink">
+      <header className="sticky top-0 z-30 border-b border-neutral-800 bg-ink text-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-10">
+          <Link to="/admin" className="flex min-h-touch min-w-0 items-center gap-2.5 sm:gap-3">
+            <span className="inline-flex h-9 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white sm:h-10 sm:w-28">
+              <img
+                src={BRAND_LOGO_ESSENTIAL_URL}
+                alt="Logo YNG Apparel"
+                className="h-full w-full scale-[1.35] object-cover object-center"
+              />
             </span>
-            <div>
-              <p className="font-display text-base font-extrabold leading-tight tracking-tightest">
-                RUANG PRODUKSI
+            <div className="min-w-0">
+              <p className="truncate font-display text-xs font-semibold tracking-[0.02em] text-white sm:text-sm">
+                Ruang Produksi
               </p>
-              <p className="font-mono text-[11px] leading-tight text-neutral-300">
-                YNG Apparel · Batam
+              <p className="hidden truncate text-xs text-neutral-400 sm:block">
+                YNG Apparel · Admin
               </p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             {user?.role === USER_ROLE.ADMIN ? (
               <>
-                <span className="hidden font-mono text-xs text-neutral-300 sm:inline">
-                  {user.email}
-                </span>
+                <span className="hidden text-xs text-neutral-400 md:inline">{user.email}</span>
                 <Link
                   to="/"
-                  className="inline-flex min-h-touch items-center border border-neutral-500 px-3 font-display text-sm font-semibold text-neutral-100 hover:border-accent hover:text-accent"
+                  className="inline-flex min-h-touch items-center rounded-full border border-neutral-700 px-3 font-display text-xs font-semibold text-neutral-200 transition-colors hover:border-white hover:text-white sm:px-4"
                 >
-                  Situs Publik
+                  Publik
                 </Link>
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
-                  className="inline-flex min-h-touch items-center border border-bone px-4 font-display text-sm font-semibold text-bone hover:bg-bone hover:text-ink"
+                  className="inline-flex min-h-touch items-center rounded-full bg-white px-3 font-display text-xs font-semibold text-ink transition-colors hover:bg-neutral-200 sm:px-4"
                 >
                   Keluar
                 </button>
@@ -65,7 +65,7 @@ export default function AdminLayout() {
             ) : (
               <Link
                 to="/"
-                className="inline-flex min-h-touch items-center border border-neutral-500 px-4 font-display text-sm font-semibold text-neutral-100 hover:border-accent hover:text-accent"
+                className="inline-flex min-h-touch items-center rounded-full border border-neutral-700 px-3.5 font-display text-xs font-semibold text-neutral-200 hover:border-white hover:text-white sm:px-4"
               >
                 Ke Situs Publik
               </Link>
@@ -74,18 +74,18 @@ export default function AdminLayout() {
         </div>
 
         {user?.role === USER_ROLE.ADMIN ? (
-          <nav aria-label="Navigasi Admin" className="admin-nav border-t border-neutral-700 bg-ink">
-            <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 sm:px-6 lg:px-10">
+          <nav aria-label="Navigasi Admin" className="border-t border-neutral-800 bg-ink">
+            <div className="mx-auto flex max-w-7xl flex-nowrap items-center gap-1.5 overflow-x-auto px-3 py-2 [scrollbar-width:none] sm:px-6 lg:px-10 [&::-webkit-scrollbar]:hidden">
               {ADMIN_NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={item.end}
                   className={({ isActive }) =>
-                    `inline-flex min-h-touch shrink-0 items-center whitespace-nowrap border-b-2 px-3 font-display text-sm font-semibold transition-colors ${
+                    `inline-flex min-h-touch shrink-0 items-center whitespace-nowrap rounded-full px-3.5 font-display text-xs font-semibold transition-colors ${
                       isActive
-                        ? 'border-accent text-accent'
-                        : 'border-transparent text-neutral-300 hover:text-bone'
+                        ? 'bg-white text-ink'
+                        : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'
                     }`
                   }
                 >
@@ -97,7 +97,7 @@ export default function AdminLayout() {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-6 sm:px-6 sm:py-8 lg:px-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:py-8 lg:px-10">
         <Outlet />
       </main>
     </div>

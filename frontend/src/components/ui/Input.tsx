@@ -1,5 +1,5 @@
 /**
- * Input & Textarea reusable — garis kerja tebal, label terbaca, fokus jelas.
+ * Input & Textarea reusable bergaya bersih monokrom dengan fokus tegas.
  */
 import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
@@ -15,9 +15,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   const inputId = id ?? (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-semibold text-ink">
+        <label htmlFor={inputId} className="block text-sm font-medium text-ink">
           {label}
         </label>
       )}
@@ -25,16 +25,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={inputId}
         {...props}
-        className={`input-sharp ${error ? 'border-status-err focus:border-status-err' : ''} ${className}`}
+        className={`input-sharp ${error ? 'border-status-err focus:border-status-err focus:ring-status-err' : ''} ${className}`}
         aria-invalid={!!error}
         aria-describedby={error ? `${inputId}-err` : undefined}
       />
       {error && (
-        <p id={`${inputId}-err`} className="text-sm text-status-err" role="alert">
+        <p id={`${inputId}-err`} className="text-xs font-medium text-status-err" role="alert">
           {error}
         </p>
       )}
-      {hint && !error && <p className="text-sm text-muted">{hint}</p>}
+      {hint && !error && <p className="text-xs text-muted">{hint}</p>}
     </div>
   );
 });
@@ -51,9 +51,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
 ) {
   const inputId = id ?? (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-semibold text-ink">
+        <label htmlFor={inputId} className="block text-sm font-medium text-ink">
           {label}
         </label>
       )}
@@ -61,16 +61,16 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
         ref={ref}
         id={inputId}
         {...props}
-        className={`input-sharp resize-y ${error ? 'border-status-err' : ''} ${className}`}
+        className={`input-sharp resize-y ${error ? 'border-status-err focus:border-status-err focus:ring-status-err' : ''} ${className}`}
         aria-invalid={!!error}
         aria-describedby={error ? `${inputId}-err` : undefined}
       />
       {error && (
-        <p id={`${inputId}-err`} className="text-sm text-status-err" role="alert">
+        <p id={`${inputId}-err`} className="text-xs font-medium text-status-err" role="alert">
           {error}
         </p>
       )}
-      {hint && !error && <p className="text-sm text-muted">{hint}</p>}
+      {hint && !error && <p className="text-xs text-muted">{hint}</p>}
     </div>
   );
 });

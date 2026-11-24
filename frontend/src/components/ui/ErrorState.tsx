@@ -1,5 +1,5 @@
 /**
- * ErrorState — tampilkan ketika request gagal.
+ * ErrorState — tampilkan ketika permintaan ke server gagal.
  */
 import type { ReactNode } from 'react';
 import { Button } from './Button';
@@ -21,20 +21,15 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
-      className={`relative border-l-4 border-status-err py-6 pl-5 text-left ${className}`}
+      className={`rounded-2xl border border-red-200 bg-red-50/60 p-6 text-left ${className}`}
       role="alert"
     >
-      <span
-        aria-hidden="true"
-        className="mb-2 block font-mono text-xs font-semibold text-status-err"
-      >
-        PERLU DICEK
-      </span>
-      <p className="font-display text-2xl font-bold tracking-tightest text-ink">{title}</p>
-      <p className="mt-2 max-w-xl text-base text-muted">{message}</p>
+      <span className="inline-block text-xs font-semibold text-status-err">Perlu dicek</span>
+      <p className="mt-2 font-display text-xl font-semibold text-ink">{title}</p>
+      <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">{message}</p>
       {children}
       {retry && (
-        <div className="mt-6">
+        <div className="mt-5">
           <Button variant="secondary" size="sm" onClick={retry}>
             Coba Lagi
           </Button>

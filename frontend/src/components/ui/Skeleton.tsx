@@ -1,5 +1,5 @@
 /**
- * Skeleton loading placeholder — satu atau beberapa baris.
+ * Skeleton loading placeholder.
  */
 interface SkeletonProps {
   className?: string;
@@ -9,27 +9,24 @@ interface SkeletonProps {
 export function Skeleton({ className = '', lines = 1 }: SkeletonProps) {
   if (lines > 1) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {Array.from({ length: lines }).map((_, i) => (
           <div
             key={i}
-            className={`animate-pulse bg-line ${i === lines - 1 ? 'w-3/4' : 'w-full'} h-4 ${className}`}
+            className={`h-4 animate-pulse rounded-lg bg-line ${i === lines - 1 ? 'w-3/4' : 'w-full'} ${className}`}
           />
         ))}
       </div>
     );
   }
-  return <div className={`animate-pulse bg-line ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-line ${className}`} />;
 }
 
-/**
- * Skeleton untuk kartu (card-sharp style).
- */
 export function CardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`border-t border-line py-5 ${className}`}>
-      <Skeleton className="mb-3 h-3 w-20" />
-      <Skeleton className="mb-2 h-5 w-full" />
+    <div className={`rounded-2xl border border-line bg-white p-5 ${className}`}>
+      <Skeleton className="mb-3 h-3 w-24" />
+      <Skeleton className="mb-3 h-6 w-2/3" />
       <Skeleton lines={2} />
     </div>
   );

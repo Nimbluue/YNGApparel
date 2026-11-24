@@ -3,11 +3,11 @@
  * Dipakai di halaman Tracker, Pesanan Saya, dan Detail Order Admin.
  */
 import {
-  PRODUCTION_STATUS,
   FULFILLMENT_TYPE,
+  PRODUCTION_STATUS,
   getProductionStatusLabel,
-  type ProductionStatus,
   type FulfillmentType,
+  type ProductionStatus,
 } from '@yng/shared';
 
 const ORDERED_STEPS: ProductionStatus[] = [
@@ -39,31 +39,27 @@ export function ProductionStepper({
   const isCancelled = currentStatus === PRODUCTION_STATUS.CANCELLED;
 
   return (
-    <ol
-      className={`relative border-l-4 border-line-strong pl-5 ${className}`}
-      aria-label="Tahap produksi"
-    >
+    <ol className={`relative space-y-4 pl-2 ${className}`} aria-label="Tahap produksi">
       {ORDERED_STEPS.map((step, idx) => {
         const isDone = !isCancelled && currentIndex > idx;
         const isActive = !isCancelled && currentIndex === idx;
         const isSkipped =
-          step === PRODUCTION_STATUS.AWAITING_SETTLEMENT && !isCancelled && currentIndex > idx; // Pelunasan bisa dilewati jika remaining=0
+          step === PRODUCTION_STATUS.AWAITING_SETTLEMENT && !isCancelled && currentIndex > idx;
 
         const label = getProductionStatusLabel(step, fulfillmentType);
 
         return (
-          <li key={step} className="flex gap-4 pb-6 last:pb-0">
-            {/* Connector line */}
+          <li key={step} className="flex gap-4">
             <div className="flex flex-col items-center">
               <div
-                className={`-ml-[1.85rem] flex h-8 w-8 shrink-0 items-center justify-center border-2 font-mono text-xs ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
                   isCancelled
-                    ? 'border-muted text-muted'
+                    ? 'border-line bg-surface text-muted'
                     : isDone
-                      ? 'border-ink bg-ink text-bone'
+                      ? 'border-ink bg-ink text-white'
                       : isActive
-                        ? 'border-accent bg-accent text-ink'
-                        : 'border-line text-muted'
+                        ? 'border-ink bg-surface text-ink ring-2 ring-ink/15'
+                        : 'border-line bg-white text-muted'
                 }`}
                 aria-hidden="true"
               >
@@ -71,61 +67,45 @@ export function ProductionStepper({
               </div>
               {idx < ORDERED_STEPS.length - 1 && (
                 <div
-                  className={`mt-1 w-1 flex-1 ${isDone ? 'bg-ink' : 'bg-line'}`}
+                  className={`mt-1 w-0.5 flex-1 ${isDone ? 'bg-ink' : 'bg-line'}`}
                   aria-hidden="true"
                 />
               )}
             </div>
 
-            {/* Label */}
-            <div className="pb-1">
+            <div className="pb-4">
               <p
-                className={`font-display text-base font-bold ${
-                  isCancelled
-                    ? 'text-muted'
-                    : isActive
-                      ? 'text-ink'
-                      : isDone
-                        ? 'text-ink'
-                        : 'text-muted'
+                className={`font-display text-sm font-semibold ${
+                  isCancelled ? 'text-muted' : isActive || isDone ? 'text-ink' : 'text-muted'
                 }`}
               >
                 {label}
                 {isSkipped && (
-                  <span className="ml-2 font-mono text-[10px] normal-case tracking-normal text-muted">
-                    (dilewati)
-                  </span>
+                  <span className="ml-2 text-xs font-normal text-muted">(dilewati)</span>
                 )}
               </p>
               {isActive && !isCancelled && (
-                <p className="mt-0.5 font-mono text-[11px] text-status-warn">● Tahap saat ini</p>
+                <p className="mt-0.5 text-xs font-medium text-status-warn">● Tahap saat ini</p>
               )}
             </div>
           </li>
         );
       })}
 
-      {/* Completed & Cancelled */}
       {currentStatus === PRODUCTION_STATUS.COMPLETED && (
-        <li className="flex gap-4">
-          <div className="flex flex-col items-center">
-            <div className="-ml-[1.85rem] flex h-8 w-8 shrink-0 items-center justify-center border-2 border-status-ok bg-status-ok font-mono text-xs text-white">
-              ✓
-            </div>
+        <li className="flex items-center gap-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-status-ok bg-status-ok text-xs tabular-nums text-white">
+            ✓
           </div>
-          <div>
-            <p className="font-display text-base font-bold text-status-ok">Selesai</p>
-          </div>
+          <p className="font-display text-sm font-semibold text-status-ok">Selesai</p>
         </li>
       )}
       {isCancelled && (
-        <li className="mt-2 flex gap-4">
-          <div className="-ml-[1.85rem] flex h-8 w-8 shrink-0 items-center justify-center border-2 border-status-err bg-bone font-mono text-xs text-status-err">
+        <li className="flex items-center gap-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-status-err bg-red-50 text-xs tabular-nums text-status-err">
             ✕
           </div>
-          <div>
-            <p className="font-display text-base font-bold text-status-err">Dibatalkan</p>
-          </div>
+          <p className="font-display text-sm font-semibold text-status-err">Dibatalkan</p>
         </li>
       )}
     </ol>

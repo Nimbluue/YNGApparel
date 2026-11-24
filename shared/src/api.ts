@@ -1,4 +1,4 @@
-import type { PaymentMethod, UserRole } from './enums.js';
+import type { PaymentMethod, PaymentScheme, PrintPosition, UserRole } from './enums.js';
 
 /**
  * Nilai uang dalam aplikasi YNG Apparel selalu memakai bilangan bulat rupiah (integer).
@@ -366,3 +366,164 @@ export interface CreateUserAddressDto {
 }
 
 export type UpdateUserAddressDto = Partial<CreateUserAddressDto>;
+
+export interface PublicFabricColorDto {
+  id: number;
+  fabricId: number;
+  colorName: string;
+  colorHex: string;
+  sortOrder: number;
+}
+
+export interface PublicFabricDto {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  gsmWeight: number | null;
+  thicknessLevel: number;
+  comfortLevel: number | null;
+  additionalPrice: Rupiah;
+  imageUrl: string | null;
+  macroImageUrl: string | null;
+  sortOrder: number;
+  colors: PublicFabricColorDto[];
+}
+
+export interface PublicGarmentModelDto {
+  id: number;
+  slug: string;
+  name: string;
+  description: string | null;
+  basePrice: Rupiah;
+  imageUrl: string | null;
+  mockupTemplate: string | null;
+  sortOrder: number;
+  fabricIds: number[];
+}
+
+export interface PublicModelDetailDto extends PublicGarmentModelDto {
+  fabrics: PublicFabricDto[];
+}
+
+export interface PublicSizeDto {
+  id: number;
+  code: string;
+  sortOrder: number;
+  extraCharge: Rupiah;
+}
+
+export interface PublicPrintSizeDto {
+  id: number;
+  code: string;
+  name: string;
+  dimensionsCm: string;
+  widthCm: number;
+  heightCm: number;
+  pricePerSpot: Rupiah;
+  sortOrder: number;
+}
+
+export interface PublicCatalogConfigDto {
+  storeName: string;
+  adminWhatsapp: string;
+  dpPercent: number;
+  dpMinQty: number;
+  productionEstimateText: string;
+  maxDesignFileMb: number;
+}
+
+export interface PublicPaymentAccountDto {
+  id: number;
+  method: PaymentMethod;
+  providerName: string;
+  accountNumber: string | null;
+  accountHolder: string;
+  qrImageUrl: string | null;
+  instructions: string | null;
+}
+
+export interface PricingQuoteSizeInputDto {
+  sizeId: number;
+  qty: number;
+}
+
+export interface PricingQuotePrintInputDto {
+  printSizeId: number;
+  printPosition: PrintPosition;
+}
+
+export interface PricingQuoteItemInputDto {
+  modelId: number;
+  fabricId: number;
+  isCustomColor?: boolean;
+  fabricColorId?: number | null;
+  colorName?: string | null;
+  colorHex?: string | null;
+  sizes: PricingQuoteSizeInputDto[];
+  prints?: PricingQuotePrintInputDto[];
+}
+
+export interface PricingQuoteRequestDto {
+  items: PricingQuoteItemInputDto[];
+}
+
+export interface PricingQuoteSizeBreakdownDto {
+  sizeId: number;
+  sizeCode: string;
+  qty: number;
+  extraCharge: Rupiah;
+  unitPrice: Rupiah;
+  lineTotal: Rupiah;
+}
+
+export interface PricingQuotePrintBreakdownDto {
+  printSizeId: number;
+  printSizeCode: string;
+  printSizeName: string;
+  printPosition: PrintPosition;
+  pricePerSpot: Rupiah;
+}
+
+export interface PricingQuoteItemBreakdownDto {
+  itemIndex: number;
+  modelId: number;
+  modelSlug: string;
+  modelName: string;
+  fabricId: number;
+  fabricCode: string;
+  fabricName: string;
+  isCustomColor: boolean;
+  fabricColorId: number | null;
+  colorName: string;
+  colorHex: string | null;
+  basePrice: Rupiah;
+  fabricAdditionalPrice: Rupiah;
+  printSpotsTotal: Rupiah;
+  itemQty: number;
+  lineSubtotal: Rupiah;
+  sizes: PricingQuoteSizeBreakdownDto[];
+  prints: PricingQuotePrintBreakdownDto[];
+}
+
+export interface PricingPaymentSchemeOptionDto {
+  scheme: PaymentScheme;
+  label: string;
+  available: boolean;
+  initialAmount: Rupiah;
+  remainingAfterInitial: Rupiah;
+  reason: string | null;
+}
+
+export interface PricingQuoteResponseDto {
+  items: PricingQuoteItemBreakdownDto[];
+  subtotalAmount: Rupiah;
+  totalQty: number;
+  dpEligible: boolean;
+  dpMinQty: number;
+  dpPercent: number;
+  dpAmount: Rupiah;
+  settlementAmount: Rupiah;
+  availablePaymentSchemes: PaymentScheme[];
+  paymentSchemeOptions: PricingPaymentSchemeOptionDto[];
+}

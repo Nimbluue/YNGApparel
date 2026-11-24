@@ -1,951 +1,1025 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
+  PAYMENT_SCHEME,
   PRINT_POSITION,
-  type ApiSuccessResponse,
-  type FabricDto,
-  type GarmentModelDto,
-  type PrintPosition,
-  type PrintSizeDto,
-  type SizeDto,
+  PRINT_POSITION_LABELS,
+  type PaymentScheme,
+  type PricingQuoteRequestDto,
+  type PricingQuoteResponseDto,
+  type PublicCatalogConfigDto,
 } from '@yng/shared';
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import api, { ApiClientError } from '../../services/api';
-import { Button } from '../../components/ui/Button';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ColorPicker } from '../../components/custom-lab/ColorPicker';
+import { PriceSummary } from '../../components/custom-lab/PriceSummary';
+import { PrintSpotPicker } from '../../components/custom-lab/PrintSpotPicker';
+import {
+  pickNextAvailablePrintPosition,
+  type PrintSpotDraft,
+} from '../../components/custom-lab/printSpotHelpers';
+import { SizeMatrix } from '../../components/custom-lab/SizeMatrix';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
+import { useToast } from '../../components/ui/toastContext';
+import { useAuth } from '../../context/AuthContext';
+import {
+  catalogQueryKeys,
+  getCatalogConfig,
+  getCatalogModelBySlug,
+  getCatalogModels,
+  getCatalogPrintSizes,
+  getCatalogSizes,
+} from '../../services/catalogService';
+import { requestPricingQuote } from '../../services/pricingService';
+import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
-import { normalizeWhatsApp } from '../../utils/phone';
+import { estimateCustomLabPricing, resolveActivePaymentScheme } from '../../utils/pricing';
+import { openWaLink } from '../../utils/whatsapp';
 
-interface CatalogConfig {
-  dp_percent: number;
-  dp_min_qty: number;
-  production_estimate_text: string;
-  max_design_file_mb: number;
-  admin_whatsapp: string;
-}
+const DRAFT_STORAGE_KEY = 'yng_custom_lab_draft_v1';
+const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
-interface CatalogData {
-  models: GarmentModelDto[];
-  fabrics: FabricDto[];
-  sizes: SizeDto[];
-  printSizes: PrintSizeDto[];
-  config: CatalogConfig;
-}
-
-interface DesignFile {
-  fileRef: string;
-  fileName: string;
-}
-
-interface PrintDraft {
-  key: string;
-  position: PrintPosition;
-  printSizeId: number | '';
-  designHelp: boolean;
-  design: DesignFile | null;
-  uploading: boolean;
-  uploadError: string | null;
-}
-
-interface CustomLabConfig {
-  modelId: number;
-  fabricId: number;
-  colorId?: number;
+interface CustomLabDraft {
+  modelId: number | null;
+  fabricId: number | null;
   isCustomColor: boolean;
-  customColorName?: string;
-  customColorHex?: string;
-  sizes: Array<{ sizeId: number; qty: number }>;
-  prints: Array<{
-    position: PrintPosition;
-    printSizeId: number;
-    fileRef?: string;
-    needsDesignHelp: boolean;
-  }>;
+  fabricColorId: number | null;
+  customColorName: string;
+  customColorHex: string;
+  quantities: Record<number, number>;
+  prints: PrintSpotDraft[];
+  paymentScheme: PaymentScheme;
 }
 
-interface QuoteResult {
-  subtotalAmount: number;
-  totalQty: number;
-  discountAmount: number;
-  grandTotal: number;
-  dpRequiredAmount: number;
-  isDpEligible: boolean;
-}
-
-const PRINT_POSITIONS: Array<{ value: PrintPosition; label: string }> = [
-  { value: PRINT_POSITION.FRONT_CHEST, label: 'Dada depan' },
-  { value: PRINT_POSITION.FRONT_CENTER, label: 'Tengah depan' },
-  { value: PRINT_POSITION.BACK_CENTER, label: 'Punggung tengah' },
-  { value: PRINT_POSITION.BACK_UPPER, label: 'Punggung atas' },
-  { value: PRINT_POSITION.LEFT_SLEEVE, label: 'Lengan kiri' },
-  { value: PRINT_POSITION.RIGHT_SLEEVE, label: 'Lengan kanan' },
-  { value: PRINT_POSITION.COLLAR, label: 'Kerah' },
-  { value: PRINT_POSITION.OTHER, label: 'Posisi lain' },
-];
-
-const EMPTY_CONFIG: CatalogConfig = {
-  dp_percent: 0,
-  dp_min_qty: 0,
-  production_estimate_text: '',
-  max_design_file_mb: 20,
-  admin_whatsapp: '',
+const DEFAULT_DRAFT: CustomLabDraft = {
+  modelId: null,
+  fabricId: null,
+  isCustomColor: false,
+  fabricColorId: null,
+  customColorName: '',
+  customColorHex: '',
+  quantities: {},
+  prints: [],
+  paymentScheme: PAYMENT_SCHEME.FULL,
 };
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiClientError) {
-    if (error.status === 404) {
-      return 'Katalog dan estimasi belum tersedia. Silakan coba lagi nanti atau hubungi workshop.';
+const FALLBACK_CONFIG: PublicCatalogConfigDto = {
+  storeName: 'YNG Apparel',
+  adminWhatsapp: '6280000000000',
+  dpPercent: 70,
+  dpMinQty: 12,
+  productionEstimateText: '7-14 hari kerja',
+  maxDesignFileMb: 20,
+};
+
+function readInitialDraft(): CustomLabDraft {
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return DEFAULT_DRAFT;
+    const parsed = JSON.parse(raw) as Partial<CustomLabDraft>;
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_DRAFT;
+
+    const quantities: Record<number, number> = {};
+    if (parsed.quantities && typeof parsed.quantities === 'object') {
+      for (const [key, value] of Object.entries(parsed.quantities)) {
+        const sizeId = Number(key);
+        const qty = typeof value === 'number' ? Math.floor(value) : 0;
+        if (Number.isInteger(sizeId) && sizeId > 0 && qty > 0) {
+          quantities[sizeId] = qty;
+        }
+      }
     }
-    return error.message;
+
+    const validPositions = new Set<string>(Object.values(PRINT_POSITION));
+    const prints: PrintSpotDraft[] = Array.isArray(parsed.prints)
+      ? parsed.prints
+          .filter((spot): spot is PrintSpotDraft => Boolean(spot && typeof spot === 'object'))
+          .map((spot) => ({
+            key: typeof spot.key === 'string' && spot.key ? spot.key : crypto.randomUUID(),
+            printPosition: validPositions.has(spot.printPosition)
+              ? spot.printPosition
+              : PRINT_POSITION.FRONT_CHEST,
+            printSizeId:
+              typeof spot.printSizeId === 'number' && Number.isInteger(spot.printSizeId)
+                ? spot.printSizeId
+                : null,
+            needsDesignHelp: Boolean(spot.needsDesignHelp),
+          }))
+      : [];
+
+    return {
+      modelId:
+        typeof parsed.modelId === 'number' && Number.isInteger(parsed.modelId)
+          ? parsed.modelId
+          : null,
+      fabricId:
+        typeof parsed.fabricId === 'number' && Number.isInteger(parsed.fabricId)
+          ? parsed.fabricId
+          : null,
+      isCustomColor: Boolean(parsed.isCustomColor),
+      fabricColorId:
+        typeof parsed.fabricColorId === 'number' && Number.isInteger(parsed.fabricColorId)
+          ? parsed.fabricColorId
+          : null,
+      customColorName: typeof parsed.customColorName === 'string' ? parsed.customColorName : '',
+      customColorHex: typeof parsed.customColorHex === 'string' ? parsed.customColorHex : '',
+      quantities,
+      prints,
+      paymentScheme:
+        parsed.paymentScheme === PAYMENT_SCHEME.DP ? PAYMENT_SCHEME.DP : PAYMENT_SCHEME.FULL,
+    };
+  } catch {
+    return DEFAULT_DRAFT;
   }
-  return 'Tidak dapat terhubung ke server. Pastikan backend berjalan, lalu coba lagi.';
 }
 
-function makePrintDraft(): PrintDraft {
-  return {
-    key: crypto.randomUUID(),
-    position: PRINT_POSITION.FRONT_CHEST,
-    printSizeId: '',
-    designHelp: false,
-    design: null,
-    uploading: false,
-    uploadError: null,
-  };
+function saveDraftToSessionStorage(draft: CustomLabDraft): void {
+  try {
+    window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // Abaikan jika sessionStorage diblokir browser
+  }
 }
 
 export default function CustomLab() {
   const { isGuest } = useAuth();
   const navigate = useNavigate();
-  const [catalog, setCatalog] = useState<CatalogData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedModelId, setSelectedModelId] = useState<number | ''>('');
-  const [selectedFabricId, setSelectedFabricId] = useState<number | ''>('');
-  const [selectedColorId, setSelectedColorId] = useState<number | ''>('');
-  const [isCustomColor, setIsCustomColor] = useState(false);
-  const [customColorName, setCustomColorName] = useState('');
-  const [customColorHex, setCustomColorHex] = useState('');
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
-  const [prints, setPrints] = useState<PrintDraft[]>([makePrintDraft()]);
-  const [quote, setQuote] = useState<QuoteResult | null>(null);
-  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedModelSlug = searchParams.get('model');
+  const { toast } = useToast();
+
+  const [draft, setDraft] = useState<CustomLabDraft>(() => readInitialDraft());
+  const [serverQuote, setServerQuote] = useState<PricingQuoteResponseDto | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [cartMessage, setCartMessage] = useState<string | null>(null);
-  const [cartLoading, setCartLoading] = useState(false);
+  const [uploadFeedbackBySpotKey, setUploadFeedbackBySpotKey] = useState<Record<string, string>>(
+    {}
+  );
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
-  const loadCatalog = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const [modelsResponse, fabricsResponse, sizesResponse, printSizesResponse, configResponse] =
-        await Promise.all([
-          api.get<ApiSuccessResponse<GarmentModelDto[]>>('/catalog/models'),
-          api.get<ApiSuccessResponse<FabricDto[]>>('/catalog/fabrics'),
-          api.get<ApiSuccessResponse<SizeDto[]>>('/catalog/sizes'),
-          api.get<ApiSuccessResponse<PrintSizeDto[]>>('/catalog/print-sizes'),
-          api.get<ApiSuccessResponse<CatalogConfig>>('/catalog/config'),
-        ]);
+  const quoteRequestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-      const nextCatalog: CatalogData = {
-        models: modelsResponse.data.data,
-        fabrics: fabricsResponse.data.data,
-        sizes: sizesResponse.data.data,
-        printSizes: printSizesResponse.data.data,
-        config: configResponse.data.data,
-      };
-      setCatalog(nextCatalog);
-      setSelectedModelId((current) => current || nextCatalog.models[0]?.id || '');
-    } catch (error: unknown) {
-      setLoadError(getErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const modelsQuery = useQuery({
+    queryKey: catalogQueryKeys.models,
+    queryFn: getCatalogModels,
+  });
 
-  useEffect(() => {
-    void loadCatalog();
-  }, [loadCatalog]);
+  const sizesQuery = useQuery({
+    queryKey: catalogQueryKeys.sizes,
+    queryFn: getCatalogSizes,
+  });
+
+  const printSizesQuery = useQuery({
+    queryKey: catalogQueryKeys.printSizes,
+    queryFn: getCatalogPrintSizes,
+  });
+
+  const configQuery = useQuery({
+    queryKey: catalogQueryKeys.config,
+    queryFn: getCatalogConfig,
+  });
+
+  const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
+  const sizes = useMemo(() => sizesQuery.data ?? [], [sizesQuery.data]);
+  const printSizes = useMemo(() => printSizesQuery.data ?? [], [printSizesQuery.data]);
+  const config = configQuery.data ?? FALLBACK_CONFIG;
 
   const selectedModel = useMemo(
-    () => catalog?.models.find((model) => model.id === selectedModelId) ?? null,
-    [catalog, selectedModelId]
+    () => models.find((m) => m.id === draft.modelId) ?? null,
+    [models, draft.modelId]
   );
+
+  const modelDetailQuery = useQuery({
+    queryKey: catalogQueryKeys.modelDetail(selectedModel?.slug ?? ''),
+    queryFn: () => getCatalogModelBySlug(selectedModel!.slug),
+    enabled: Boolean(selectedModel?.slug),
+  });
+
   const availableFabrics = useMemo(
-    () => catalog?.fabrics.filter((fabric) => selectedModel?.fabricIds.includes(fabric.id)) ?? [],
-    [catalog, selectedModel]
+    () => modelDetailQuery.data?.fabrics ?? [],
+    [modelDetailQuery.data]
   );
-  const selectedFabric = availableFabrics.find((fabric) => fabric.id === selectedFabricId) ?? null;
-  const totalQty = Object.values(quantities).reduce((total, qty) => total + qty, 0);
-  const adminWhatsapp = catalog ? normalizeWhatsApp(catalog.config.admin_whatsapp) : null;
 
+  const selectedFabric = useMemo(
+    () => availableFabrics.find((f) => f.id === draft.fabricId) ?? null,
+    [availableFabrics, draft.fabricId]
+  );
+
+  // Sinkronkan draft ke sessionStorage agar tidak hilang saat Guest pindah ke /login
   useEffect(() => {
-    if (selectedFabricId && !availableFabrics.some((fabric) => fabric.id === selectedFabricId)) {
-      setSelectedFabricId('');
-      setSelectedColorId('');
-      setIsCustomColor(false);
-    }
-  }, [availableFabrics, selectedFabricId]);
+    saveDraftToSessionStorage(draft);
+  }, [draft]);
 
-  const buildConfig = useCallback((): CustomLabConfig | null => {
-    if (!selectedModelId || !selectedFabricId || totalQty < 1) return null;
+  // Pilih model dari parameter ?model=<slug> atau model pertama otomatis bila draft belum valid
+  useEffect(() => {
+    if (models.length === 0) return;
+
+    if (requestedModelSlug) {
+      const matched = models.find((m) => m.slug === requestedModelSlug);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('model');
+          return next;
+        },
+        { replace: true }
+      );
+      if (matched && matched.id !== draft.modelId) {
+        setServerQuote(null);
+        setQuoteError(null);
+        setDraft((prev) => ({
+          ...prev,
+          modelId: matched.id,
+          fabricId: null,
+          isCustomColor: false,
+          fabricColorId: null,
+          customColorName: '',
+          customColorHex: '',
+        }));
+        return;
+      }
+    }
+
+    if (!draft.modelId || !models.some((m) => m.id === draft.modelId)) {
+      setDraft((prev) => ({
+        ...prev,
+        modelId: models[0]!.id,
+        fabricId: null,
+        isCustomColor: false,
+        fabricColorId: null,
+        customColorName: '',
+        customColorHex: '',
+      }));
+      setServerQuote(null);
+    }
+  }, [models, draft.modelId, requestedModelSlug, setSearchParams]);
+
+  // Validasi ulang bahan dari draft hanya setelah detail model selesai dimuat
+  useEffect(() => {
+    if (!selectedModel || !modelDetailQuery.data) return;
+    if (modelDetailQuery.data.id !== selectedModel.id) return;
+
     if (
-      isCustomColor &&
-      (!customColorName.trim() || (customColorHex && !/^#[0-9A-Fa-f]{6}$/.test(customColorHex)))
-    )
-      return null;
-    if (!isCustomColor && !selectedColorId) return null;
-    if (
-      prints.some((print) => !print.printSizeId || (!print.designHelp && print.design === null))
+      draft.fabricId !== null &&
+      !modelDetailQuery.data.fabrics.some((f) => f.id === draft.fabricId)
     ) {
+      setDraft((prev) => ({
+        ...prev,
+        fabricId: null,
+        isCustomColor: false,
+        fabricColorId: null,
+        customColorName: '',
+        customColorHex: '',
+      }));
+      setServerQuote(null);
+    }
+  }, [selectedModel, modelDetailQuery.data, draft.fabricId]);
+
+  // Validasi ulang preset warna bila bahan dimuat ulang
+  useEffect(() => {
+    if (!selectedFabric || draft.isCustomColor) return;
+    if (
+      draft.fabricColorId !== null &&
+      !selectedFabric.colors.some((c) => c.id === draft.fabricColorId)
+    ) {
+      setDraft((prev) => ({
+        ...prev,
+        fabricColorId: null,
+      }));
+      setServerQuote(null);
+    }
+  }, [selectedFabric, draft.isCustomColor, draft.fabricColorId]);
+
+  const selectedPrintSizes = useMemo(() => {
+    const map = new Map(printSizes.map((ps) => [ps.id, ps]));
+    return draft.prints
+      .map((spot) => (spot.printSizeId !== null ? map.get(spot.printSizeId) : undefined))
+      .filter((ps): ps is NonNullable<typeof ps> => Boolean(ps));
+  }, [draft.prints, printSizes]);
+
+  const localEstimate = useMemo(
+    () =>
+      estimateCustomLabPricing({
+        model: selectedModel,
+        fabric: selectedFabric,
+        sizes,
+        quantities: draft.quantities,
+        selectedPrintSizes,
+        config,
+      }),
+    [selectedModel, selectedFabric, sizes, draft.quantities, selectedPrintSizes, config]
+  );
+
+  // Reset pilihan pembayaran ke FULL secara otomatis bila qty di bawah ambang dpMinQty
+  useEffect(() => {
+    const activeMinQty = serverQuote?.dpMinQty ?? config.dpMinQty;
+    const isEligible = localEstimate.totalQty >= activeMinQty;
+    if (!isEligible && draft.paymentScheme === PAYMENT_SCHEME.DP) {
+      setDraft((prev) => ({
+        ...prev,
+        paymentScheme: resolveActivePaymentScheme(prev.paymentScheme, false),
+      }));
+    }
+  }, [localEstimate.totalQty, serverQuote?.dpMinQty, config.dpMinQty, draft.paymentScheme]);
+
+  // Bangun payload POST /api/pricing/quote bila seluruh field wajib lengkap
+  const quotePayload = useMemo<PricingQuoteRequestDto | null>(() => {
+    if (!selectedModel || !selectedFabric) return null;
+
+    const sizeEntries = sizes
+      .map((size) => ({
+        sizeId: size.id,
+        qty: Math.max(0, Math.floor(draft.quantities[size.id] ?? 0)),
+      }))
+      .filter((entry) => entry.qty > 0);
+
+    if (sizeEntries.length === 0) return null;
+
+    if (draft.isCustomColor) {
+      const trimmedName = draft.customColorName.trim();
+      const trimmedHex = draft.customColorHex.trim();
+      if (!trimmedName) return null;
+      if (trimmedHex.length > 0 && !HEX_COLOR_REGEX.test(trimmedHex)) return null;
+    } else if (!draft.fabricColorId) {
+      return null;
+    }
+
+    if (draft.prints.some((spot) => spot.printSizeId === null)) {
       return null;
     }
 
     return {
-      modelId: selectedModelId,
-      fabricId: selectedFabricId,
-      ...(selectedColorId ? { colorId: selectedColorId } : {}),
-      isCustomColor,
-      ...(isCustomColor ? { customColorName: customColorName.trim() } : {}),
-      ...(isCustomColor && customColorHex ? { customColorHex } : {}),
-      sizes: Object.entries(quantities)
-        .filter(([, qty]) => qty > 0)
-        .map(([sizeId, qty]) => ({ sizeId: Number(sizeId), qty })),
-      prints: prints.map((print) => ({
-        position: print.position,
-        printSizeId: print.printSizeId as number,
-        ...(print.design ? { fileRef: print.design.fileRef } : {}),
-        needsDesignHelp: print.designHelp,
-      })),
+      items: [
+        {
+          modelId: selectedModel.id,
+          fabricId: selectedFabric.id,
+          isCustomColor: draft.isCustomColor,
+          ...(draft.isCustomColor
+            ? {
+                colorName: draft.customColorName.trim(),
+                ...(draft.customColorHex.trim()
+                  ? { colorHex: draft.customColorHex.trim().toUpperCase() }
+                  : {}),
+              }
+            : {
+                fabricColorId: draft.fabricColorId!,
+              }),
+          sizes: sizeEntries,
+          prints: draft.prints.map((spot) => ({
+            printSizeId: spot.printSizeId!,
+            printPosition: spot.printPosition,
+          })),
+        },
+      ],
     };
   }, [
-    customColorHex,
-    customColorName,
-    isCustomColor,
-    prints,
-    quantities,
-    selectedColorId,
-    selectedFabricId,
-    selectedModelId,
-    totalQty,
+    selectedModel,
+    selectedFabric,
+    sizes,
+    draft.quantities,
+    draft.isCustomColor,
+    draft.customColorName,
+    draft.customColorHex,
+    draft.fabricColorId,
+    draft.prints,
   ]);
 
-  const requestQuote = useCallback(async () => {
-    const item = buildConfig();
-    if (!item) {
-      setQuote(null);
-      setQuoteError(
-        'Lengkapi pilihan model, bahan, warna, ukuran, dan detail sablon untuk melihat estimasi.'
-      );
-      return;
-    }
+  const quoteMutation = useMutation({
+    mutationFn: async (vars: { payload: PricingQuoteRequestDto; signal: AbortSignal }) =>
+      requestPricingQuote(vars.payload, vars.signal),
+  });
 
-    setQuoteLoading(true);
-    setQuoteError(null);
-    try {
-      const response = await api.post<ApiSuccessResponse<QuoteResult>>('/pricing/quote', {
-        items: [item],
-      });
-      setQuote(response.data.data);
-    } catch (error: unknown) {
-      setQuote(null);
-      setQuoteError(getErrorMessage(error));
-    } finally {
-      setQuoteLoading(false);
-    }
-  }, [buildConfig]);
+  const { mutateAsync: fetchQuoteAsync } = quoteMutation;
 
   useEffect(() => {
-    if (!buildConfig()) {
-      setQuote(null);
+    if (!quotePayload) {
+      abortControllerRef.current?.abort();
+      setServerQuote(null);
+      setQuoteError(null);
       return;
     }
-    const timer = window.setTimeout(() => void requestQuote(), 350);
-    return () => window.clearTimeout(timer);
-  }, [buildConfig, requestQuote]);
 
-  async function handleDesignUpload(event: ChangeEvent<HTMLInputElement>, printKey: string) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+    const requestId = ++quoteRequestIdRef.current;
+    const timer = window.setTimeout(() => {
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
+      void fetchQuoteAsync({ payload: quotePayload, signal: controller.signal })
+        .then((quoteData) => {
+          if (quoteRequestIdRef.current !== requestId) return;
+          setServerQuote(quoteData);
+          setQuoteError(null);
+        })
+        .catch((err: unknown) => {
+          if (controller.signal.aborted || quoteRequestIdRef.current !== requestId) return;
+          const parsed = extractApiError(err, 'Gagal menghitung harga dari server.');
+          setServerQuote(null);
+          setQuoteError(parsed.message);
+        });
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [quotePayload, fetchQuoteAsync]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  const handleSelectModel = useCallback((modelId: number) => {
+    setActionFeedback(null);
+    setServerQuote(null);
+    setQuoteError(null);
+    setDraft((prev) => {
+      if (prev.modelId === modelId) return prev;
+      return {
+        ...prev,
+        modelId,
+        fabricId: null,
+        isCustomColor: false,
+        fabricColorId: null,
+        customColorName: '',
+        customColorHex: '',
+      };
+    });
+  }, []);
+
+  const handleSelectFabric = useCallback((fabricId: number) => {
+    setActionFeedback(null);
+    setServerQuote(null);
+    setQuoteError(null);
+    setDraft((prev) => ({
+      ...prev,
+      fabricId,
+      isCustomColor: false,
+      fabricColorId: null,
+      customColorName: '',
+      customColorHex: '',
+    }));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setServerQuote(null);
+    setQuoteError(null);
+    setUploadFeedbackBySpotKey({});
+    setActionFeedback(null);
+    setDraft({
+      ...DEFAULT_DRAFT,
+      modelId: models[0]?.id ?? null,
+    });
+    toast('Konfigurasi Custom Lab dikembalikan ke awal.', 'info');
+  }, [models, toast]);
+
+  const handleAddSpot = useCallback(() => {
+    setActionFeedback(null);
+    setDraft((prev) => ({
+      ...prev,
+      prints: [
+        ...prev.prints,
+        {
+          key: crypto.randomUUID(),
+          printPosition: pickNextAvailablePrintPosition(prev.prints),
+          printSizeId: printSizes[0]?.id ?? null,
+          needsDesignHelp: false,
+        },
+      ],
+    }));
+  }, [printSizes]);
+
+  const handleUpdateSpot = useCallback(
+    (key: string, patch: Partial<Omit<PrintSpotDraft, 'key'>>) => {
+      setActionFeedback(null);
+      setDraft((prev) => ({
+        ...prev,
+        prints: prev.prints.map((spot) => (spot.key === key ? { ...spot, ...patch } : spot)),
+      }));
+    },
+    []
+  );
+
+  const handleRemoveSpot = useCallback((key: string) => {
+    setActionFeedback(null);
+    setUploadFeedbackBySpotKey((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setDraft((prev) => ({
+      ...prev,
+      prints: prev.prints.filter((spot) => spot.key !== key),
+    }));
+  }, []);
+
+  const handleRequestUploadDesign = useCallback(
+    (spotKey: string) => {
+      saveDraftToSessionStorage(draft);
+      if (isGuest) {
+        navigate('/login', { state: { from: '/custom-lab' } });
+        return;
+      }
+
+      const infoMessage =
+        'Unggah file desain ke storage akan aktif pada Tahap 3a. Untuk sementara Anda dapat mencentang "Bantu desainkan saya" atau lanjutkan simulasi harga.';
+      setUploadFeedbackBySpotKey((prev) => ({ ...prev, [spotKey]: infoMessage }));
+      toast('Upload file desain aktif di Tahap 3a.', 'info');
+    },
+    [draft, isGuest, navigate, toast]
+  );
+
+  const colorSummary = useMemo(() => {
+    if (draft.isCustomColor) {
+      return draft.customColorName.trim()
+        ? `${draft.customColorName.trim()} (Custom · WA)`
+        : 'Warna custom (belum diisi)';
+    }
+    if (!selectedFabric || draft.fabricColorId === null) return null;
+    return selectedFabric.colors.find((c) => c.id === draft.fabricColorId)?.colorName ?? null;
+  }, [draft.isCustomColor, draft.customColorName, draft.fabricColorId, selectedFabric]);
+
+  const handleAddToCart = useCallback(() => {
+    saveDraftToSessionStorage(draft);
     if (isGuest) {
       navigate('/login', { state: { from: '/custom-lab' } });
       return;
     }
 
-    const maxSizeBytes =
-      (catalog?.config.max_design_file_mb ?? EMPTY_CONFIG.max_design_file_mb) * 1024 * 1024;
-    if (file.size > maxSizeBytes) {
-      setPrints((current) =>
-        current.map((print) =>
-          print.key === printKey
-            ? {
-                ...print,
-                uploadError: `Ukuran file maksimal ${catalog?.config.max_design_file_mb ?? EMPTY_CONFIG.max_design_file_mb} MB.`,
-              }
-            : print
-        )
-      );
+    if (!quotePayload) {
+      const msg =
+        'Lengkapi model, bahan, warna, jumlah ukuran (> 0), dan ukuran sablon terlebih dahulu.';
+      setActionFeedback(msg);
+      toast(msg, 'warn');
       return;
     }
 
-    const body = new FormData();
-    body.append('file', file);
-    setPrints((current) =>
-      current.map((print) =>
-        print.key === printKey ? { ...print, uploading: true, uploadError: null } : print
-      )
-    );
-    try {
-      const response = await api.post<ApiSuccessResponse<{ fileRef: string; fileName: string }>>(
-        '/uploads/design',
-        body,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
-      setPrints((current) =>
-        current.map((print) =>
-          print.key === printKey
-            ? {
-                ...print,
-                design: {
-                  fileRef: response.data.data.fileRef,
-                  fileName: response.data.data.fileName,
-                },
-                uploading: false,
-                uploadError: null,
-              }
-            : print
-        )
-      );
-    } catch (error: unknown) {
-      setPrints((current) =>
-        current.map((print) =>
-          print.key === printKey
-            ? { ...print, uploading: false, uploadError: getErrorMessage(error) }
-            : print
-        )
-      );
-    }
-  }
+    const msg =
+      'Draft konfigurasi Anda sudah tersimpan di sesi ini. Penyimpanan ke Keranjang Custom Lab (/api/cart/items) akan aktif pada Tahap 3a.';
+    setActionFeedback(msg);
+    toast('Fitur Keranjang Custom Lab aktif pada Tahap 3a.', 'info');
+  }, [draft, isGuest, navigate, quotePayload, toast]);
 
-  async function handleAddToCart() {
-    setCartMessage(null);
-    const item = buildConfig();
-    if (!item) {
-      setCartMessage(
-        'Lengkapi konfigurasi dan pastikan harga berhasil dihitung sebelum menyimpan.'
-      );
-      return;
-    }
-    if (isGuest) {
-      navigate('/login', { state: { from: '/custom-lab' } });
-      return;
-    }
+  const handleAskWhatsApp = useCallback(() => {
+    const sizeText = sizes
+      .map((s) => ({ code: s.code, qty: draft.quantities[s.id] ?? 0 }))
+      .filter((item) => item.qty > 0)
+      .map((item) => `${item.code}:${item.qty}`)
+      .join(', ');
 
-    setCartLoading(true);
-    try {
-      await api.post('/cart/items', item);
-      setCartMessage('Konfigurasi berhasil ditambahkan ke keranjang.');
-    } catch (error: unknown) {
-      setCartMessage(getErrorMessage(error));
-    } finally {
-      setCartLoading(false);
-    }
-  }
+    const printText =
+      draft.prints.length > 0
+        ? draft.prints
+            .map((spot) => {
+              const pSize = printSizes.find((p) => p.id === spot.printSizeId);
+              return `${PRINT_POSITION_LABELS[spot.printPosition]} (${pSize?.name ?? 'Belum pilih ukuran'})`;
+            })
+            .join(', ')
+        : 'Polos';
 
-  function updatePrint(key: string, update: Partial<PrintDraft>) {
-    setPrints((current) =>
-      current.map((print) => (print.key === key ? { ...print, ...update } : print))
-    );
-    setQuote(null);
-  }
+    const subtotal = serverQuote?.subtotalAmount ?? localEstimate.subtotalAmount;
+    const totalQty = serverQuote?.totalQty ?? localEstimate.totalQty;
 
-  if (loading) {
+    const lines = [
+      'Halo admin YNG Apparel, saya ingin konsultasi pesanan Custom Lab:',
+      `- Model: ${selectedModel?.name ?? '-'}`,
+      `- Bahan: ${selectedFabric?.name ?? '-'}`,
+      `- Warna: ${colorSummary ?? '-'}`,
+      `- Ukuran (${totalQty} pcs): ${sizeText || '-'}`,
+      `- Sablon: ${printText}`,
+      `- Estimasi subtotal: ${formatRupiah(subtotal)}`,
+    ];
+
+    openWaLink(config.adminWhatsapp, lines.join('\n'));
+  }, [
+    sizes,
+    draft.quantities,
+    draft.prints,
+    printSizes,
+    serverQuote?.subtotalAmount,
+    serverQuote?.totalQty,
+    localEstimate.subtotalAmount,
+    localEstimate.totalQty,
+    selectedModel?.name,
+    selectedFabric?.name,
+    colorSummary,
+    config.adminWhatsapp,
+  ]);
+
+  const isInitialLoading =
+    modelsQuery.isLoading ||
+    sizesQuery.isLoading ||
+    printSizesQuery.isLoading ||
+    configQuery.isLoading;
+
+  const initialError =
+    modelsQuery.error || sizesQuery.error || printSizesQuery.error || configQuery.error;
+
+  if (isInitialLoading) {
     return (
-      <div className="mx-auto max-w-5xl py-12" aria-live="polite">
-        <p className="eyebrow">Custom Lab · YNG Apparel</p>
-        <h1 className="mt-4 font-display text-5xl font-black tracking-[-0.06em] sm:text-7xl">
-          Menyiapkan meja kerja…
-        </h1>
-        <p className="mt-4 text-lg text-muted">Mengambil pilihan produk dan harga dari server.</p>
+      <div className="space-y-6">
+        <div className="space-y-3 border-b border-line pb-6">
+          <Skeleton className="h-3 w-36" />
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-4 w-full max-w-xl" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+          <CardSkeleton className="h-80" />
+        </div>
       </div>
     );
   }
 
-  if (loadError || !catalog) {
+  if (initialError) {
+    const parsed = extractApiError(initialError, 'Gagal memuat katalog Custom Lab.');
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-2xl py-6">
         <ErrorState
-          title="Studio sedang disiapkan"
-          message={loadError ?? 'Data katalog belum tersedia.'}
-          retry={() => void loadCatalog()}
+          title="Katalog belum dapat dimuat"
+          message={parsed.message}
+          retry={() => {
+            void modelsQuery.refetch();
+            void sizesQuery.refetch();
+            void printSizesQuery.refetch();
+            void configQuery.refetch();
+          }}
         />
-        <p className="font-mono text-xs leading-relaxed text-muted">
-          Pilihan model, bahan, dan harga akan muncul setelah katalog workshop terhubung.
-        </p>
+      </div>
+    );
+  }
+
+  if (models.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl py-6">
+        <EmptyState
+          title="Katalog produk belum tersedia"
+          description="Admin belum mengaktifkan model pakaian di katalog. Silakan hubungi tim kami via WhatsApp."
+          action={
+            <button type="button" onClick={handleAskWhatsApp} className="btn-primary">
+              Hubungi via WhatsApp
+            </button>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <header className="grid gap-5 border-b-2 border-ink pb-8 sm:grid-cols-[1fr_auto] sm:items-end">
+    <div className="space-y-8 pb-28 lg:pb-10">
+      <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 sm:flex-row sm:items-end">
         <div>
-          <p className="eyebrow">Studio pesanan · dibuat di Batam</p>
-          <h1 className="mt-3 font-display text-6xl font-black leading-[0.84] tracking-[-0.07em] sm:text-8xl">
-            Custom Lab
+          <p className="eyebrow">Custom Lab · {config.storeName}</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl lg:text-5xl">
+            Rancang Pakaian Custom
           </h1>
-        </div>
-        <p className="max-w-lg text-lg leading-relaxed text-muted">
-          Susun pakaian custom Anda. Estimasi harga selalu dihitung oleh server berdasarkan katalog
-          dan konfigurasi yang dipilih.
-        </p>
-        {catalog.config.production_estimate_text ? (
-          <p className="care-label sm:col-span-2 sm:justify-self-end sm:max-w-lg">
-            Estimasi produksi: {catalog.config.production_estimate_text}
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
+            Susun model, bahan, warna, matriks ukuran, dan titik sablon. Seluruh nominal harga
+            divalidasi dan dihitung langsung oleh server.
           </p>
-        ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted">
+            Estimasi {config.productionEstimateText}
+          </span>
+          <button type="button" onClick={handleReset} className="btn-secondary px-4 py-2 text-xs">
+            Reset
+          </button>
+        </div>
       </header>
 
-      <div
-        role="group"
-        aria-label="Langkah perancangan"
-        className="overflow-x-auto border-b border-line"
-      >
-        <ol className="flex min-w-max items-center gap-2 py-2">
-          {[
-            ['#garment-model', '01', 'Model'],
-            ['#fabric-color', '02', 'Bahan & warna'],
-            ['#size-roster', '03', 'Ukuran'],
-            ['#print-spots', '04', 'Sablon'],
-          ].map(([href, number, label]) => (
-            <li key={href}>
-              <span className="inline-flex min-h-touch items-center gap-2 px-3 text-sm font-semibold">
-                <span className="bg-accent px-1.5 py-0.5 font-mono text-xs text-ink">{number}</span>
-                {label}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <main className="space-y-6">
-          <section
-            id="garment-model"
-            className="card-sharp p-5 sm:p-7"
-            aria-labelledby="model-heading"
-          >
-            <p className="eyebrow">01 · Model</p>
-            <h2 id="model-heading" className="mt-2 font-display text-2xl font-bold">
-              Pilih model pakaian
-            </h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {catalog.models.map((model) => (
-                <button
-                  type="button"
-                  key={model.id}
-                  onClick={() => {
-                    setSelectedModelId(model.id);
-                    setQuote(null);
-                  }}
-                  aria-pressed={selectedModelId === model.id}
-                  className={`min-h-24 border-l-4 p-4 text-left transition-colors ${selectedModelId === model.id ? 'border-accent bg-ink text-bone' : 'border-transparent border-t border-line bg-transparent hover:bg-surface'}`}
-                >
-                  {model.imageUrl ? (
-                    <img
-                      src={model.imageUrl}
-                      alt=""
-                      className="mb-3 h-24 w-full object-cover sm:h-32"
-                    />
-                  ) : null}
-                  <span className="block font-display text-lg font-bold tracking-tight">
-                    {model.name}
-                  </span>
-                  {model.description ? (
-                    <span className="mt-1 block text-sm opacity-75">{model.description}</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-            {catalog.models.length === 0 ? (
-              <p className="mt-4 text-sm text-muted">Belum ada model aktif di katalog.</p>
-            ) : null}
-          </section>
-
-          <section
-            id="fabric-color"
-            className="card-sharp p-5 sm:p-7"
-            aria-labelledby="fabric-heading"
-          >
-            <p className="eyebrow">02 · Bahan &amp; warna</p>
-            <h2 id="fabric-heading" className="mt-2 font-display text-2xl font-bold">
-              Sesuaikan bahan
-            </h2>
-            <label htmlFor="custom-lab-fabric" className="mt-4 block text-sm font-semibold">
-              Bahan
-            </label>
-            <select
-              id="custom-lab-fabric"
-              value={selectedFabricId}
-              onChange={(event) => {
-                setSelectedFabricId(event.target.value ? Number(event.target.value) : '');
-                setSelectedColorId('');
-                setIsCustomColor(false);
-                setQuote(null);
-              }}
-              className="input-sharp mt-2"
-              disabled={!selectedModel || availableFabrics.length === 0}
-            >
-              <option value="">Pilih bahan</option>
-              {availableFabrics.map((fabric) => (
-                <option key={fabric.id} value={fabric.id}>
-                  {fabric.name}
-                  {fabric.gsmWeight ? ` · ${fabric.gsmWeight} GSM` : ''}
-                </option>
-              ))}
-            </select>
-            {selectedFabric?.description ? (
-              <p className="mt-2 text-sm text-muted">{selectedFabric.description}</p>
-            ) : null}
-
-            {selectedFabric ? (
-              <div className="mt-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em]">Warna tersedia</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedFabric.colors
-                    .filter((color) => color.isActive)
-                    .map((color) => (
-                      <button
-                        key={color.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedColorId(color.id);
-                          setIsCustomColor(false);
-                          setQuote(null);
-                        }}
-                        aria-pressed={!isCustomColor && selectedColorId === color.id}
-                        className={`inline-flex min-h-14 items-center gap-3 border px-3 text-sm ${!isCustomColor && selectedColorId === color.id ? 'border-ink bg-ink text-bone' : 'border-line-strong bg-surface'}`}
-                      >
-                        <span
-                          className="swatch-chip h-9 w-9 shrink-0 border border-line-strong"
-                          style={{ backgroundColor: color.colorHex }}
-                          aria-hidden="true"
-                        />
-                        <span className="text-left">
-                          <span className="block font-semibold">{color.colorName}</span>
-                          <span className="mt-0.5 block font-mono text-[11px] opacity-75">
-                            {color.colorHex}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCustomColor(true);
-                      setSelectedColorId('');
-                      setQuote(null);
-                    }}
-                    aria-pressed={isCustomColor}
-                    className={`min-h-14 border px-4 text-sm font-semibold ${isCustomColor ? 'border-ink bg-ink text-bone' : 'border-line-strong bg-surface'}`}
-                  >
-                    Warna custom · konfirmasi via WhatsApp
-                  </button>
-                </div>
-                {isCustomColor ? (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label
-                        htmlFor="custom-color-name"
-                        className="text-xs font-semibold uppercase"
-                      >
-                        Nama warna *
-                      </label>
-                      <input
-                        id="custom-color-name"
-                        className="input-sharp mt-2"
-                        value={customColorName}
-                        onChange={(event) => {
-                          setCustomColorName(event.target.value);
-                          setQuote(null);
-                        }}
-                        maxLength={80}
-                        placeholder="Contoh: hijau sage"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="custom-color-hex" className="text-xs font-semibold uppercase">
-                        Kode warna (opsional)
-                      </label>
-                      <input
-                        id="custom-color-hex"
-                        className="input-sharp mt-2"
-                        value={customColorHex}
-                        onChange={(event) => {
-                          setCustomColorHex(event.target.value);
-                          setQuote(null);
-                        }}
-                        pattern="^#[0-9A-Fa-f]{6}$"
-                        maxLength={7}
-                        placeholder="#AABBCC"
-                      />
-                    </div>
-                    <p className="text-xs text-muted sm:col-span-2">
-                      Ketersediaan warna custom perlu dikonfirmasi sebelum produksi.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
-
-          <section
-            id="size-roster"
-            className="card-sharp p-5 sm:p-7"
-            aria-labelledby="size-heading"
-          >
-            <p className="eyebrow">03 · Matriks ukuran</p>
-            <h2 id="size-heading" className="mt-2 font-display text-2xl font-bold">
-              Jumlah per ukuran
-            </h2>
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[440px] border-collapse text-left">
-                <caption className="sr-only">Matriks jumlah pakaian per ukuran</caption>
-                <thead className="border-b-2 border-ink font-mono text-xs text-muted">
-                  <tr>
-                    <th scope="col" className="py-3 pr-4 font-medium">
-                      UKURAN
-                    </th>
-                    <th scope="col" className="py-3 pr-4 font-medium">
-                      BIAYA TAMBAHAN
-                    </th>
-                    <th scope="col" className="py-3 font-medium">
-                      JUMLAH
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catalog.sizes.map((size) => (
-                    <tr key={size.id} className="border-b border-dashed border-line-strong">
-                      <th scope="row" className="py-2 pr-4 font-display text-lg font-bold">
-                        {size.code}
-                      </th>
-                      <td className="py-2 pr-4 font-mono text-sm text-muted">
-                        {formatRupiah(size.extraCharge)}
-                      </td>
-                      <td className="py-2">
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          inputMode="numeric"
-                          aria-label={`Jumlah ukuran ${size.code}`}
-                          value={quantities[size.id] ?? 0}
-                          onChange={(event) => {
-                            const value = Number(event.target.value);
-                            setQuantities((current) => ({
-                              ...current,
-                              [size.id]:
-                                Number.isFinite(value) && value > 0 ? Math.floor(value) : 0,
-                            }));
-                            setQuote(null);
-                          }}
-                          className="input-sharp max-w-28 text-right font-mono"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <th scope="row" colSpan={2} className="py-4 text-left font-semibold">
-                      Total sementara
-                    </th>
-                    <td className="py-4 text-right font-mono font-semibold">
-                      <span className="inline-block bg-accent px-2 py-1 text-ink">
-                        {totalQty} pcs
-                      </span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
-
-          <section
-            id="print-spots"
-            className="card-sharp p-5 sm:p-7"
-            aria-labelledby="print-heading"
-          >
-            <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="space-y-6">
+          {/* Langkah 1: Model Pakaian */}
+          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-model-heading">
+            <div className="flex items-baseline justify-between gap-2">
               <div>
-                <p className="eyebrow">04 · Sablon</p>
-                <h2 id="print-heading" className="mt-2 font-display text-2xl font-bold">
-                  Titik sablon
+                <p className="eyebrow">
+                  Langkah <span className="tabular-price">01</span>
+                </p>
+                <h2
+                  id="step-model-heading"
+                  className="mt-1 font-display text-xl font-semibold text-ink"
+                >
+                  Pilih Model Pakaian
                 </h2>
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setPrints((current) => [...current, makePrintDraft()]);
-                  setQuote(null);
-                }}
-              >
-                Tambah titik
-              </Button>
+              <span className="text-xs text-muted">
+                <span className="tabular-price font-medium text-ink">{models.length}</span> model
+                aktif
+              </span>
             </div>
-            <div className="mt-4 space-y-4">
-              {prints.map((print, index) => (
-                <article key={print.key} className="border-t border-dashed border-line-strong py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-display text-sm font-semibold uppercase">
-                      Titik {index + 1}
-                    </h3>
-                    {prints.length > 1 ? (
-                      <button
-                        type="button"
-                        className="min-h-11 px-2 text-xs font-semibold underline"
-                        onClick={() => {
-                          setPrints((current) =>
-                            current.filter((entry) => entry.key !== print.key)
-                          );
-                          setQuote(null);
-                        }}
-                      >
-                        Hapus
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.1em]">
-                      Posisi
-                      <select
-                        className="input-sharp mt-2"
-                        value={print.position}
-                        onChange={(event) =>
-                          updatePrint(print.key, { position: event.target.value as PrintPosition })
-                        }
-                      >
-                        {PRINT_POSITIONS.map((position) => (
-                          <option
-                            key={position.value}
-                            value={position.value}
-                            disabled={
-                              position.value !== PRINT_POSITION.OTHER &&
-                              prints.some(
-                                (entry) =>
-                                  entry.key !== print.key && entry.position === position.value
-                              )
-                            }
-                          >
-                            {position.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="text-xs font-semibold uppercase tracking-[0.1em]">
-                      Ukuran sablon
-                      <select
-                        className="input-sharp mt-2"
-                        value={print.printSizeId}
-                        onChange={(event) =>
-                          updatePrint(print.key, {
-                            printSizeId: event.target.value ? Number(event.target.value) : '',
-                          })
-                        }
-                      >
-                        <option value="">Pilih ukuran</option>
-                        {catalog.printSizes.map((size) => (
-                          <option key={size.id} value={size.id}>
-                            {size.name} · {size.dimensionsCm}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={print.designHelp}
-                      onChange={(event) =>
-                        updatePrint(print.key, {
-                          designHelp: event.target.checked,
-                          design: event.target.checked ? null : print.design,
-                        })
-                      }
-                      className="h-4 w-4 accent-ink"
-                    />
-                    Bantu desainkan saya
-                  </label>
-                  {!print.designHelp ? (
-                    <div className="mt-3">
-                      {print.design ? (
-                        <p className="text-sm text-status-ok" role="status">
-                          File terunggah: {print.design.fileName}
-                        </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {models.map((model) => {
+                const isSelected = selectedModel?.id === model.id;
+                return (
+                  <button
+                    key={model.id}
+                    type="button"
+                    onClick={() => handleSelectModel(model.id)}
+                    aria-pressed={isSelected}
+                    className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-all ${
+                      isSelected
+                        ? 'border-ink bg-ink text-white'
+                        : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                    }`}
+                  >
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-surface">
+                      {model.imageUrl ? (
+                        <img
+                          src={model.imageUrl}
+                          alt={model.name}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
-                        <>
-                          <label
-                            htmlFor={`design-${print.key}`}
-                            className="inline-flex min-h-11 cursor-pointer items-center border border-line-strong px-4 text-xs font-semibold uppercase tracking-[0.1em] hover:bg-bone"
-                          >
-                            {print.uploading ? 'Mengunggah...' : 'Pilih file desain'}
-                          </label>
-                          <input
-                            id={`design-${print.key}`}
-                            type="file"
-                            accept=".png,.jpg,.jpeg,.webp,.svg,.pdf"
-                            className="sr-only"
-                            disabled={print.uploading}
-                            onChange={(event) => void handleDesignUpload(event, print.key)}
-                          />
-                          <p className="mt-2 text-xs text-muted">
-                            PNG, JPG, WEBP, SVG, atau PDF. Upload memerlukan akun.
-                          </p>
-                        </>
+                        <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-medium text-muted">
+                          {model.name}
+                        </div>
                       )}
-                      {print.uploadError ? (
-                        <p className="mt-2 text-xs text-status-err" role="alert">
-                          {print.uploadError}
-                        </p>
-                      ) : null}
                     </div>
-                  ) : null}
-                </article>
-              ))}
+
+                    <div className="flex flex-1 flex-col justify-between gap-2 p-4">
+                      <div>
+                        <p className="font-display text-base font-semibold">{model.name}</p>
+                        {model.description ? (
+                          <p
+                            className={`mt-1 line-clamp-2 text-xs leading-relaxed ${
+                              isSelected ? 'text-neutral-300' : 'text-muted'
+                            }`}
+                          >
+                            {model.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <p
+                        className={`text-sm font-semibold ${
+                          isSelected ? 'text-white' : 'text-ink'
+                        }`}
+                      >
+                        Mulai <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </section>
 
-          <div className="card-sharp p-5 sm:p-7">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void requestQuote()}
-                loading={quoteLoading}
-                className="w-full"
-              >
-                Hitung estimasi harga
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void handleAddToCart()}
-                loading={cartLoading}
-                className="w-full"
-              >
-                {isGuest ? 'Masuk untuk simpan' : 'Tambah ke keranjang'}
-              </Button>
-            </div>
-            {quoteError ? (
-              <p className="mt-3 text-sm text-status-err" role="alert">
-                {quoteError}
-              </p>
-            ) : null}
-            {cartMessage ? (
-              <p className="mt-3 text-sm text-neutral-700" role="status">
-                {cartMessage}
-              </p>
-            ) : null}
-            {!isGuest ? (
-              <Link
-                to="/keranjang"
-                className="mt-4 inline-block min-h-11 text-xs font-semibold uppercase underline underline-offset-4"
-              >
-                Buka keranjang
-              </Link>
-            ) : null}
-          </div>
-        </main>
-
-        <aside
-          className="work-ticket registration-mark h-fit p-5 sm:p-6 lg:sticky lg:top-5"
-          aria-label="Ringkasan konfigurasi dan harga"
-        >
-          <p className="eyebrow">Meja potong · Ringkasan</p>
-          <h2 className="mt-2 font-display text-2xl font-bold">Estimasi pesanan</h2>
-          <dl className="mt-4 space-y-3 border-y border-line py-4 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt>Model</dt>
-              <dd className="text-right font-semibold">{selectedModel?.name ?? '—'}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt>Bahan</dt>
-              <dd className="text-right font-semibold">{selectedFabric?.name ?? '—'}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt>Jumlah</dt>
-              <dd className="font-mono font-semibold">{totalQty} pcs</dd>
-            </div>
-            {quote ? (
-              <>
-                <div className="flex justify-between gap-3">
-                  <dt>Subtotal</dt>
-                  <dd className="tabular-price">{formatRupiah(quote.subtotalAmount)}</dd>
-                </div>
-                {quote.discountAmount > 0 ? (
-                  <div className="flex justify-between gap-3">
-                    <dt>Diskon</dt>
-                    <dd className="tabular-price">−{formatRupiah(quote.discountAmount)}</dd>
-                  </div>
-                ) : null}
-                <div className="flex justify-between gap-3 font-semibold">
-                  <dt>Total estimasi</dt>
-                  <dd className="price-total text-lg">{formatRupiah(quote.grandTotal)}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt>Skema bayar</dt>
-                  <dd className="text-right">
-                    {quote.isDpEligible ? `DP ${catalog.config.dp_percent}% tersedia` : 'Lunas'}
-                  </dd>
-                </div>
-                {quote.isDpEligible ? (
-                  <div className="flex justify-between gap-3">
-                    <dt>Estimasi DP</dt>
-                    <dd className="tabular-price">{formatRupiah(quote.dpRequiredAmount)}</dd>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-xs leading-relaxed text-muted">
-                Harga akan muncul setelah server menghitung konfigurasi Anda.
-              </p>
-            )}
-          </dl>
-          {catalog.config.dp_min_qty > 0 ? (
-            <p className="mt-3 text-xs leading-relaxed text-muted">
-              Opsi DP mengikuti ketentuan katalog: minimal {catalog.config.dp_min_qty} pcs.
-              Perhitungan final dilakukan server saat checkout.
+          {/* Langkah 2: Bahan Pakaian (kompatibel dari model_fabrics) */}
+          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-fabric-heading">
+            <p className="eyebrow">
+              Langkah <span className="tabular-price">02</span>
             </p>
-          ) : null}
-          {quoteError ? (
-            <p className="mt-3 text-xs text-status-err" role="alert">
-              Estimasi belum tersedia.
-            </p>
-          ) : null}
-        </aside>
-      </div>
-      <p className="text-xs leading-relaxed text-muted">
-        Estimasi bersifat sementara. Harga final dan kelayakan DP ditentukan server berdasarkan
-        harga katalog terbaru.
-        {adminWhatsapp ? (
-          <>
-            {' '}
-            Untuk konsultasi warna custom,{' '}
-            <a
-              href={`https://wa.me/${adminWhatsapp}`}
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold underline"
+            <h2
+              id="step-fabric-heading"
+              className="mt-1 font-display text-xl font-semibold text-ink"
             >
-              hubungi admin melalui WhatsApp
-            </a>
-            .
-          </>
-        ) : null}
-      </p>
+              Pilih Bahan Kompatibel
+            </h2>
+            <p className="mt-1 text-xs text-muted">
+              Hanya bahan yang sesuai dengan model {selectedModel?.name ?? 'terpilih'} yang
+              ditampilkan.
+            </p>
+
+            <div className="mt-4">
+              {modelDetailQuery.isLoading ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <CardSkeleton />
+                  <CardSkeleton />
+                </div>
+              ) : modelDetailQuery.error ? (
+                <ErrorState
+                  title="Gagal memuat bahan model"
+                  message={
+                    extractApiError(modelDetailQuery.error, 'Tidak dapat mengambil daftar bahan.')
+                      .message
+                  }
+                  retry={() => void modelDetailQuery.refetch()}
+                />
+              ) : availableFabrics.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
+                  Belum ada bahan aktif yang terhubung dengan model ini.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {availableFabrics.map((fabric) => {
+                    const isSelected = selectedFabric?.id === fabric.id;
+                    return (
+                      <button
+                        key={fabric.id}
+                        type="button"
+                        onClick={() => handleSelectFabric(fabric.id)}
+                        aria-pressed={isSelected}
+                        className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition-colors ${
+                          isSelected
+                            ? 'border-ink bg-ink text-white'
+                            : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-display text-sm font-semibold sm:text-base">
+                              {fabric.name}
+                            </p>
+                            {fabric.gsmWeight ? (
+                              <span
+                                className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono text-[11px] ${
+                                  isSelected
+                                    ? 'bg-neutral-800 text-neutral-200'
+                                    : 'bg-surface text-muted'
+                                }`}
+                              >
+                                {fabric.gsmWeight} GSM
+                              </span>
+                            ) : null}
+                          </div>
+                          {fabric.description ? (
+                            <p
+                              className={`text-xs leading-relaxed ${
+                                isSelected ? 'text-neutral-300' : 'text-muted'
+                              }`}
+                            >
+                              {fabric.description}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <p
+                          className={`mt-3 text-xs font-semibold ${
+                            isSelected ? 'text-white' : 'text-ink'
+                          }`}
+                        >
+                          {fabric.additionalPrice > 0 ? (
+                            <>
+                              <span className="tabular-price">
+                                +{formatRupiah(fabric.additionalPrice)}
+                              </span>{' '}
+                              / pcs
+                            </>
+                          ) : (
+                            'Termasuk harga dasar'
+                          )}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Langkah 3: Warna (Preset per bahan atau Warna Custom) */}
+          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-color-heading">
+            <p className="eyebrow">
+              Langkah <span className="tabular-price">03</span>
+            </p>
+            <h2
+              id="step-color-heading"
+              className="mt-1 font-display text-xl font-semibold text-ink"
+            >
+              Pilih Warna Bahan
+            </h2>
+            <p className="mt-1 text-xs text-muted">
+              Pilih dari warna preset stok tersedia atau ajukan warna custom untuk konfirmasi via
+              WhatsApp.
+            </p>
+
+            <div className="mt-4">
+              <ColorPicker
+                colors={selectedFabric?.colors ?? []}
+                selectedColorId={draft.fabricColorId}
+                isCustomColor={draft.isCustomColor}
+                customColorName={draft.customColorName}
+                customColorHex={draft.customColorHex}
+                disabled={!selectedFabric}
+                onSelectPresetColor={(colorId) => {
+                  setActionFeedback(null);
+                  setDraft((prev) => ({
+                    ...prev,
+                    isCustomColor: false,
+                    fabricColorId: colorId,
+                    customColorName: '',
+                    customColorHex: '',
+                  }));
+                }}
+                onSelectCustomColor={() => {
+                  setActionFeedback(null);
+                  setDraft((prev) => ({
+                    ...prev,
+                    isCustomColor: true,
+                    fabricColorId: null,
+                  }));
+                }}
+                onChangeCustomColorName={(value) => {
+                  setActionFeedback(null);
+                  setDraft((prev) => ({ ...prev, customColorName: value }));
+                }}
+                onChangeCustomColorHex={(value) => {
+                  setActionFeedback(null);
+                  setDraft((prev) => ({ ...prev, customColorHex: value }));
+                }}
+              />
+            </div>
+          </section>
+
+          {/* Langkah 4: Matriks Ukuran */}
+          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-size-heading">
+            <p className="eyebrow">
+              Langkah <span className="tabular-price">04</span>
+            </p>
+            <h2 id="step-size-heading" className="mt-1 font-display text-xl font-semibold text-ink">
+              Atur Jumlah per Ukuran
+            </h2>
+            <p className="mt-1 text-xs text-muted">
+              Masukkan jumlah pesanan per ukuran. Minimal{' '}
+              <span className="tabular-price font-medium text-ink">{config.dpMinQty} pcs</span>{' '}
+              total untuk membuka pembayaran DP{' '}
+              <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>.
+            </p>
+
+            <div className="mt-4">
+              <SizeMatrix
+                sizes={sizes}
+                quantities={draft.quantities}
+                onChangeQuantity={(sizeId, nextQty) => {
+                  setActionFeedback(null);
+                  setDraft((prev) => {
+                    const nextQuantities = { ...prev.quantities };
+                    if (nextQty <= 0) {
+                      delete nextQuantities[sizeId];
+                    } else {
+                      nextQuantities[sizeId] = nextQty;
+                    }
+                    return { ...prev, quantities: nextQuantities };
+                  });
+                }}
+              />
+            </div>
+          </section>
+
+          {/* Langkah 5: Titik Sablon & Desain */}
+          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-print-heading">
+            <p className="eyebrow">
+              Langkah <span className="tabular-price">05</span>
+            </p>
+            <h2
+              id="step-print-heading"
+              className="mt-1 font-display text-xl font-semibold text-ink"
+            >
+              Titik Sablon &amp; Desain
+            </h2>
+
+            <div className="mt-3">
+              <PrintSpotPicker
+                spots={draft.prints}
+                printSizes={printSizes}
+                isGuest={isGuest}
+                onAddSpot={handleAddSpot}
+                onUpdateSpot={handleUpdateSpot}
+                onRemoveSpot={handleRemoveSpot}
+                onRequestUploadDesign={handleRequestUploadDesign}
+                uploadFeedbackBySpotKey={uploadFeedbackBySpotKey}
+              />
+            </div>
+          </section>
+        </div>
+
+        <PriceSummary
+          modelName={selectedModel?.name ?? null}
+          fabricName={selectedFabric?.name ?? null}
+          colorSummary={colorSummary}
+          printSpotsCount={draft.prints.length}
+          localEstimate={localEstimate}
+          serverQuote={serverQuote}
+          isQuotePending={quoteMutation.isPending}
+          quoteError={quoteError}
+          isReadyForServerQuote={Boolean(quotePayload)}
+          config={config}
+          selectedPaymentScheme={draft.paymentScheme}
+          onChangePaymentScheme={(scheme) =>
+            setDraft((prev) => ({
+              ...prev,
+              paymentScheme: resolveActivePaymentScheme(
+                scheme,
+                serverQuote?.dpEligible ?? localEstimate.dpEligible
+              ),
+            }))
+          }
+          isGuest={isGuest}
+          onAddToCart={handleAddToCart}
+          onAskWhatsApp={handleAskWhatsApp}
+          actionFeedback={actionFeedback}
+        />
+      </div>
     </div>
   );
 }

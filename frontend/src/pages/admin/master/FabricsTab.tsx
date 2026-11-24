@@ -378,7 +378,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <div>
-            <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
+            <h2 className="font-display text-base font-semibold text-ink">
               {editingFabricId !== null ? 'Edit Bahan Pakaian' : 'Tambah Bahan Pakaian'}
             </h2>
             <p className="text-xs text-muted">
@@ -399,10 +399,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
         >
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label
-                htmlFor="fabric-code"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-code" className="block text-sm font-medium text-ink">
                 Kode Bahan
               </label>
               <input
@@ -419,10 +416,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div className="sm:col-span-2">
-              <label
-                htmlFor="fabric-name"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-name" className="block text-sm font-medium text-ink">
                 Nama Bahan
               </label>
               <input
@@ -437,10 +431,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="fabric-price"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-price" className="block text-sm font-medium text-ink">
                 Tambahan Harga (Rp)
               </label>
               <input
@@ -461,10 +452,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label
-                htmlFor="fabric-gsm"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-gsm" className="block text-sm font-medium text-ink">
                 Berat GSM (Opsional)
               </label>
               <input
@@ -485,10 +473,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="fabric-thickness"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-thickness" className="block text-sm font-medium text-ink">
                 Ketebalan (1–5)
               </label>
               <select
@@ -509,10 +494,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="fabric-comfort"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-comfort" className="block text-sm font-medium text-ink">
                 Kenyamanan (1–5)
               </label>
               <select
@@ -534,10 +516,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="fabric-sort"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="fabric-sort" className="block text-sm font-medium text-ink">
                 Urutan Tampil
               </label>
               <input
@@ -557,10 +536,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
           </div>
 
           <div>
-            <label
-              htmlFor="fabric-description"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="fabric-description" className="block text-sm font-medium text-ink">
               Deskripsi Bahan (Opsional)
             </label>
             <input
@@ -616,10 +592,10 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
         <section className="card-sharp border-ink p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
-                Preset Warna Stok — {activeColorFabric.code}
+              <p className="eyebrow">
+                Preset Warna Stok · <span className="font-mono">{activeColorFabric.code}</span>
               </p>
-              <h3 className="font-display text-base font-bold uppercase tracking-[0.08em]">
+              <h3 className="font-display text-base font-semibold text-ink">
                 Kelola Warna: {activeColorFabric.name}
               </h3>
             </div>
@@ -638,10 +614,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             noValidate
           >
             <div className="sm:col-span-4">
-              <label
-                htmlFor="color-name"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="color-name" className="block text-sm font-medium text-ink">
                 Nama Warna
               </label>
               <input
@@ -658,11 +631,8 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div className="sm:col-span-4">
-              <label
-                htmlFor="color-hex"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
-                Kode Hex (#RRGGBB)
+              <label htmlFor="color-hex" className="block text-sm font-medium text-ink">
+                Kode Hex (<span className="font-mono">#RRGGBB</span>)
               </label>
               <div className="mt-1.5 flex gap-2">
                 <input
@@ -698,10 +668,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
             </div>
 
             <div className="sm:col-span-2">
-              <label
-                htmlFor="color-sort"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="color-sort" className="block text-sm font-medium text-ink">
                 Urutan
               </label>
               <input
@@ -738,7 +705,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
           </form>
 
           {loadingColors ? (
-            <p className="mt-4 font-mono text-xs uppercase text-muted">Memuat preset warna...</p>
+            <p className="mt-4 text-sm text-muted">Memuat preset warna...</p>
           ) : colors.length === 0 ? (
             <p className="mt-4 text-sm text-muted">
               Belum ada preset warna untuk bahan ini. Tambahkan warna pertama di atas.
@@ -784,10 +751,10 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
                       type="button"
                       onClick={() => void handleToggleColorActive(color)}
                       disabled={busyColorId === color.id}
-                      className={`inline-flex min-h-touch flex-1 items-center justify-center border px-2 py-1.5 font-display text-xs font-semibold uppercase tracking-[0.1em] ${
+                      className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-2 py-1.5 font-display text-xs font-semibold transition-colors ${
                         color.isActive
-                          ? 'border-status-err text-status-err hover:bg-status-err hover:text-bone'
-                          : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-bone'
+                          ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                          : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
                       }`}
                     >
                       {busyColorId === color.id
@@ -805,12 +772,12 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
       ) : null}
 
       <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em]">
-          Daftar Bahan ({fabrics.length})
+        <h2 className="font-display text-base font-semibold text-ink">
+          Daftar Bahan (<span className="tabular-price">{fabrics.length}</span>)
         </h2>
 
         {loading ? (
-          <div className="card-sharp p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-muted">
+          <div className="card-sharp p-6 text-center text-sm text-muted">
             Memuat daftar bahan pakaian...
           </div>
         ) : fabrics.length === 0 ? (
@@ -830,23 +797,26 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
                         className="h-full w-full object-contain"
                       />
                     ) : (
-                      <span className="px-1 text-center font-mono text-[10px] uppercase text-muted">
-                        No Img
-                      </span>
+                      <span className="px-1 text-center text-xs text-muted">Tanpa foto</span>
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-display text-base font-bold uppercase tracking-[0.06em]">
+                      <h3 className="font-display text-base font-semibold text-ink">
                         {fabric.name}
                       </h3>
                       <ActiveStatusBadge isActive={fabric.isActive} />
                     </div>
-                    <p className="font-mono text-xs text-muted">
-                      {fabric.code}
-                      {fabric.gsmWeight ? ` · ${fabric.gsmWeight} GSM` : ''}
-                      {` · Tebal ${fabric.thicknessLevel}/5`}
+                    <p className="text-xs text-muted">
+                      <span className="font-mono text-ink">{fabric.code}</span>
+                      {fabric.gsmWeight ? (
+                        <>
+                          {' '}
+                          · <span className="tabular-price">{fabric.gsmWeight} GSM</span>
+                        </>
+                      ) : null}
+                      {' · '}Tebal <span className="tabular-price">{fabric.thicknessLevel}/5</span>
                     </p>
                     <p className="tabular-price text-sm font-semibold">
                       +{formatRupiah(fabric.additionalPrice)}
@@ -855,8 +825,8 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
                 </div>
 
                 <div className="mt-3 border-t border-line pt-3">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
-                    Preset Warna ({fabric.colors.length})
+                  <p className="text-xs font-medium text-muted">
+                    Preset warna (<span className="tabular-price">{fabric.colors.length}</span>)
                   </p>
                   {fabric.colors.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -898,10 +868,10 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
                     type="button"
                     onClick={() => void handleToggleFabricActive(fabric)}
                     disabled={busyFabricId === fabric.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center border px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] transition-colors disabled:opacity-40 sm:flex-none ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 sm:flex-none ${
                       fabric.isActive
-                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-bone'
-                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-bone'
+                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
                     }`}
                   >
                     {busyFabricId === fabric.id

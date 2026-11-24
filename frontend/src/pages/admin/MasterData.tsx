@@ -19,21 +19,21 @@ export default function MasterData() {
 
   return (
     <div className="space-y-6">
-      <section className="border-b-2 border-ink pb-5 sm:pb-7">
+      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="eyebrow">Ruang produksi · Katalog &amp; harga</p>
-            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+            <p className="eyebrow">Ruang Produksi · Katalog &amp; Harga</p>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
               Master Data
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
               Kelola model pakaian, relasi bahan kompatibel, preset warna, ukuran, dan harga sablon.
               Perubahan harga master hanya berlaku untuk pesanan baru dan tidak mengubah harga yang
               sudah terkunci di pesanan lama.
             </p>
           </div>
 
-          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 border border-line-strong bg-bone px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.1em]">
+          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -47,7 +47,7 @@ export default function MasterData() {
         <div
           role="tablist"
           aria-label="Kategori master data"
-          className="mt-6 flex gap-2 overflow-x-auto border-t border-dashed border-line-strong pt-4"
+          className="mt-6 flex gap-2 overflow-x-auto border-t border-line pt-4"
         >
           {MASTER_TABS.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -58,10 +58,10 @@ export default function MasterData() {
                 type="button"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex min-h-touch shrink-0 items-center justify-center whitespace-nowrap border px-4 py-2 font-display text-sm font-semibold transition-colors ${
+                className={`inline-flex min-h-touch shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-4 py-2 font-display text-xs font-semibold transition-colors ${
                   isActive
-                    ? 'border-accent bg-accent text-ink'
-                    : 'border-line-strong bg-transparent text-ink hover:bg-ink hover:text-bone'
+                    ? 'border-ink bg-ink text-white'
+                    : 'border-line bg-surface text-ink hover:border-ink'
                 }`}
               >
                 {tab.label}

@@ -157,7 +157,7 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
 
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
-          <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
+          <h2 className="font-display text-base font-semibold text-ink">
             {editingId !== null ? 'Edit Ukuran' : 'Tambah Ukuran'}
           </h2>
           {editingId !== null ? (
@@ -173,10 +173,7 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
           noValidate
         >
           <div>
-            <label
-              htmlFor="size-code"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="size-code" className="block text-sm font-medium text-ink">
               Kode Ukuran
             </label>
             <input
@@ -191,10 +188,7 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
           </div>
 
           <div>
-            <label
-              htmlFor="size-extra"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="size-extra" className="block text-sm font-medium text-ink">
               Biaya Ekstra (Rp)
             </label>
             <input
@@ -211,10 +205,7 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
           </div>
 
           <div>
-            <label
-              htmlFor="size-sort"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="size-sort" className="block text-sm font-medium text-ink">
               Urutan Tampil
             </label>
             <input
@@ -237,12 +228,12 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em]">
-          Daftar Ukuran ({sizes.length})
+        <h2 className="font-display text-base font-semibold text-ink">
+          Daftar Ukuran (<span className="tabular-price">{sizes.length}</span>)
         </h2>
 
         {loading ? (
-          <div className="card-sharp p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-muted">
+          <div className="card-sharp p-6 text-center text-sm text-muted">
             Memuat daftar ukuran...
           </div>
         ) : sizes.length === 0 ? (
@@ -255,15 +246,15 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
               <article key={size.id} className="card-sharp flex flex-col justify-between p-4">
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-display text-xl font-bold uppercase tracking-[0.08em]">
-                      {size.code}
-                    </h3>
+                    <h3 className="font-display text-xl font-semibold text-ink">{size.code}</h3>
                     <ActiveStatusBadge isActive={size.isActive} />
                   </div>
                   <p className="tabular-price mt-2 text-sm font-semibold">
                     +{formatRupiah(size.extraCharge)}
                   </p>
-                  <p className="mt-1 font-mono text-xs text-muted">Urutan: {size.sortOrder}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    Urutan <span className="tabular-price text-ink">{size.sortOrder}</span>
+                  </p>
                 </div>
 
                 <div className="mt-4 flex gap-2">
@@ -284,10 +275,10 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
                     type="button"
                     onClick={() => void handleToggleActive(size)}
                     disabled={busyId === size.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center border px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       size.isActive
-                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-bone'
-                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-bone'
+                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
                     }`}
                   >
                     {busyId === size.id ? '...' : size.isActive ? 'Nonaktifkan' : 'Aktifkan'}

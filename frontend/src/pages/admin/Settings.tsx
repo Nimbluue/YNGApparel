@@ -199,21 +199,22 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <section className="border-b-2 border-ink pb-5 sm:pb-7">
+      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="eyebrow">Ruang produksi · Konfigurasi</p>
-            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+            <p className="eyebrow">Ruang Produksi · Konfigurasi</p>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
               Pengaturan Toko
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
               Nilai pengaturan (persentase DP, minimal qty DP, batas bayar, dan DPI Guard) akan
               dibaca dari server dan di-snapshot ke setiap order baru.
             </p>
           </div>
           {lastUpdatedLabel ? (
-            <p className="font-mono text-xs text-muted">
-              Pembaruan terakhir: {lastUpdatedLabel} WIB
+            <p className="text-xs text-muted">
+              Pembaruan terakhir: <span className="tabular-price text-ink">{lastUpdatedLabel}</span>{' '}
+              WIB
             </p>
           ) : null}
         </div>
@@ -229,21 +230,18 @@ export default function Settings() {
       ) : null}
 
       {loading || !form ? (
-        <div className="card-sharp p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-muted">
+        <div className="card-sharp p-6 text-center text-sm text-muted">
           Memuat pengaturan aplikasi...
         </div>
       ) : (
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-6" noValidate>
           <section className="card-sharp p-4 sm:p-6">
-            <h2 className="border-b border-line pb-3 font-display text-base font-bold uppercase tracking-[0.1em]">
-              01 / Identitas &amp; Operasional
+            <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
+              <span className="tabular-price text-muted">01</span> · Identitas &amp; Operasional
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="set-store-name"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-store-name" className="block text-sm font-medium text-ink">
                   Nama Brand / Toko
                 </label>
                 <input
@@ -257,10 +255,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-admin-wa"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-admin-wa" className="block text-sm font-medium text-ink">
                   Nomor WhatsApp Admin
                 </label>
                 <input
@@ -273,15 +268,12 @@ export default function Settings() {
                   disabled={submitting}
                 />
                 <p className="mt-1 text-xs text-muted">
-                  Otomatis dinormalisasi ke format 62xxxxxxxxxx.
+                  Otomatis dinormalisasi ke format <span className="font-mono">62xxxxxxxxxx</span>.
                 </p>
               </div>
 
               <div className="sm:col-span-2">
-                <label
-                  htmlFor="set-estimate"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-estimate" className="block text-sm font-medium text-ink">
                   Teks Estimasi Produksi
                 </label>
                 <input
@@ -298,15 +290,12 @@ export default function Settings() {
           </section>
 
           <section className="card-sharp p-4 sm:p-6">
-            <h2 className="border-b border-line pb-3 font-display text-base font-bold uppercase tracking-[0.1em]">
-              02 / Aturan DP &amp; Siklus Order
+            <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
+              <span className="tabular-price text-muted">02</span> · Aturan DP &amp; Siklus Order
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <label
-                  htmlFor="set-dp-percent"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-dp-percent" className="block text-sm font-medium text-ink">
                   Persentase DP (1–99%)
                 </label>
                 <input
@@ -323,10 +312,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-dp-min-qty"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-dp-min-qty" className="block text-sm font-medium text-ink">
                   Minimal Total Qty untuk DP (pcs)
                 </label>
                 <input
@@ -342,10 +328,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-due-hours"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-due-hours" className="block text-sm font-medium text-ink">
                   Batas Bayar Awal Order Website (jam)
                 </label>
                 <input
@@ -362,10 +345,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-auto-complete"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-auto-complete" className="block text-sm font-medium text-ink">
                   Otomatis Selesai Setelah Pengiriman (hari)
                 </label>
                 <input
@@ -384,15 +364,13 @@ export default function Settings() {
           </section>
 
           <section className="card-sharp p-4 sm:p-6">
-            <h2 className="border-b border-line pb-3 font-display text-base font-bold uppercase tracking-[0.1em]">
-              03 / Unggahan Desain, DPI Guard &amp; Storage
+            <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
+              <span className="tabular-price text-muted">03</span> · Unggahan Desain, DPI Guard
+              &amp; Storage
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label
-                  htmlFor="set-max-design"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-max-design" className="block text-sm font-medium text-ink">
                   Maks File Desain (MB)
                 </label>
                 <input
@@ -409,10 +387,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-dpi-ok"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-dpi-ok" className="block text-sm font-medium text-ink">
                   Ambang DPI Aman Minimum
                 </label>
                 <input
@@ -429,10 +404,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-dpi-warn"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-dpi-warn" className="block text-sm font-medium text-ink">
                   Ambang DPI Peringatan
                 </label>
                 <input
@@ -449,10 +421,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-signed-expiry"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-signed-expiry" className="block text-sm font-medium text-ink">
                   Kedaluwarsa Signed URL (detik)
                 </label>
                 <input
@@ -469,10 +438,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label
-                  htmlFor="set-tmp-ttl"
-                  className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-                >
+                <label htmlFor="set-tmp-ttl" className="block text-sm font-medium text-ink">
                   TTL File Sementara tmp/ (jam)
                 </label>
                 <input

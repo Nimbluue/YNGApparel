@@ -1,6 +1,5 @@
 /**
  * Modal / Drawer — dialog dengan overlay untuk desktop, bottom sheet untuk mobile.
- * Aksesibilitas: focus trap, aria-modal, ESC untuk tutup.
  */
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from './Button';
@@ -32,7 +31,6 @@ export function Modal({
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // ESC untuk tutup
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -42,7 +40,6 @@ export function Modal({
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // Cegah scroll body saat modal terbuka
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -64,28 +61,26 @@ export function Modal({
       aria-labelledby={title ? 'modal-title' : undefined}
       aria-describedby={description ? 'modal-desc' : undefined}
     >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-ink/75" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-ink/50 backdrop-blur-[1px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Panel — bottom sheet mobile, centered dialog desktop */}
       <div
         ref={dialogRef}
-        className={`relative w-full border-2 border-ink bg-bone ${SIZE_CLASSES[size]} max-h-[90vh] overflow-y-auto`}
+        className={`relative w-full rounded-t-2xl border border-line bg-white shadow-lg sm:rounded-2xl ${SIZE_CLASSES[size]} max-h-[90vh] overflow-y-auto`}
       >
-        {/* Header */}
         {(title || description) && (
           <div className="flex items-start justify-between border-b border-line p-5">
             <div>
               {title && (
-                <h2
-                  id="modal-title"
-                  className="font-display text-xl font-bold tracking-tightest text-ink"
-                >
+                <h2 id="modal-title" className="font-display text-lg font-bold text-ink">
                   {title}
                 </h2>
               )}
               {description && (
-                <p id="modal-desc" className="mt-2 text-base text-muted">
+                <p id="modal-desc" className="mt-1.5 text-sm text-muted">
                   {description}
                 </p>
               )}
@@ -94,26 +89,21 @@ export function Modal({
               type="button"
               onClick={onClose}
               aria-label="Tutup dialog"
-              className="ml-4 inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center border border-line-strong text-muted hover:bg-ink hover:text-bone"
+              className="ml-4 inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-ink hover:bg-surface hover:text-ink"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* Body */}
         <div className="p-5">{children}</div>
 
-        {/* Footer */}
-        {footer && <div className="border-t-2 border-ink p-5">{footer}</div>}
+        {footer && <div className="border-t border-line bg-surface p-5">{footer}</div>}
       </div>
     </div>
   );
 }
 
-/**
- * Dialog konfirmasi sederhana.
- */
 interface ConfirmDialogProps {
   open: boolean;
   onClose: () => void;
@@ -144,7 +134,7 @@ export function ConfirmDialog({
       title={title}
       size="sm"
       footer={
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-3">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
             {cancelLabel}
           </Button>
@@ -154,7 +144,7 @@ export function ConfirmDialog({
         </div>
       }
     >
-      <p className="text-sm text-neutral-600">{message}</p>
+      <p className="text-sm leading-relaxed text-muted">{message}</p>
     </Modal>
   );
 }

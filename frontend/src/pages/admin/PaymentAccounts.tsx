@@ -176,20 +176,20 @@ export default function PaymentAccounts() {
 
   return (
     <div className="space-y-6">
-      <section className="border-b-2 border-ink pb-5 sm:pb-7">
+      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="eyebrow">Ruang produksi · Pembayaran</p>
-            <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+            <p className="eyebrow">Ruang Produksi · Pembayaran</p>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
               Rekening &amp; QRIS
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-relaxed text-muted">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
               Kelola rekening bank dan kode QRIS resmi toko. Hanya akun pembayaran berstatus aktif
               yang akan ditampilkan ke pelanggan saat memilih metode bayar.
             </p>
           </div>
 
-          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 border border-line-strong bg-bone px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.1em]">
+          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -212,7 +212,7 @@ export default function PaymentAccounts() {
 
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
-          <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
+          <h2 className="font-display text-base font-semibold text-ink">
             {editingId !== null ? 'Edit Akun Pembayaran' : 'Tambah Akun Pembayaran'}
           </h2>
           {editingId !== null ? (
@@ -225,10 +225,7 @@ export default function PaymentAccounts() {
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-4 space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label
-                htmlFor="pa-method"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pa-method" className="block text-sm font-medium text-ink">
                 Metode Pembayaran
               </label>
               <select
@@ -249,10 +246,7 @@ export default function PaymentAccounts() {
             </div>
 
             <div>
-              <label
-                htmlFor="pa-provider"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pa-provider" className="block text-sm font-medium text-ink">
                 Nama Bank / Penyedia
               </label>
               <input
@@ -269,10 +263,7 @@ export default function PaymentAccounts() {
             </div>
 
             <div>
-              <label
-                htmlFor="pa-number"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pa-number" className="block text-sm font-medium text-ink">
                 Nomor Rekening{' '}
                 {form.method === PAYMENT_METHOD.BANK_TRANSFER ? '(Wajib)' : '(Opsional)'}
               </label>
@@ -292,10 +283,7 @@ export default function PaymentAccounts() {
             </div>
 
             <div>
-              <label
-                htmlFor="pa-holder"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="pa-holder" className="block text-sm font-medium text-ink">
                 Atas Nama
               </label>
               <input
@@ -313,10 +301,7 @@ export default function PaymentAccounts() {
           </div>
 
           <div>
-            <label
-              htmlFor="pa-instructions"
-              className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-            >
+            <label htmlFor="pa-instructions" className="block text-sm font-medium text-ink">
               Instruksi Pembayaran (Opsional)
             </label>
             <textarea
@@ -356,12 +341,12 @@ export default function PaymentAccounts() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em]">
-          Daftar Akun Pembayaran ({accounts.length})
+        <h2 className="font-display text-base font-semibold text-ink">
+          Daftar Akun Pembayaran (<span className="tabular-price">{accounts.length}</span>)
         </h2>
 
         {loading ? (
-          <div className="card-sharp p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-muted">
+          <div className="card-sharp p-6 text-center text-sm text-muted">
             Memuat daftar rekening pembayaran...
           </div>
         ) : accounts.length === 0 ? (
@@ -385,18 +370,18 @@ export default function PaymentAccounts() {
 
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="border border-ink bg-ink px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-bone">
-                        {account.method === PAYMENT_METHOD.QRIS ? 'QRIS' : 'TRANSFER BANK'}
+                      <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
+                        {account.method === PAYMENT_METHOD.QRIS ? 'QRIS' : 'Transfer Bank'}
                       </span>
                       <ActiveStatusBadge isActive={account.isActive} />
                     </div>
 
-                    <h3 className="font-display text-base font-bold uppercase tracking-[0.06em]">
+                    <h3 className="font-display text-base font-semibold text-ink">
                       {account.providerName}
                     </h3>
 
                     {account.accountNumber ? (
-                      <p className="font-mono text-sm font-semibold tabular-nums">
+                      <p className="break-all font-mono text-sm font-semibold tabular-nums">
                         {account.accountNumber}
                       </p>
                     ) : null}
@@ -411,7 +396,7 @@ export default function PaymentAccounts() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => startEdit(account)}
@@ -423,10 +408,10 @@ export default function PaymentAccounts() {
                     type="button"
                     onClick={() => void handleToggleActive(account)}
                     disabled={busyId === account.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center border px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       account.isActive
-                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-bone'
-                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-bone'
+                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
                     }`}
                   >
                     {busyId === account.id

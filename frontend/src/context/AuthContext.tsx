@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as authService from '../services/authService';
 
 interface AuthContextValue {
@@ -31,7 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState(false);
   const inFlightCheckRef = useRef<Promise<void> | null>(null);
+  const userRef = useRef<AuthUserDto | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const checkSession = useCallback(async () => {
     if (inFlightCheckRef.current) {
@@ -56,16 +62,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return task;
   }, []);
 
-  // Tangani event 401 dari Axios interceptor → logout & redirect login
+  // Tangani event 401 dari Axios interceptor hanya saat sesi user yang sebelumnya login kedaluwarsa
   useEffect(() => {
     const handler = () => {
+      const wasLoggedIn = userRef.current !== null;
       setUser(null);
       setChecked(true);
-      navigate('/login', { replace: true });
+      if (wasLoggedIn && location.pathname !== '/login' && location.pathname !== '/register') {
+        navigate('/login', { replace: true, state: { from: location } });
+      }
     };
     window.addEventListener('yng:unauthorized', handler);
     return () => window.removeEventListener('yng:unauthorized', handler);
-  }, [navigate]);
+  }, [location, navigate]);
 
   useEffect(() => {
     void checkSession();

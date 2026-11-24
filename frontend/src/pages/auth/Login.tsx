@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClientError } from '../../services/api';
+import { BRAND_LOGO_MAIN_URL } from '../../utils/brandAssets';
 
 interface RedirectFromLocation {
   pathname?: string;
@@ -114,42 +115,73 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-page mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-      <aside className="auth-brand-panel relative flex min-h-64 flex-col justify-between bg-ink p-6 text-bone sm:p-10 lg:min-h-[620px]">
-        <span className="absolute right-5 top-5 font-mono text-xl text-accent" aria-hidden="true">
-          +
-        </span>
-        <div>
-          <p className="font-mono text-xs text-neutral-300">YNG APPAREL / BATAM</p>
-          <p className="mt-12 max-w-md font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
-            BIKIN IDE JADI SERAGAM.
+    <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
+      <aside className="flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 sm:p-10">
+        <div className="space-y-6">
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
+              <img
+                src={BRAND_LOGO_MAIN_URL}
+                alt="Emblem YNG Apparel"
+                className="h-full w-full scale-110 object-cover object-center"
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display text-base font-semibold text-ink">YNG Apparel</p>
+              <p className="text-xs text-muted">Batam Studio · Est. 2022</p>
+            </div>
+          </div>
+
+          <h2 className="font-display text-2xl font-semibold leading-snug text-ink sm:text-3xl">
+            Lanjutkan rancangan pakaian custom Anda.
+          </h2>
+          <p className="text-sm leading-relaxed text-muted">
+            Simpan konfigurasi Custom Lab ke keranjang, atur alamat pengiriman, dan pantau setiap
+            tahap produksi dalam satu akun.
           </p>
+
+          <ul className="space-y-2 border-t border-line pt-4 text-xs text-ink">
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
+              <span>Simpan beberapa konfigurasi Custom Lab sekaligus</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
+              <span>Kelola alamat pengiriman tersimpan untuk checkout cepat</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
+              <span>Pantau status desain, pembayaran, QC, dan resi pengiriman</span>
+            </li>
+          </ul>
         </div>
-        <p className="mt-8 max-w-sm font-editorial text-2xl italic text-accent sm:text-3xl">
-          Pakaian custom, dikerjakan bareng dari awal.
-        </p>
+
+        <p className="mt-8 font-editorial text-2xl italic text-ink">@yng.apparel.official</p>
       </aside>
 
-      <section className="auth-form-panel py-2 sm:py-8 lg:py-10">
-        <p className="eyebrow">Akun pelanggan &amp; workshop</p>
-        <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+      <section className="rounded-3xl border border-line bg-white p-6 sm:p-10">
+        <p className="eyebrow">Akun Pelanggan &amp; Studio</p>
+        <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
           Masuk Akun
         </h1>
-        <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-          Masuk untuk mengelola keranjang Custom Lab, pesanan Anda, atau akses dashboard admin.
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Gunakan email dan password yang terdaftar untuk melanjutkan.
         </p>
 
         {routeState?.registeredMessage ? (
           <div
             role="status"
-            className="care-label mt-6 border-l-status-ok bg-transparent px-0 py-0 text-base text-status-ok"
+            className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-status-ok"
           >
             {routeState.registeredMessage}
           </div>
         ) : null}
 
         {routeState?.statusMessage ? (
-          <div role="status" className="mt-6 border-l-4 border-ink px-4 py-3 text-base">
+          <div
+            role="status"
+            className="mt-5 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink"
+          >
             {routeState.statusMessage}
           </div>
         ) : null}
@@ -157,19 +189,15 @@ export default function Login() {
         {errorMessage ? (
           <div
             role="alert"
-            className="mt-6 border-l-4 border-status-err px-4 py-3 text-base text-status-err"
+            className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-status-err"
           >
             {errorMessage}
           </div>
         ) : null}
 
-        <form
-          onSubmit={(event) => void handleSubmit(event)}
-          className="mt-8 max-w-xl space-y-6"
-          noValidate
-        >
+        <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-5" noValidate>
           <div>
-            <label htmlFor="login-email" className="block text-sm font-semibold">
+            <label htmlFor="login-email" className="block text-sm font-medium text-ink">
               Email
             </label>
             <input
@@ -181,13 +209,13 @@ export default function Login() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="nama@email.com"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
 
           <div>
-            <label htmlFor="login-password" className="block text-sm font-semibold">
+            <label htmlFor="login-password" className="block text-sm font-medium text-ink">
               Password
             </label>
             <input
@@ -199,7 +227,7 @@ export default function Login() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Masukkan password"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
@@ -209,12 +237,12 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-8 border-t border-line pt-5 text-base text-muted">
+        <div className="mt-8 border-t border-line pt-5 text-sm text-muted">
           Belum punya akun pelanggan?{' '}
           <Link
             to="/register"
             state={routeState?.from ? { from: routeState.from } : undefined}
-            className="font-semibold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-muted"
+            className="font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
           >
             Daftar di sini
           </Link>

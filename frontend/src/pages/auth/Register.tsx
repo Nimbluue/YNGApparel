@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClientError } from '../../services/api';
+import { BRAND_LOGO_MAIN_URL } from '../../utils/brandAssets';
 import type { AuthRedirectState } from './Login';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -120,40 +121,67 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-page mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-      <aside className="auth-brand-panel relative flex min-h-64 flex-col justify-between bg-ink p-6 text-bone sm:p-10 lg:min-h-[720px]">
-        <span className="absolute right-5 top-5 font-mono text-xl text-accent" aria-hidden="true">
-          +
-        </span>
-        <div>
-          <p className="font-mono text-xs text-neutral-300">YNG APPAREL / BATAM</p>
-          <p className="mt-12 max-w-md font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
-            SETIAP TIM PUNYA CERITA.
+    <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
+      <aside className="flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 sm:p-10">
+        <div className="space-y-6">
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
+              <img
+                src={BRAND_LOGO_MAIN_URL}
+                alt="Emblem YNG Apparel"
+                className="h-full w-full scale-110 object-cover object-center"
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display text-base font-semibold text-ink">YNG Apparel</p>
+              <p className="text-xs text-muted">Ruang Pelanggan · Batam</p>
+            </div>
+          </div>
+
+          <h2 className="font-display text-2xl font-semibold leading-snug text-ink sm:text-3xl">
+            Mulai dari satu rancangan, wujudkan bersama tim.
+          </h2>
+          <p className="text-sm leading-relaxed text-muted">
+            Daftar sekali untuk menyimpan alamat pengiriman, keranjang Custom Lab, dan memantau
+            status pesanan.
           </p>
+
+          <ul className="space-y-2 border-t border-line pt-4 text-xs text-ink">
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
+              <span>Simulasi harga transparan dengan perhitungan server</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
+              <span>Skema DP atau Lunas fleksibel sesuai jumlah pesanan</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
+              <span>Konsultasi bahan &amp; warna custom langsung via WhatsApp</span>
+            </li>
+          </ul>
         </div>
-        <p className="mt-8 max-w-sm font-editorial text-2xl italic text-accent sm:text-3xl">
-          Mulai dari satu desain, lanjut jadi identitas.
-        </p>
+
+        <p className="mt-8 font-editorial text-2xl italic text-ink">@yng.apparel.official</p>
       </aside>
 
-      <section className="auth-form-panel py-2 sm:py-8 lg:py-10">
-        <p className="eyebrow">Ruang pelanggan</p>
-        <h1 className="mt-3 font-display text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl">
+      <section className="rounded-3xl border border-line bg-white p-6 sm:p-10">
+        <p className="eyebrow">Registrasi Akun</p>
+        <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
           Daftar Akun
         </h1>
-        <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-          Buat akun untuk menyimpan konfigurasi Custom Lab di keranjang, alamat pengiriman, dan
-          memantau pesanan Anda.
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Isi data diri dan nomor WhatsApp aktif untuk mempermudah konfirmasi produksi.
         </p>
 
         {errorMessage ? (
           <div
             role="alert"
-            className="mt-6 border-l-4 border-status-err px-4 py-3 text-base text-status-err"
+            className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-status-err"
           >
-            <p>{errorMessage}</p>
+            <p className="font-medium">{errorMessage}</p>
             {fieldErrors.length > 1 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
                 {fieldErrors.map((item, index) => (
                   <li key={`${item.field}-${index}`}>{item.message}</li>
                 ))}
@@ -162,13 +190,9 @@ export default function Register() {
           </div>
         ) : null}
 
-        <form
-          onSubmit={(event) => void handleSubmit(event)}
-          className="mt-8 max-w-xl space-y-5"
-          noValidate
-        >
+        <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-4" noValidate>
           <div>
-            <label htmlFor="register-fullname" className="block text-sm font-semibold">
+            <label htmlFor="register-fullname" className="block text-sm font-medium text-ink">
               Nama Lengkap
             </label>
             <input
@@ -180,13 +204,13 @@ export default function Register() {
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               placeholder="Budi Santoso"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
 
           <div>
-            <label htmlFor="register-email" className="block text-sm font-semibold">
+            <label htmlFor="register-email" className="block text-sm font-medium text-ink">
               Email
             </label>
             <input
@@ -198,13 +222,13 @@ export default function Register() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="budi@email.com"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
 
           <div>
-            <label htmlFor="register-whatsapp" className="block text-sm font-semibold">
+            <label htmlFor="register-whatsapp" className="block text-sm font-medium text-ink">
               Nomor WhatsApp
             </label>
             <input
@@ -216,16 +240,16 @@ export default function Register() {
               value={whatsapp}
               onChange={(event) => setWhatsapp(event.target.value)}
               placeholder="081234567890"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5 font-mono"
               disabled={submitting}
             />
-            <p className="mt-2 text-sm text-muted">
+            <p className="mt-1.5 text-xs text-muted">
               Contoh: 081234567890 atau 6281234567890 (otomatis dinormalisasi ke format 62).
             </p>
           </div>
 
           <div>
-            <label htmlFor="register-password" className="block text-sm font-semibold">
+            <label htmlFor="register-password" className="block text-sm font-medium text-ink">
               Password
             </label>
             <input
@@ -237,13 +261,16 @@ export default function Register() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Minimal 8 karakter (maks 72 byte)"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
 
           <div>
-            <label htmlFor="register-confirm-password" className="block text-sm font-semibold">
+            <label
+              htmlFor="register-confirm-password"
+              className="block text-sm font-medium text-ink"
+            >
               Konfirmasi Password
             </label>
             <input
@@ -255,7 +282,7 @@ export default function Register() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="Ulangi password"
-              className="input-sharp mt-2"
+              className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
@@ -265,12 +292,12 @@ export default function Register() {
           </button>
         </form>
 
-        <div className="mt-8 border-t border-line pt-5 text-base text-muted">
+        <div className="mt-8 border-t border-line pt-5 text-sm text-muted">
           Sudah punya akun?{' '}
           <Link
             to="/login"
             state={routeState?.from ? { from: routeState.from } : undefined}
-            className="font-semibold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-muted"
+            className="font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
           >
             Masuk di sini
           </Link>

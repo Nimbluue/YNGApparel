@@ -196,7 +196,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
-          <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
+          <h2 className="font-display text-base font-semibold text-ink">
             {editingId !== null ? 'Edit Ukuran Sablon' : 'Tambah Ukuran Sablon'}
           </h2>
           {editingId !== null ? (
@@ -209,10 +209,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-4 space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label
-                htmlFor="ps-code"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-code" className="block text-sm font-medium text-ink">
                 Kode
               </label>
               <input
@@ -229,10 +226,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="ps-name"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-name" className="block text-sm font-medium text-ink">
                 Nama Tampilan
               </label>
               <input
@@ -247,10 +241,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="ps-dim"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-dim" className="block text-sm font-medium text-ink">
                 Label Dimensi (cm)
               </label>
               <input
@@ -269,10 +260,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
           <div className="grid gap-4 sm:grid-cols-4">
             <div>
-              <label
-                htmlFor="ps-width"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-width" className="block text-sm font-medium text-ink">
                 Lebar (cm)
               </label>
               <input
@@ -290,10 +278,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="ps-height"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-height" className="block text-sm font-medium text-ink">
                 Tinggi (cm)
               </label>
               <input
@@ -311,10 +296,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="ps-price"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-price" className="block text-sm font-medium text-ink">
                 Harga / Titik (Rp)
               </label>
               <input
@@ -333,10 +315,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="ps-sort"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="ps-sort" className="block text-sm font-medium text-ink">
                 Urutan Tampil
               </label>
               <input
@@ -366,12 +345,12 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em]">
-          Daftar Ukuran Sablon ({printSizes.length})
+        <h2 className="font-display text-base font-semibold text-ink">
+          Daftar Ukuran Sablon (<span className="tabular-price">{printSizes.length}</span>)
         </h2>
 
         {loading ? (
-          <div className="card-sharp p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-muted">
+          <div className="card-sharp p-6 text-center text-sm text-muted">
             Memuat daftar ukuran sablon...
           </div>
         ) : printSizes.length === 0 ? (
@@ -384,16 +363,19 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
               <article key={ps.id} className="card-sharp flex flex-col justify-between p-4">
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-display text-base font-bold uppercase tracking-[0.08em]">
+                    <h3 className="font-display text-base font-semibold text-ink">
                       {ps.name} <span className="font-mono text-xs text-muted">({ps.code})</span>
                     </h3>
                     <ActiveStatusBadge isActive={ps.isActive} />
                   </div>
-                  <p className="mt-1 font-mono text-xs text-muted">
-                    {ps.dimensionsCm} cm ({ps.widthCm} × {ps.heightCm} cm) · Urutan {ps.sortOrder}
+                  <p className="mt-1 text-xs text-muted">
+                    <span className="tabular-price text-ink">
+                      {ps.dimensionsCm} cm ({ps.widthCm} × {ps.heightCm} cm)
+                    </span>{' '}
+                    · Urutan <span className="tabular-price">{ps.sortOrder}</span>
                   </p>
-                  <p className="tabular-price mt-2 text-sm font-semibold">
-                    {formatRupiah(ps.pricePerSpot)} / titik
+                  <p className="mt-2 text-sm font-semibold text-ink">
+                    <span className="tabular-price">{formatRupiah(ps.pricePerSpot)}</span> / titik
                   </p>
                 </div>
 
@@ -421,10 +403,10 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
                     type="button"
                     onClick={() => void handleToggleActive(ps)}
                     disabled={busyId === ps.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center border px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       ps.isActive
-                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-bone'
-                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-bone'
+                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
                     }`}
                   >
                     {busyId === ps.id ? '...' : ps.isActive ? 'Nonaktifkan' : 'Aktifkan'}

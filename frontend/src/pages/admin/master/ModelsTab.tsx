@@ -269,7 +269,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <div>
-            <h2 className="font-display text-base font-bold uppercase tracking-[0.1em]">
+            <h2 className="font-display text-base font-semibold text-ink">
               {editingId !== null ? 'Edit Model Pakaian' : 'Tambah Model Pakaian'}
             </h2>
             <p className="text-xs text-muted">
@@ -286,10 +286,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-4 space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label
-                htmlFor="model-name"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="model-name" className="block text-sm font-medium text-ink">
                 Nama Model
               </label>
               <input
@@ -311,10 +308,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="model-slug"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="model-slug" className="block text-sm font-medium text-ink">
                 Slug Unik
               </label>
               <input
@@ -332,10 +326,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="model-price"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="model-price" className="block text-sm font-medium text-ink">
                 Harga Dasar (Rp)
               </label>
               <input
@@ -354,10 +345,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="model-sort"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="model-sort" className="block text-sm font-medium text-ink">
                 Urutan Tampil
               </label>
               <input
@@ -378,10 +366,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label
-                htmlFor="model-template"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="model-template" className="block text-sm font-medium text-ink">
                 Template Mockup (Opsional)
               </label>
               <input
@@ -398,10 +383,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="model-description"
-                className="block font-display text-xs font-semibold uppercase tracking-[0.14em]"
-              >
+              <label htmlFor="model-description" className="block text-sm font-medium text-ink">
                 Deskripsi (Opsional)
               </label>
               <input
@@ -446,10 +428,8 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         <section className="card-sharp border-ink p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
-                Relasi Model — Bahan
-              </p>
-              <h3 className="font-display text-base font-bold uppercase tracking-[0.08em]">
+              <p className="eyebrow">Relasi Model &amp; Bahan</p>
+              <h3 className="font-display text-base font-semibold text-ink">
                 Pilih Bahan untuk {linkingModel.name}
               </h3>
             </div>
@@ -490,7 +470,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                         <span className="block text-sm font-medium">
                           {fabric.name}{' '}
                           {!fabric.isActive ? (
-                            <span className="font-mono text-[10px] text-muted">(NONAKTIF)</span>
+                            <span className="text-xs text-muted">(Nonaktif)</span>
                           ) : null}
                         </span>
                         <span className="font-mono text-xs text-muted">{fabric.code}</span>
@@ -520,13 +500,13 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em]">
-            Daftar Model ({models.length})
+          <h2 className="font-display text-base font-semibold text-ink">
+            Daftar Model (<span className="tabular-price">{models.length}</span>)
           </h2>
         </div>
 
         {loading ? (
-          <div className="card-sharp p-6 text-center font-mono text-xs uppercase tracking-[0.14em] text-muted">
+          <div className="card-sharp p-6 text-center text-sm text-muted">
             Memuat daftar model pakaian...
           </div>
         ) : models.length === 0 ? (
@@ -546,15 +526,13 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                         className="h-full w-full object-contain"
                       />
                     ) : (
-                      <span className="px-1 text-center font-mono text-[10px] uppercase text-muted">
-                        No Img
-                      </span>
+                      <span className="px-1 text-center text-xs text-muted">Tanpa foto</span>
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-display text-base font-bold uppercase tracking-[0.06em]">
+                      <h3 className="font-display text-base font-semibold text-ink">
                         {model.name}
                       </h3>
                       <ActiveStatusBadge isActive={model.isActive} />
@@ -563,16 +541,23 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                     <p className="tabular-price text-sm font-semibold">
                       {formatRupiah(model.basePrice)}
                     </p>
-                    <p className="font-mono text-[11px] text-muted">
-                      Urutan: {model.sortOrder}
-                      {model.mockupTemplate ? ` · Template: ${model.mockupTemplate}` : ''}
+                    <p className="text-xs text-muted">
+                      Urutan <span className="tabular-price text-ink">{model.sortOrder}</span>
+                      {model.mockupTemplate ? (
+                        <>
+                          {' '}
+                          · Template{' '}
+                          <span className="font-mono text-ink">{model.mockupTemplate}</span>
+                        </>
+                      ) : null}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-3 border-t border-line pt-3">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
-                    Bahan Kompatibel ({model.fabricIds.length})
+                  <p className="text-xs font-medium text-muted">
+                    Bahan kompatibel (
+                    <span className="tabular-price">{model.fabricIds.length}</span>)
                   </p>
                   {model.fabricIds.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -614,10 +599,10 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                     type="button"
                     onClick={() => void handleToggleActive(model)}
                     disabled={busyId === model.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center border px-3 py-2 font-display text-xs font-semibold uppercase tracking-[0.14em] transition-colors disabled:opacity-40 sm:flex-none ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 sm:flex-none ${
                       model.isActive
-                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-bone'
-                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-bone'
+                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
                     }`}
                   >
                     {busyId === model.id
