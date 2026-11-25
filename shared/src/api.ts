@@ -1,4 +1,16 @@
-import type { PaymentMethod, PaymentScheme, PrintPosition, UserRole } from './enums.js';
+import type {
+  DesignStatus,
+  FulfillmentType,
+  OrderSource,
+  PaymentMethod,
+  PaymentScheme,
+  PaymentStage,
+  PaymentStatus,
+  PrintPosition,
+  ProductionStatus,
+  UserRole,
+} from './enums.js';
+import type { CourierInfo } from './couriers.js';
 
 /**
  * Nilai uang dalam aplikasi YNG Apparel selalu memakai bilangan bulat rupiah (integer).
@@ -526,4 +538,248 @@ export interface PricingQuoteResponseDto {
   settlementAmount: Rupiah;
   availablePaymentSchemes: PaymentScheme[];
   paymentSchemeOptions: PricingPaymentSchemeOptionDto[];
+}
+
+export interface DesignUploadResultDto {
+  fileRef: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+}
+
+export interface CartItemSizeInputDto {
+  sizeId: number;
+  qty: number;
+}
+
+export interface CartItemPrintInputDto {
+  printSizeId: number;
+  printPosition: PrintPosition;
+  needsDesignHelp?: boolean;
+  fileRef?: string | null;
+  fileName?: string | null;
+}
+
+export interface CartItemConfigDto {
+  isCustomColor: boolean;
+  fabricColorId: number | null;
+  colorName: string | null;
+  colorHex: string | null;
+  sizes: CartItemSizeInputDto[];
+  prints: Array<{
+    printSizeId: number;
+    printPosition: PrintPosition;
+    needsDesignHelp: boolean;
+    fileRef: string | null;
+    fileName: string | null;
+  }>;
+  productionNotes: string | null;
+}
+
+export interface UpsertCartItemRequestDto {
+  modelId: number;
+  fabricId: number;
+  isCustomColor?: boolean;
+  fabricColorId?: number | null;
+  colorName?: string | null;
+  colorHex?: string | null;
+  sizes: CartItemSizeInputDto[];
+  prints?: CartItemPrintInputDto[];
+  productionNotes?: string | null;
+}
+
+export interface CartItemDto {
+  cartItemUuid: string;
+  modelId: number;
+  fabricId: number;
+  configVersion: number;
+  config: CartItemConfigDto;
+  isAvailable: boolean;
+  warnings: string[];
+  itemQty: number;
+  lineSubtotal: Rupiah;
+  pricing: PricingQuoteItemBreakdownDto | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CartSummaryDto {
+  totalItems: number;
+  maxItems: number;
+  availableItemCount: number;
+  unavailableItemCount: number;
+  totalQty: number;
+  subtotalAmount: Rupiah;
+  dpEligible: boolean;
+  dpMinQty: number;
+  dpPercent: number;
+  dpAmount: Rupiah;
+  settlementAmount: Rupiah;
+}
+
+export interface CartListResponseDto {
+  items: CartItemDto[];
+  summary: CartSummaryDto;
+}
+
+export interface CreateOrderShippingAddressDto {
+  recipientName: string;
+  recipientWhatsapp: string;
+  provinceName: string;
+  cityName: string;
+  districtName: string;
+  postalCode: string;
+  fullAddress: string;
+}
+
+export interface CreateOrderRequestDto {
+  cartItemUuids: string[];
+  fulfillmentType: FulfillmentType;
+  addressUuid?: string | null;
+  address?: CreateOrderShippingAddressDto | null;
+  pickupName?: string | null;
+  pickupWhatsapp?: string | null;
+  paymentScheme: PaymentScheme;
+}
+
+export interface OrderPaymentDto {
+  paymentUuid: string;
+  paymentStage: PaymentStage;
+  paymentStageLabel: string;
+  paymentMethod: PaymentMethod | null;
+  paymentAccountId: number | null;
+  amount: Rupiah;
+  status: PaymentStatus;
+  hasProof: boolean;
+  proofImageUrl: string | null;
+  rejectionReason: string | null;
+  proofUploadedAt: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export interface OrderPaymentsResponseDto {
+  transactionUuid: string;
+  orderCode: string;
+  productionStatus: ProductionStatus;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  grandTotal: Rupiah;
+  remainingBalance: Rupiah;
+  paymentDueAt: string | null;
+  payments: OrderPaymentDto[];
+}
+
+export interface UploadPaymentProofResultDto {
+  transactionUuid: string;
+  orderCode: string;
+  payment: OrderPaymentDto;
+}
+
+export interface OrderItemSizeDto {
+  sizeCode: string;
+  qty: number;
+  lockedExtraCharge: Rupiah;
+}
+
+export interface OrderItemPrintDto {
+  printSizeCode: string;
+  printPosition: PrintPosition;
+  designFileName: string | null;
+  hasDesignFile: boolean;
+  lockedSpotPrice: Rupiah;
+}
+
+export interface OrderItemDto {
+  modelName: string;
+  fabricName: string;
+  isCustomColor: boolean;
+  colorName: string;
+  colorHex: string | null;
+  needsDesignHelp: boolean;
+  productionNotes: string | null;
+  lockedBasePrice: Rupiah;
+  lockedFabricPrice: Rupiah;
+  itemQty: number;
+  lineSubtotal: Rupiah;
+  sizes: OrderItemSizeDto[];
+  prints: OrderItemPrintDto[];
+}
+
+export interface OrderQcPhotoDto {
+  photoUrl: string;
+  createdAt: string;
+}
+
+export interface OrderStatusHistoryDto {
+  fromStatus: string | null;
+  toStatus: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface OrderSummaryDto {
+  transactionUuid: string;
+  orderCode: string;
+  fulfillmentType: FulfillmentType;
+  totalQty: number;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  grandTotal: Rupiah;
+  dpRequiredAmount: Rupiah;
+  remainingBalance: Rupiah;
+  productionStatus: ProductionStatus;
+  designStatus: DesignStatus;
+  initialPaymentStatus: PaymentStatus | null;
+  initialPaymentHasProof: boolean;
+  paymentDueAt: string | null;
+  createdAt: string;
+}
+
+export interface OrderDetailDto {
+  transactionUuid: string;
+  orderCode: string;
+  source: OrderSource;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  provinceName: string | null;
+  cityName: string | null;
+  districtName: string | null;
+  postalCode: string | null;
+  fullAddress: string | null;
+  totalQty: number;
+  dpMinQtySnapshot: number;
+  isDpEligible: boolean;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  subtotalAmount: Rupiah;
+  discountAmount: Rupiah;
+  discountNote: string | null;
+  shippingCost: Rupiah;
+  grandTotal: Rupiah;
+  dpRequiredAmount: Rupiah;
+  remainingBalance: Rupiah;
+  productionStatus: ProductionStatus;
+  designStatus: DesignStatus;
+  designReviewNotes: string | null;
+  estimatedFinishDate: string | null;
+  shippingCourier: string | null;
+  shippingService: string | null;
+  trackingReceiptNumber: string | null;
+  courierInfo: CourierInfo | null;
+  trackingUrl: string | null;
+  shippedAt: string | null;
+  paymentDueAt: string | null;
+  cancelledReason: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItemDto[];
+  payments: OrderPaymentDto[];
+  qcPhotos: OrderQcPhotoDto[];
+  statusHistory: OrderStatusHistoryDto[];
 }

@@ -7,6 +7,8 @@ import { sendSuccess } from '../utils/response.js';
 import accountRoutes from './accountRoutes.js';
 import adminRoutes from './adminRoutes.js';
 import authRoutes from './authRoutes.js';
+import cartRoutes from './cartRoutes.js';
+import orderRoutes from './orderRoutes.js';
 import publicRoutes from './publicRoutes.js';
 
 const router = Router();
@@ -41,6 +43,8 @@ router.get(
 
 router.use('/auth', authRoutes);
 router.use('/me', accountRoutes);
+router.use('/cart', cartRoutes);
+router.use('/orders', orderRoutes);
 router.use('/', publicRoutes);
 router.use('/admin', adminRoutes);
 

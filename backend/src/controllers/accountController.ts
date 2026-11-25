@@ -2,6 +2,8 @@ import type {
   AuthUserDto,
   CreateUserAddressDto,
   DeactivateAccountRequestDto,
+  OrderDetailDto,
+  OrderSummaryDto,
   UpdateProfileRequestDto,
   UpdateUserAddressDto,
   UserAddressDto,
@@ -11,6 +13,7 @@ import { z } from 'zod';
 import { PASSWORD_MAX_BYTES } from '../config/constants.js';
 import { clearAuthCookie } from '../middleware/auth.js';
 import accountService, { type AccountService } from '../services/accountService.js';
+import defaultOrderService, { type OrderService } from '../services/orderService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { normalizeWhatsApp } from '../utils/phone.js';
 import { sendCreated, sendError, sendSuccess } from '../utils/response.js';
@@ -138,6 +141,19 @@ export const updateAddressBodySchema = createAddressBodySchema
   .strict()
   .refine((obj) => Object.keys(obj).length > 0, 'Minimal satu field alamat harus diperbarui.');
 
+export const myOrderUuidParamSchema = z
+  .object({
+    uuid: z.string().uuid('Format UUID pesanan tidak valid.'),
+  })
+  .strict();
+
+export const myOrdersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+  })
+  .strict();
+
 export interface AccountController {
   updateProfile: RequestHandler;
   deactivateAccount: RequestHandler;
@@ -145,13 +161,16 @@ export interface AccountController {
   createAddress: RequestHandler;
   updateAddress: RequestHandler;
   deleteAddress: RequestHandler;
+  listMyOrders: RequestHandler;
+  getMyOrderDetail: RequestHandler;
 }
 
 /**
  * Membuat controller akun pelanggan & alamat tersimpan (`/api/me/*`).
  */
 export function createAccountController(
-  service: AccountService = accountService
+  service: AccountService = accountService,
+  orderSvc: OrderService = defaultOrderService
 ): AccountController {
   return {
     updateProfile: asyncHandler(async (req, res) => {
@@ -247,6 +266,44 @@ export function createAccountController(
       return sendSuccess(res, {
         message: 'Alamat tersimpan berhasil dihapus.',
         data: null,
+      });
+    }),
+
+    listMyOrders: asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return sendError(res, {
+          status: 401,
+          message: 'Autentikasi diperlukan. Silakan login terlebih dahulu.',
+        });
+      }
+
+      const { page, limit } = req.query as unknown as { page: number; limit: number };
+      const result = await orderSvc.listMyOrders({
+        userId: req.user.id,
+        page,
+        limit,
+      });
+
+      return sendSuccess<OrderSummaryDto[]>(res, {
+        message: 'Daftar pesanan Anda berhasil dimuat.',
+        data: result.items,
+        meta: result.meta,
+      });
+    }),
+
+    getMyOrderDetail: asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return sendError(res, {
+          status: 401,
+          message: 'Autentikasi diperlukan. Silakan login terlebih dahulu.',
+        });
+      }
+
+      const detail = await orderSvc.getMyOrderDetail(req.user.id, req.params.uuid);
+      res.setHeader('Cache-Control', 'no-store');
+      return sendSuccess<OrderDetailDto>(res, {
+        message: 'Detail pesanan berhasil dimuat.',
+        data: detail,
       });
     }),
   };

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   PAYMENT_SCHEME,
   PRINT_POSITION,
@@ -7,6 +7,7 @@ import {
   type PricingQuoteRequestDto,
   type PricingQuoteResponseDto,
   type PublicCatalogConfigDto,
+  type UpsertCartItemRequestDto,
 } from '@yng/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -32,6 +33,13 @@ import {
   getCatalogPrintSizes,
   getCatalogSizes,
 } from '../../services/catalogService';
+import {
+  addCartItem,
+  cartQueryKeys,
+  getCartItems,
+  updateCartItem,
+  uploadDesignFile,
+} from '../../services/cartService';
 import { requestPricingQuote } from '../../services/pricingService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
@@ -40,6 +48,7 @@ import { openWaLink } from '../../utils/whatsapp';
 
 const DRAFT_STORAGE_KEY = 'yng_custom_lab_draft_v1';
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+const ALLOWED_DESIGN_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg', 'pdf']);
 
 interface CustomLabDraft {
   modelId: number | null;
@@ -50,6 +59,7 @@ interface CustomLabDraft {
   customColorHex: string;
   quantities: Record<number, number>;
   prints: PrintSpotDraft[];
+  productionNotes: string;
   paymentScheme: PaymentScheme;
 }
 
@@ -62,6 +72,7 @@ const DEFAULT_DRAFT: CustomLabDraft = {
   customColorHex: '',
   quantities: {},
   prints: [],
+  productionNotes: '',
   paymentScheme: PAYMENT_SCHEME.FULL,
 };
 
@@ -106,6 +117,10 @@ function readInitialDraft(): CustomLabDraft {
                 ? spot.printSizeId
                 : null,
             needsDesignHelp: Boolean(spot.needsDesignHelp),
+            fileRef: typeof spot.fileRef === 'string' && spot.fileRef ? spot.fileRef : null,
+            fileName: typeof spot.fileName === 'string' && spot.fileName ? spot.fileName : null,
+            width: typeof spot.width === 'number' ? spot.width : null,
+            height: typeof spot.height === 'number' ? spot.height : null,
           }))
       : [];
 
@@ -127,6 +142,8 @@ function readInitialDraft(): CustomLabDraft {
       customColorHex: typeof parsed.customColorHex === 'string' ? parsed.customColorHex : '',
       quantities,
       prints,
+      productionNotes:
+        typeof parsed.productionNotes === 'string' ? parsed.productionNotes.slice(0, 500) : '',
       paymentScheme:
         parsed.paymentScheme === PAYMENT_SCHEME.DP ? PAYMENT_SCHEME.DP : PAYMENT_SCHEME.FULL,
     };
@@ -146,8 +163,10 @@ function saveDraftToSessionStorage(draft: CustomLabDraft): void {
 export default function CustomLab() {
   const { isGuest } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedModelSlug = searchParams.get('model');
+  const editCartItemUuid = searchParams.get('edit');
   const { toast } = useToast();
 
   const [draft, setDraft] = useState<CustomLabDraft>(() => readInitialDraft());
@@ -156,9 +175,11 @@ export default function CustomLab() {
   const [uploadFeedbackBySpotKey, setUploadFeedbackBySpotKey] = useState<Record<string, string>>(
     {}
   );
+  const [uploadingSpotKey, setUploadingSpotKey] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [catalogModalOpen, setCatalogModalOpen] = useState(false);
 
+  const hydratedEditUuidRef = useRef<string | null>(null);
   const quoteRequestIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -181,6 +202,59 @@ export default function CustomLab() {
     queryKey: catalogQueryKeys.config,
     queryFn: getCatalogConfig,
   });
+
+  const editCartQuery = useQuery({
+    queryKey: cartQueryKeys.items,
+    queryFn: getCartItems,
+    enabled: Boolean(editCartItemUuid) && !isGuest,
+  });
+
+  useEffect(() => {
+    if (!editCartItemUuid || !editCartQuery.data) return;
+    if (hydratedEditUuidRef.current === editCartItemUuid) return;
+
+    const targetItem = editCartQuery.data.items.find(
+      (item) => item.cartItemUuid === editCartItemUuid
+    );
+    if (!targetItem) {
+      hydratedEditUuidRef.current = editCartItemUuid;
+      toast('Item keranjang yang akan diubah tidak ditemukan.', 'warn');
+      return;
+    }
+
+    const quantities: Record<number, number> = {};
+    for (const s of targetItem.config.sizes) {
+      if (s.qty > 0) {
+        quantities[s.sizeId] = s.qty;
+      }
+    }
+
+    hydratedEditUuidRef.current = editCartItemUuid;
+    setServerQuote(null);
+    setQuoteError(null);
+    setActionFeedback(null);
+    setDraft({
+      modelId: targetItem.modelId,
+      fabricId: targetItem.fabricId,
+      isCustomColor: targetItem.config.isCustomColor,
+      fabricColorId: targetItem.config.fabricColorId,
+      customColorName: targetItem.config.colorName ?? '',
+      customColorHex: targetItem.config.colorHex ?? '',
+      quantities,
+      prints: targetItem.config.prints.map((p) => ({
+        key: crypto.randomUUID(),
+        printPosition: p.printPosition,
+        printSizeId: p.printSizeId,
+        needsDesignHelp: p.needsDesignHelp,
+        fileRef: p.fileRef,
+        fileName: p.fileName,
+        width: null,
+        height: null,
+      })),
+      productionNotes: targetItem.config.productionNotes ?? '',
+      paymentScheme: PAYMENT_SCHEME.FULL,
+    });
+  }, [editCartItemUuid, editCartQuery.data, toast]);
 
   const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
   const sizes = useMemo(() => sizesQuery.data ?? [], [sizesQuery.data]);
@@ -496,6 +570,10 @@ export default function CustomLab() {
           printPosition: pickNextAvailablePrintPosition(prev.prints),
           printSizeId: printSizes[0]?.id ?? null,
           needsDesignHelp: false,
+          fileRef: null,
+          fileName: null,
+          width: null,
+          height: null,
         },
       ],
     }));
@@ -525,20 +603,89 @@ export default function CustomLab() {
     }));
   }, []);
 
-  const handleRequestUploadDesign = useCallback(
-    (spotKey: string) => {
+  const uploadDesignMutation = useMutation({
+    mutationFn: async ({ spotKey, file }: { spotKey: string; file: File }) => {
+      const result = await uploadDesignFile(file);
+      return { spotKey, result };
+    },
+    onSuccess: ({ spotKey, result }) => {
+      setDraft((prev) => ({
+        ...prev,
+        prints: prev.prints.map((spot) =>
+          spot.key === spotKey
+            ? {
+                ...spot,
+                needsDesignHelp: false,
+                fileRef: result.fileRef,
+                fileName: result.fileName,
+                width: result.width,
+                height: result.height,
+              }
+            : spot
+        ),
+      }));
+      setUploadFeedbackBySpotKey((prev) => ({
+        ...prev,
+        [spotKey]: `File "${result.fileName}" berhasil diunggah ke storage.`,
+      }));
+      toast('File desain berhasil diunggah.', 'ok');
+    },
+    onError: (err, variables) => {
+      const parsed = extractApiError(err, 'Gagal mengunggah file desain.');
+      setUploadFeedbackBySpotKey((prev) => ({ ...prev, [variables.spotKey]: parsed.message }));
+      toast(parsed.message, 'err');
+    },
+    onSettled: () => {
+      setUploadingSpotKey(null);
+    },
+  });
+
+  const handleRequestLoginForUpload = useCallback(() => {
+    saveDraftToSessionStorage(draft);
+    toast('Silakan masuk terlebih dahulu untuk mengunggah file desain.', 'info');
+    navigate('/login', { state: { from: '/custom-lab' } });
+  }, [draft, navigate, toast]);
+
+  const handleSelectDesignFile = useCallback(
+    (spotKey: string, file: File) => {
       saveDraftToSessionStorage(draft);
       if (isGuest) {
-        navigate('/login', { state: { from: '/custom-lab' } });
+        handleRequestLoginForUpload();
         return;
       }
 
-      const infoMessage =
-        'Unggah file desain ke storage akan aktif pada Tahap 3a. Untuk sementara Anda dapat mencentang "Bantu desainkan saya" atau lanjutkan simulasi harga.';
-      setUploadFeedbackBySpotKey((prev) => ({ ...prev, [spotKey]: infoMessage }));
-      toast('Upload file desain aktif di Tahap 3a.', 'info');
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+      if (!ALLOWED_DESIGN_EXTENSIONS.has(ext)) {
+        const msg = 'Format file tidak didukung. Gunakan PNG, JPG, WEBP, SVG, atau PDF.';
+        setUploadFeedbackBySpotKey((prev) => ({ ...prev, [spotKey]: msg }));
+        toast(msg, 'warn');
+        return;
+      }
+
+      const maxBytes = config.maxDesignFileMb * 1024 * 1024;
+      if (file.size <= 0 || file.size > maxBytes) {
+        const msg = `Ukuran file harus lebih dari 0 dan maksimal ${config.maxDesignFileMb} MB.`;
+        setUploadFeedbackBySpotKey((prev) => ({ ...prev, [spotKey]: msg }));
+        toast(msg, 'warn');
+        return;
+      }
+
+      setUploadingSpotKey(spotKey);
+      setUploadFeedbackBySpotKey((prev) => {
+        const next = { ...prev };
+        delete next[spotKey];
+        return next;
+      });
+      uploadDesignMutation.mutate({ spotKey, file });
     },
-    [draft, isGuest, navigate, toast]
+    [
+      config.maxDesignFileMb,
+      draft,
+      handleRequestLoginForUpload,
+      isGuest,
+      toast,
+      uploadDesignMutation,
+    ]
   );
 
   const colorSummary = useMemo(() => {
@@ -560,14 +707,54 @@ export default function CustomLab() {
     return selectedFabric.colors.find((c) => c.id === draft.fabricColorId)?.colorHex ?? null;
   }, [draft.isCustomColor, draft.customColorHex, draft.fabricColorId, selectedFabric]);
 
+  const saveCartMutation = useMutation({
+    mutationFn: async (payload: UpsertCartItemRequestDto) => {
+      if (editCartItemUuid) {
+        return updateCartItem(editCartItemUuid, payload);
+      }
+      return addCartItem(payload);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: cartQueryKeys.items });
+      setDraft({
+        ...DEFAULT_DRAFT,
+        modelId: models[0]?.id ?? null,
+      });
+      setServerQuote(null);
+      setQuoteError(null);
+      setUploadFeedbackBySpotKey({});
+      setActionFeedback(null);
+      toast(
+        editCartItemUuid
+          ? 'Konfigurasi item keranjang berhasil diperbarui.'
+          : 'Item berhasil ditambahkan ke Keranjang Custom Lab.',
+        'ok'
+      );
+      navigate('/keranjang');
+    },
+    onError: (err) => {
+      const parsed = extractApiError(err, 'Gagal menyimpan item ke keranjang.');
+      setActionFeedback(parsed.message);
+      toast(parsed.message, 'err');
+    },
+  });
+
   const handleAddToCart = useCallback(() => {
     saveDraftToSessionStorage(draft);
     if (isGuest) {
+      toast('Silakan masuk terlebih dahulu untuk menyimpan ke keranjang.', 'info');
       navigate('/login', { state: { from: '/custom-lab' } });
       return;
     }
 
-    if (!quotePayload) {
+    if (uploadingSpotKey) {
+      const msg = 'Tunggu proses unggah file desain selesai terlebih dahulu.';
+      setActionFeedback(msg);
+      toast(msg, 'warn');
+      return;
+    }
+
+    if (!quotePayload || !quotePayload.items[0]) {
       const msg =
         'Lengkapi model, bahan, warna, jumlah ukuran (> 0), dan ukuran sablon terlebih dahulu.';
       setActionFeedback(msg);
@@ -575,11 +762,41 @@ export default function CustomLab() {
       return;
     }
 
-    const msg =
-      'Draft konfigurasi Anda sudah tersimpan di sesi ini. Penyimpanan ke Keranjang Custom Lab (/api/cart/items) akan aktif pada Tahap 3a.';
-    setActionFeedback(msg);
-    toast('Fitur Keranjang Custom Lab aktif pada Tahap 3a.', 'info');
-  }, [draft, isGuest, navigate, quotePayload, toast]);
+    for (let i = 0; i < draft.prints.length; i += 1) {
+      const spot = draft.prints[i]!;
+      if (!spot.needsDesignHelp && !spot.fileRef) {
+        const msg = `Titik sablon #${i + 1}: unggah file desain atau centang "Bantu desainkan saya (Gratis)".`;
+        setActionFeedback(msg);
+        toast(msg, 'warn');
+        return;
+      }
+    }
+
+    const baseItem = quotePayload.items[0];
+    const trimmedNotes = draft.productionNotes.trim();
+    const payload: UpsertCartItemRequestDto = {
+      modelId: baseItem.modelId,
+      fabricId: baseItem.fabricId,
+      isCustomColor: baseItem.isCustomColor,
+      ...(baseItem.isCustomColor
+        ? {
+            colorName: baseItem.colorName ?? '',
+            ...(baseItem.colorHex ? { colorHex: baseItem.colorHex } : {}),
+          }
+        : { fabricColorId: baseItem.fabricColorId ?? null }),
+      sizes: baseItem.sizes,
+      prints: draft.prints.map((spot) => ({
+        printSizeId: spot.printSizeId!,
+        printPosition: spot.printPosition,
+        needsDesignHelp: spot.needsDesignHelp,
+        ...(spot.needsDesignHelp ? {} : { fileRef: spot.fileRef, fileName: spot.fileName }),
+      })),
+      ...(trimmedNotes ? { productionNotes: trimmedNotes } : { productionNotes: null }),
+    };
+
+    setActionFeedback(null);
+    saveCartMutation.mutate(payload);
+  }, [draft, isGuest, navigate, quotePayload, saveCartMutation, toast, uploadingSpotKey]);
 
   const handleAskWhatsApp = useCallback(() => {
     const sizeText = sizes
@@ -1025,7 +1242,10 @@ export default function CustomLab() {
           </section>
 
           {/* 04 · Titik Sablon & Desain */}
-          <section className="space-y-3" aria-labelledby="step-print-heading">
+          <section
+            className="space-y-3 border-b border-line pb-6"
+            aria-labelledby="step-print-heading"
+          >
             <h2 id="step-print-heading" className="font-display text-base font-semibold text-ink">
               <span className="tabular-price mr-1.5 text-muted">04</span> Titik Sablon &amp; Desain
             </h2>
@@ -1034,11 +1254,36 @@ export default function CustomLab() {
               spots={draft.prints}
               printSizes={printSizes}
               isGuest={isGuest}
+              maxDesignFileMb={config.maxDesignFileMb}
+              uploadingSpotKey={uploadingSpotKey}
               onAddSpot={handleAddSpot}
               onUpdateSpot={handleUpdateSpot}
               onRemoveSpot={handleRemoveSpot}
-              onRequestUploadDesign={handleRequestUploadDesign}
+              onRequestLoginForUpload={handleRequestLoginForUpload}
+              onSelectDesignFile={handleSelectDesignFile}
               uploadFeedbackBySpotKey={uploadFeedbackBySpotKey}
+            />
+          </section>
+
+          {/* 05 · Catatan Produksi */}
+          <section className="space-y-3" aria-labelledby="step-notes-heading">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 id="step-notes-heading" className="font-display text-base font-semibold text-ink">
+                <span className="tabular-price mr-1.5 text-muted">05</span> Catatan Produksi
+              </h2>
+              <span className="text-xs text-muted">Opsional · maks. 500 karakter</span>
+            </div>
+            <textarea
+              id="custom-lab-production-notes"
+              rows={3}
+              maxLength={500}
+              value={draft.productionNotes}
+              onChange={(event) => {
+                setActionFeedback(null);
+                setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
+              }}
+              placeholder="Contoh: posisi logo 3 cm di bawah kerah, atau instruksi khusus untuk tim desain."
+              className="input-sharp min-h-[88px] resize-y py-2.5"
             />
           </section>
 
@@ -1065,6 +1310,8 @@ export default function CustomLab() {
               }))
             }
             isGuest={isGuest}
+            isSubmittingCart={saveCartMutation.isPending}
+            submitCartLabel={editCartItemUuid ? 'Simpan Perubahan Keranjang' : undefined}
             onAddToCart={handleAddToCart}
             onAskWhatsApp={handleAskWhatsApp}
             actionFeedback={actionFeedback}
