@@ -48,7 +48,7 @@ export default function PublicLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-ink">
       <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8 xl:px-12">
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
@@ -181,12 +181,12 @@ export default function PublicLayout() {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
+      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6 sm:py-10 lg:px-8 xl:px-12">
         <Outlet />
       </main>
 
       <footer className="border-t border-line bg-surface text-ink">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-8 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-white">
               <img

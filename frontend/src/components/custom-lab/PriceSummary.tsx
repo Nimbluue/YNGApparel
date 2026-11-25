@@ -26,6 +26,7 @@ interface PriceSummaryProps {
   onAddToCart: () => void;
   onAskWhatsApp: () => void;
   actionFeedback: string | null;
+  layout?: 'sidebar' | 'inline';
 }
 
 export function PriceSummary({
@@ -45,6 +46,7 @@ export function PriceSummary({
   onAddToCart,
   onAskWhatsApp,
   actionFeedback,
+  layout = 'sidebar',
 }: PriceSummaryProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
@@ -305,12 +307,21 @@ export function PriceSummary({
 
   return (
     <>
-      {/* Desktop sticky sidebar */}
-      <aside className="hidden lg:block">
-        <div className="sticky top-24 rounded-3xl border border-line bg-white p-6 shadow-sm">
+      {layout === 'inline' ? (
+        <section
+          aria-label="Ringkasan harga dan skema pembayaran"
+          className="rounded-2xl border border-line bg-surface/60 p-5 sm:p-6"
+        >
           {summaryBody}
-        </div>
-      </aside>
+        </section>
+      ) : (
+        /* Desktop sticky sidebar */
+        <aside className="hidden lg:block">
+          <div className="sticky top-24 rounded-3xl border border-line bg-white p-6 shadow-sm">
+            {summaryBody}
+          </div>
+        </aside>
+      )}
 
       {/* Mobile expandable bottom drawer */}
       {mobileExpanded ? (

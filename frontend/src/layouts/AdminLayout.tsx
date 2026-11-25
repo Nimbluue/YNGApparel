@@ -25,7 +25,7 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-surface text-ink">
       <header className="sticky top-0 z-30 border-b border-neutral-800 bg-ink text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:px-8 xl:px-12">
           <Link to="/admin" className="flex min-h-touch min-w-0 items-center gap-2.5 sm:gap-3">
             <span className="inline-flex h-9 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white sm:h-10 sm:w-28">
               <img
@@ -75,7 +75,7 @@ export default function AdminLayout() {
 
         {user?.role === USER_ROLE.ADMIN ? (
           <nav aria-label="Navigasi Admin" className="border-t border-neutral-800 bg-ink">
-            <div className="mx-auto flex max-w-7xl flex-nowrap items-center gap-1.5 overflow-x-auto px-3 py-2 [scrollbar-width:none] sm:px-6 lg:px-10 [&::-webkit-scrollbar]:hidden">
+            <div className="mx-auto flex max-w-[1400px] flex-nowrap items-center gap-1.5 overflow-x-auto px-3 py-2 [scrollbar-width:none] sm:px-6 lg:px-8 xl:px-12 [&::-webkit-scrollbar]:hidden">
               {ADMIN_NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.to}
@@ -97,7 +97,7 @@ export default function AdminLayout() {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-6 sm:px-6 sm:py-8 lg:px-10">
+      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-16 pt-6 sm:px-6 sm:py-8 lg:px-8 xl:px-12">
         <Outlet />
       </main>
     </div>

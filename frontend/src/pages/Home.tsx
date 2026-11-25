@@ -72,7 +72,7 @@ export default function Home() {
 
   return (
     <div className="space-y-12 pb-6 sm:space-y-16">
-      <section className="grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
+      <section className="grid items-center gap-8 lg:grid-cols-[1.18fr_0.82fr] xl:gap-14">
         <div className="min-w-0 space-y-6">
           <div className="flex flex-wrap items-center gap-3">
             <span className="eyebrow">Batam, Indonesia · Est. 2022</span>
@@ -99,7 +99,7 @@ export default function Home() {
             Pakaian Custom &amp; Sablon dengan Standar Studio.
           </h1>
 
-          <p className="max-w-xl text-base leading-relaxed text-muted sm:text-lg">
+          <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
             Rancang kaos, polo, hoodie, hingga jaket custom langsung di Custom Lab. Pilih bahan dan
             warna, atur matriks ukuran, dan pantau harga resmi secara transparan.
           </p>
@@ -124,7 +124,7 @@ export default function Home() {
           </div>
         </div>
 
-        <aside className="min-w-0 rounded-3xl border border-line bg-surface p-5 sm:p-7">
+        <aside className="min-w-0 rounded-3xl border border-line bg-surface p-6 sm:p-8">
           <div className="flex items-center gap-4 border-b border-line pb-5">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-20 sm:w-20">
               <img
@@ -205,34 +205,37 @@ export default function Home() {
           </div>
 
           {modelsQuery.isLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:gap-7">
               <CardSkeleton />
               <CardSkeleton />
               <CardSkeleton />
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:gap-7">
               {previewModels.map((model) => (
                 <Link
                   key={model.id}
                   to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
                   className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white transition-colors hover:border-ink"
                 >
-                  <div className="aspect-[4/3] w-full overflow-hidden bg-surface">
+                  <div className="aspect-[4/5] w-full overflow-hidden bg-surface">
                     {model.imageUrl ? (
                       <img
                         src={model.imageUrl}
                         alt={model.name}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center px-4 text-center text-xs font-medium text-muted">
-                        {model.name}
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-5 text-center">
+                        <span className="font-display text-base font-semibold text-ink">
+                          {model.name}
+                        </span>
+                        <span className="text-xs text-muted">Foto katalog segera hadir</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-1 flex-col justify-between gap-3 p-4">
+                  <div className="flex flex-1 flex-col justify-between gap-3 p-5">
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-display text-base font-semibold text-ink">
@@ -268,8 +271,8 @@ export default function Home() {
         </section>
       ) : null}
 
-      <section aria-label="Alur layanan YNG Apparel" className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-2xl border border-line bg-surface p-6">
+      <section aria-label="Alur layanan YNG Apparel" className="grid gap-5 md:grid-cols-3 xl:gap-6">
+        <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
           <p className="text-xs font-medium text-muted">
             <span className="tabular-price font-semibold text-ink">01</span> · Konfigurasi
           </p>
@@ -282,7 +285,7 @@ export default function Home() {
           </p>
         </article>
 
-        <article className="rounded-2xl border border-line bg-surface p-6">
+        <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
           <p className="text-xs font-medium text-muted">
             <span className="tabular-price font-semibold text-ink">02</span> · Produksi
           </p>
@@ -295,7 +298,7 @@ export default function Home() {
           </p>
         </article>
 
-        <article className="rounded-2xl border border-line bg-surface p-6">
+        <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
           <p className="text-xs font-medium text-muted">
             <span className="tabular-price font-semibold text-ink">03</span> · Kualitas
           </p>

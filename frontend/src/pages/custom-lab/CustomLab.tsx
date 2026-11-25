@@ -20,6 +20,7 @@ import {
 import { SizeMatrix } from '../../components/custom-lab/SizeMatrix';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/toastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -156,6 +157,7 @@ export default function CustomLab() {
     {}
   );
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [catalogModalOpen, setCatalogModalOpen] = useState(false);
 
   const quoteRequestIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -189,6 +191,12 @@ export default function CustomLab() {
     () => models.find((m) => m.id === draft.modelId) ?? null,
     [models, draft.modelId]
   );
+
+  const selectedModelIndex = useMemo(() => {
+    if (!selectedModel) return 0;
+    const idx = models.findIndex((m) => m.id === selectedModel.id);
+    return idx >= 0 ? idx : 0;
+  }, [models, selectedModel]);
 
   const modelDetailQuery = useQuery({
     queryKey: catalogQueryKeys.modelDetail(selectedModel?.slug ?? ''),
@@ -435,6 +443,7 @@ export default function CustomLab() {
     setActionFeedback(null);
     setServerQuote(null);
     setQuoteError(null);
+    setCatalogModalOpen(false);
     setDraft((prev) => {
       if (prev.modelId === modelId) return prev;
       return {
@@ -542,6 +551,15 @@ export default function CustomLab() {
     return selectedFabric.colors.find((c) => c.id === draft.fabricColorId)?.colorName ?? null;
   }, [draft.isCustomColor, draft.customColorName, draft.fabricColorId, selectedFabric]);
 
+  const activeColorHex = useMemo(() => {
+    if (draft.isCustomColor) {
+      const trimmed = draft.customColorHex.trim();
+      return HEX_COLOR_REGEX.test(trimmed) ? trimmed.toUpperCase() : null;
+    }
+    if (!selectedFabric || draft.fabricColorId === null) return null;
+    return selectedFabric.colors.find((c) => c.id === draft.fabricColorId)?.colorHex ?? null;
+  }, [draft.isCustomColor, draft.customColorHex, draft.fabricColorId, selectedFabric]);
+
   const handleAddToCart = useCallback(() => {
     saveDraftToSessionStorage(draft);
     if (isGuest) {
@@ -620,19 +638,23 @@ export default function CustomLab() {
 
   if (isInitialLoading) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-3 border-b border-line pb-6">
-          <Skeleton className="h-3 w-36" />
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-4 w-full max-w-xl" />
-        </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4">
-            <CardSkeleton />
-            <CardSkeleton />
-            <CardSkeleton />
+      <div className="grid gap-8 lg:grid-cols-2 xl:gap-12">
+        <div className="space-y-4">
+          <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+          <div className="flex gap-2.5 overflow-hidden">
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
           </div>
-          <CardSkeleton className="h-80" />
+        </div>
+        <div className="space-y-5">
+          <div className="space-y-3 border-b border-line pb-5">
+            <Skeleton className="h-3 w-36" />
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       </div>
     );
@@ -672,53 +694,71 @@ export default function CustomLab() {
     );
   }
 
+  const formattedIndex = String(selectedModelIndex + 1).padStart(2, '0');
+  const formattedTotal = String(models.length).padStart(2, '0');
+
   return (
-    <div className="space-y-8 pb-28 lg:pb-10">
-      <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 sm:flex-row sm:items-end">
-        <div>
-          <p className="eyebrow">Custom Lab · {config.storeName}</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl lg:text-5xl">
-            Rancang Pakaian Custom
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
-            Susun model, bahan, warna, matriks ukuran, dan titik sablon. Seluruh nominal harga
-            divalidasi dan dihitung langsung oleh server.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted">
-            Estimasi {config.productionEstimateText}
-          </span>
-          <button type="button" onClick={handleReset} className="btn-secondary px-4 py-2 text-xs">
-            Reset
-          </button>
-        </div>
-      </header>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="space-y-6">
-          {/* Langkah 1: Model Pakaian */}
-          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-model-heading">
-            <div className="flex items-baseline justify-between gap-2">
-              <div>
-                <p className="eyebrow">
-                  Langkah <span className="tabular-price">01</span>
-                </p>
-                <h2
-                  id="step-model-heading"
-                  className="mt-1 font-display text-xl font-semibold text-ink"
-                >
-                  Pilih Model Pakaian
-                </h2>
+    <div className="pb-28 lg:pb-12">
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start xl:gap-12">
+        {/* Kolom Kiri PDP: Galeri Model Aktif & Thumbnail Strip (sticky di desktop) */}
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-24">
+          <div className="aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line bg-surface">
+            {selectedModel?.imageUrl ? (
+              <img
+                src={selectedModel.imageUrl}
+                alt={selectedModel.name}
+                className="h-full w-full object-cover object-center"
+              />
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center">
+                <span className="font-display text-lg font-semibold text-ink">
+                  {selectedModel?.name ?? 'Model Pakaian'}
+                </span>
+                <span className="text-xs text-muted">Foto katalog segera hadir</span>
               </div>
-              <span className="text-xs text-muted">
-                <span className="tabular-price font-medium text-ink">{models.length}</span> model
-                aktif
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted">
+            <span>
+              <span className="tabular-price font-medium text-ink">
+                {formattedIndex} / {formattedTotal}
+              </span>{' '}
+              · {selectedModel?.name ?? '—'}
+            </span>
+            {colorSummary ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+                {activeColorHex ? (
+                  <span
+                    className="inline-block h-3 w-3 shrink-0 rounded-full border border-neutral-300"
+                    style={{ backgroundColor: activeColorHex }}
+                    aria-hidden="true"
+                  />
+                ) : null}
+                <span>{colorSummary}</span>
               </span>
+            ) : null}
+          </div>
+
+          <div className="space-y-2.5 pt-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-ink">Model Pakaian</p>
+              {models.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setCatalogModalOpen(true)}
+                  className="inline-flex min-h-touch items-center rounded-full px-3 text-xs font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
+                >
+                  Lihat Semua Model
+                </button>
+              ) : null}
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div
+              role="region"
+              aria-label="Pilihan model pakaian"
+              className="flex gap-2.5 overflow-x-auto pb-1.5 [scrollbar-width:thin]"
+            >
               {models.map((model) => {
                 const isSelected = selectedModel?.id === model.id;
                 return (
@@ -727,299 +767,361 @@ export default function CustomLab() {
                     type="button"
                     onClick={() => handleSelectModel(model.id)}
                     aria-pressed={isSelected}
-                    className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-all ${
-                      isSelected
-                        ? 'border-ink bg-ink text-white'
-                        : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
-                    }`}
+                    className="group w-20 shrink-0 text-left sm:w-24"
                   >
-                    <div className="aspect-[4/3] w-full overflow-hidden bg-surface">
+                    <div
+                      className={`aspect-[4/5] w-full overflow-hidden rounded-xl border bg-surface transition-colors ${
+                        isSelected
+                          ? 'border-ink ring-1 ring-ink'
+                          : 'border-line group-hover:border-line-strong'
+                      }`}
+                    >
                       {model.imageUrl ? (
                         <img
                           src={model.imageUrl}
                           alt={model.name}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover object-center"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-medium text-muted">
+                        <div className="flex h-full w-full items-center justify-center px-1.5 text-center text-[11px] font-medium text-muted">
                           {model.name}
                         </div>
                       )}
                     </div>
-
-                    <div className="flex flex-1 flex-col justify-between gap-2 p-4">
-                      <div>
-                        <p className="font-display text-base font-semibold">{model.name}</p>
-                        {model.description ? (
-                          <p
-                            className={`mt-1 line-clamp-2 text-xs leading-relaxed ${
-                              isSelected ? 'text-neutral-300' : 'text-muted'
-                            }`}
-                          >
-                            {model.description}
-                          </p>
-                        ) : null}
-                      </div>
-                      <p
-                        className={`text-sm font-semibold ${
-                          isSelected ? 'text-white' : 'text-ink'
-                        }`}
-                      >
-                        Mulai <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
-                      </p>
-                    </div>
+                    <p
+                      className={`mt-1.5 truncate text-xs ${
+                        isSelected ? 'font-semibold text-ink' : 'font-medium text-muted'
+                      }`}
+                    >
+                      {model.name}
+                    </p>
                   </button>
                 );
               })}
             </div>
-          </section>
-
-          {/* Langkah 2: Bahan Pakaian (kompatibel dari model_fabrics) */}
-          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-fabric-heading">
-            <p className="eyebrow">
-              Langkah <span className="tabular-price">02</span>
-            </p>
-            <h2
-              id="step-fabric-heading"
-              className="mt-1 font-display text-xl font-semibold text-ink"
-            >
-              Pilih Bahan Kompatibel
-            </h2>
-            <p className="mt-1 text-xs text-muted">
-              Hanya bahan yang sesuai dengan model {selectedModel?.name ?? 'terpilih'} yang
-              ditampilkan.
-            </p>
-
-            <div className="mt-4">
-              {modelDetailQuery.isLoading ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <CardSkeleton />
-                  <CardSkeleton />
-                </div>
-              ) : modelDetailQuery.error ? (
-                <ErrorState
-                  title="Gagal memuat bahan model"
-                  message={
-                    extractApiError(modelDetailQuery.error, 'Tidak dapat mengambil daftar bahan.')
-                      .message
-                  }
-                  retry={() => void modelDetailQuery.refetch()}
-                />
-              ) : availableFabrics.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
-                  Belum ada bahan aktif yang terhubung dengan model ini.
-                </p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {availableFabrics.map((fabric) => {
-                    const isSelected = selectedFabric?.id === fabric.id;
-                    return (
-                      <button
-                        key={fabric.id}
-                        type="button"
-                        onClick={() => handleSelectFabric(fabric.id)}
-                        aria-pressed={isSelected}
-                        className={`flex flex-col justify-between rounded-2xl border p-4 text-left transition-colors ${
-                          isSelected
-                            ? 'border-ink bg-ink text-white'
-                            : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
-                        }`}
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-display text-sm font-semibold sm:text-base">
-                              {fabric.name}
-                            </p>
-                            {fabric.gsmWeight ? (
-                              <span
-                                className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono text-[11px] ${
-                                  isSelected
-                                    ? 'bg-neutral-800 text-neutral-200'
-                                    : 'bg-surface text-muted'
-                                }`}
-                              >
-                                {fabric.gsmWeight} GSM
-                              </span>
-                            ) : null}
-                          </div>
-                          {fabric.description ? (
-                            <p
-                              className={`text-xs leading-relaxed ${
-                                isSelected ? 'text-neutral-300' : 'text-muted'
-                              }`}
-                            >
-                              {fabric.description}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        <p
-                          className={`mt-3 text-xs font-semibold ${
-                            isSelected ? 'text-white' : 'text-ink'
-                          }`}
-                        >
-                          {fabric.additionalPrice > 0 ? (
-                            <>
-                              <span className="tabular-price">
-                                +{formatRupiah(fabric.additionalPrice)}
-                              </span>{' '}
-                              / pcs
-                            </>
-                          ) : (
-                            'Termasuk harga dasar'
-                          )}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Langkah 3: Warna (Preset per bahan atau Warna Custom) */}
-          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-color-heading">
-            <p className="eyebrow">
-              Langkah <span className="tabular-price">03</span>
-            </p>
-            <h2
-              id="step-color-heading"
-              className="mt-1 font-display text-xl font-semibold text-ink"
-            >
-              Pilih Warna Bahan
-            </h2>
-            <p className="mt-1 text-xs text-muted">
-              Pilih dari warna preset stok tersedia atau ajukan warna custom untuk konfirmasi via
-              WhatsApp.
-            </p>
-
-            <div className="mt-4">
-              <ColorPicker
-                colors={selectedFabric?.colors ?? []}
-                selectedColorId={draft.fabricColorId}
-                isCustomColor={draft.isCustomColor}
-                customColorName={draft.customColorName}
-                customColorHex={draft.customColorHex}
-                disabled={!selectedFabric}
-                onSelectPresetColor={(colorId) => {
-                  setActionFeedback(null);
-                  setDraft((prev) => ({
-                    ...prev,
-                    isCustomColor: false,
-                    fabricColorId: colorId,
-                    customColorName: '',
-                    customColorHex: '',
-                  }));
-                }}
-                onSelectCustomColor={() => {
-                  setActionFeedback(null);
-                  setDraft((prev) => ({
-                    ...prev,
-                    isCustomColor: true,
-                    fabricColorId: null,
-                  }));
-                }}
-                onChangeCustomColorName={(value) => {
-                  setActionFeedback(null);
-                  setDraft((prev) => ({ ...prev, customColorName: value }));
-                }}
-                onChangeCustomColorHex={(value) => {
-                  setActionFeedback(null);
-                  setDraft((prev) => ({ ...prev, customColorHex: value }));
-                }}
-              />
-            </div>
-          </section>
-
-          {/* Langkah 4: Matriks Ukuran */}
-          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-size-heading">
-            <p className="eyebrow">
-              Langkah <span className="tabular-price">04</span>
-            </p>
-            <h2 id="step-size-heading" className="mt-1 font-display text-xl font-semibold text-ink">
-              Atur Jumlah per Ukuran
-            </h2>
-            <p className="mt-1 text-xs text-muted">
-              Masukkan jumlah pesanan per ukuran. Minimal{' '}
-              <span className="tabular-price font-medium text-ink">{config.dpMinQty} pcs</span>{' '}
-              total untuk membuka pembayaran DP{' '}
-              <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>.
-            </p>
-
-            <div className="mt-4">
-              <SizeMatrix
-                sizes={sizes}
-                quantities={draft.quantities}
-                onChangeQuantity={(sizeId, nextQty) => {
-                  setActionFeedback(null);
-                  setDraft((prev) => {
-                    const nextQuantities = { ...prev.quantities };
-                    if (nextQty <= 0) {
-                      delete nextQuantities[sizeId];
-                    } else {
-                      nextQuantities[sizeId] = nextQty;
-                    }
-                    return { ...prev, quantities: nextQuantities };
-                  });
-                }}
-              />
-            </div>
-          </section>
-
-          {/* Langkah 5: Titik Sablon & Desain */}
-          <section className="card-sharp p-5 sm:p-6" aria-labelledby="step-print-heading">
-            <p className="eyebrow">
-              Langkah <span className="tabular-price">05</span>
-            </p>
-            <h2
-              id="step-print-heading"
-              className="mt-1 font-display text-xl font-semibold text-ink"
-            >
-              Titik Sablon &amp; Desain
-            </h2>
-
-            <div className="mt-3">
-              <PrintSpotPicker
-                spots={draft.prints}
-                printSizes={printSizes}
-                isGuest={isGuest}
-                onAddSpot={handleAddSpot}
-                onUpdateSpot={handleUpdateSpot}
-                onRemoveSpot={handleRemoveSpot}
-                onRequestUploadDesign={handleRequestUploadDesign}
-                uploadFeedbackBySpotKey={uploadFeedbackBySpotKey}
-              />
-            </div>
-          </section>
+          </div>
         </div>
 
-        <PriceSummary
-          modelName={selectedModel?.name ?? null}
-          fabricName={selectedFabric?.name ?? null}
-          colorSummary={colorSummary}
-          printSpotsCount={draft.prints.length}
-          localEstimate={localEstimate}
-          serverQuote={serverQuote}
-          isQuotePending={quoteMutation.isPending}
-          quoteError={quoteError}
-          isReadyForServerQuote={Boolean(quotePayload)}
-          config={config}
-          selectedPaymentScheme={draft.paymentScheme}
-          onChangePaymentScheme={(scheme) =>
-            setDraft((prev) => ({
-              ...prev,
-              paymentScheme: resolveActivePaymentScheme(
-                scheme,
-                serverQuote?.dpEligible ?? localEstimate.dpEligible
-              ),
-            }))
-          }
-          isGuest={isGuest}
-          onAddToCart={handleAddToCart}
-          onAskWhatsApp={handleAskWhatsApp}
-          actionFeedback={actionFeedback}
-        />
+        {/* Kolom Kanan PDP: Info Produk, Konfigurator Bahan/Warna/Ukuran/Sablon, & Ringkasan */}
+        <div className="min-w-0 space-y-7">
+          <header className="border-b border-line pb-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="eyebrow">Custom Lab · {config.storeName}</p>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+              >
+                Reset
+              </button>
+            </div>
+
+            <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl lg:text-4xl">
+              {selectedModel?.name ?? 'Rancang Pakaian Custom'}
+            </h1>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p className="text-base font-semibold text-ink">
+                Mulai{' '}
+                <span className="tabular-price">{formatRupiah(selectedModel?.basePrice ?? 0)}</span>{' '}
+                <span className="text-xs font-normal text-muted">/ pcs</span>
+              </p>
+              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
+                Estimasi {config.productionEstimateText}
+              </span>
+            </div>
+
+            {selectedModel?.description ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted">{selectedModel.description}</p>
+            ) : null}
+            <p className="mt-2 text-xs text-muted">
+              Seluruh rincian harga divalidasi dan dihitung langsung oleh server.
+            </p>
+          </header>
+
+          {/* 01 · Bahan Pakaian (kompatibel dari model_fabrics) */}
+          <section
+            className="space-y-3 border-b border-line pb-6"
+            aria-labelledby="step-fabric-heading"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2
+                id="step-fabric-heading"
+                className="font-display text-base font-semibold text-ink"
+              >
+                <span className="tabular-price mr-1.5 text-muted">01</span> Pilih Bahan
+              </h2>
+              <span className="text-xs text-muted">
+                Kompatibel untuk {selectedModel?.name ?? 'model terpilih'}
+              </span>
+            </div>
+
+            {modelDetailQuery.isLoading ? (
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                <CardSkeleton />
+                <CardSkeleton />
+              </div>
+            ) : modelDetailQuery.error ? (
+              <ErrorState
+                title="Gagal memuat bahan model"
+                message={
+                  extractApiError(modelDetailQuery.error, 'Tidak dapat mengambil daftar bahan.')
+                    .message
+                }
+                retry={() => void modelDetailQuery.refetch()}
+              />
+            ) : availableFabrics.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
+                Belum ada bahan aktif yang terhubung dengan model ini.
+              </p>
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {availableFabrics.map((fabric) => {
+                  const isSelected = selectedFabric?.id === fabric.id;
+                  return (
+                    <button
+                      key={fabric.id}
+                      type="button"
+                      onClick={() => handleSelectFabric(fabric.id)}
+                      aria-pressed={isSelected}
+                      className={`flex flex-col justify-between rounded-2xl border p-3.5 text-left transition-colors ${
+                        isSelected
+                          ? 'border-ink bg-ink text-white'
+                          : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-display text-sm font-semibold">{fabric.name}</p>
+                          {fabric.gsmWeight ? (
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] ${
+                                isSelected
+                                  ? 'bg-neutral-800 text-neutral-200'
+                                  : 'bg-surface text-muted'
+                              }`}
+                            >
+                              {fabric.gsmWeight} GSM
+                            </span>
+                          ) : null}
+                        </div>
+                        {fabric.description ? (
+                          <p
+                            className={`line-clamp-2 text-xs leading-relaxed ${
+                              isSelected ? 'text-neutral-300' : 'text-muted'
+                            }`}
+                          >
+                            {fabric.description}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <p
+                        className={`mt-2.5 text-xs font-semibold ${
+                          isSelected ? 'text-white' : 'text-ink'
+                        }`}
+                      >
+                        {fabric.additionalPrice > 0 ? (
+                          <>
+                            <span className="tabular-price">
+                              +{formatRupiah(fabric.additionalPrice)}
+                            </span>{' '}
+                            / pcs
+                          </>
+                        ) : (
+                          'Termasuk harga dasar'
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* 02 · Warna (Preset per bahan atau Warna Custom) */}
+          <section
+            className="space-y-3 border-b border-line pb-6"
+            aria-labelledby="step-color-heading"
+          >
+            <div>
+              <h2 id="step-color-heading" className="font-display text-base font-semibold text-ink">
+                <span className="tabular-price mr-1.5 text-muted">02</span> Pilih Warna Bahan
+              </h2>
+              <p className="mt-1 text-xs text-muted">
+                Pilih preset stok bahan atau ajukan warna custom untuk konfirmasi via WhatsApp.
+              </p>
+            </div>
+
+            <ColorPicker
+              colors={selectedFabric?.colors ?? []}
+              selectedColorId={draft.fabricColorId}
+              isCustomColor={draft.isCustomColor}
+              customColorName={draft.customColorName}
+              customColorHex={draft.customColorHex}
+              disabled={!selectedFabric}
+              onSelectPresetColor={(colorId) => {
+                setActionFeedback(null);
+                setDraft((prev) => ({
+                  ...prev,
+                  isCustomColor: false,
+                  fabricColorId: colorId,
+                  customColorName: '',
+                  customColorHex: '',
+                }));
+              }}
+              onSelectCustomColor={() => {
+                setActionFeedback(null);
+                setDraft((prev) => ({
+                  ...prev,
+                  isCustomColor: true,
+                  fabricColorId: null,
+                }));
+              }}
+              onChangeCustomColorName={(value) => {
+                setActionFeedback(null);
+                setDraft((prev) => ({ ...prev, customColorName: value }));
+              }}
+              onChangeCustomColorHex={(value) => {
+                setActionFeedback(null);
+                setDraft((prev) => ({ ...prev, customColorHex: value }));
+              }}
+            />
+          </section>
+
+          {/* 03 · Matriks Ukuran */}
+          <section
+            className="space-y-3 border-b border-line pb-6"
+            aria-labelledby="step-size-heading"
+          >
+            <div>
+              <h2 id="step-size-heading" className="font-display text-base font-semibold text-ink">
+                <span className="tabular-price mr-1.5 text-muted">03</span> Jumlah per Ukuran
+              </h2>
+              <p className="mt-1 text-xs text-muted">
+                Minimal{' '}
+                <span className="tabular-price font-medium text-ink">{config.dpMinQty} pcs</span>{' '}
+                total untuk membuka pembayaran DP{' '}
+                <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>.
+              </p>
+            </div>
+
+            <SizeMatrix
+              sizes={sizes}
+              quantities={draft.quantities}
+              onChangeQuantity={(sizeId, nextQty) => {
+                setActionFeedback(null);
+                setDraft((prev) => {
+                  const nextQuantities = { ...prev.quantities };
+                  if (nextQty <= 0) {
+                    delete nextQuantities[sizeId];
+                  } else {
+                    nextQuantities[sizeId] = nextQty;
+                  }
+                  return { ...prev, quantities: nextQuantities };
+                });
+              }}
+            />
+          </section>
+
+          {/* 04 · Titik Sablon & Desain */}
+          <section className="space-y-3" aria-labelledby="step-print-heading">
+            <h2 id="step-print-heading" className="font-display text-base font-semibold text-ink">
+              <span className="tabular-price mr-1.5 text-muted">04</span> Titik Sablon &amp; Desain
+            </h2>
+
+            <PrintSpotPicker
+              spots={draft.prints}
+              printSizes={printSizes}
+              isGuest={isGuest}
+              onAddSpot={handleAddSpot}
+              onUpdateSpot={handleUpdateSpot}
+              onRemoveSpot={handleRemoveSpot}
+              onRequestUploadDesign={handleRequestUploadDesign}
+              uploadFeedbackBySpotKey={uploadFeedbackBySpotKey}
+            />
+          </section>
+
+          <PriceSummary
+            layout="inline"
+            modelName={selectedModel?.name ?? null}
+            fabricName={selectedFabric?.name ?? null}
+            colorSummary={colorSummary}
+            printSpotsCount={draft.prints.length}
+            localEstimate={localEstimate}
+            serverQuote={serverQuote}
+            isQuotePending={quoteMutation.isPending}
+            quoteError={quoteError}
+            isReadyForServerQuote={Boolean(quotePayload)}
+            config={config}
+            selectedPaymentScheme={draft.paymentScheme}
+            onChangePaymentScheme={(scheme) =>
+              setDraft((prev) => ({
+                ...prev,
+                paymentScheme: resolveActivePaymentScheme(
+                  scheme,
+                  serverQuote?.dpEligible ?? localEstimate.dpEligible
+                ),
+              }))
+            }
+            isGuest={isGuest}
+            onAddToCart={handleAddToCart}
+            onAskWhatsApp={handleAskWhatsApp}
+            actionFeedback={actionFeedback}
+          />
+        </div>
       </div>
+
+      <Modal
+        open={catalogModalOpen}
+        onClose={() => setCatalogModalOpen(false)}
+        title="Pilih Model Pakaian"
+        description="Pilih siluet pakaian untuk dikonfigurasi di Custom Lab."
+        size="lg"
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {models.map((model) => {
+            const isSelected = selectedModel?.id === model.id;
+            return (
+              <button
+                key={model.id}
+                type="button"
+                onClick={() => handleSelectModel(model.id)}
+                aria-pressed={isSelected}
+                className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-colors ${
+                  isSelected
+                    ? 'border-ink bg-ink text-white'
+                    : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                }`}
+              >
+                <div className="aspect-[4/5] w-full overflow-hidden bg-surface">
+                  {model.imageUrl ? (
+                    <img
+                      src={model.imageUrl}
+                      alt={model.name}
+                      className="h-full w-full object-cover object-center"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-medium text-muted">
+                      {model.name}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col justify-between gap-1.5 p-3">
+                  <p className="font-display text-sm font-semibold">{model.name}</p>
+                  <p
+                    className={`tabular-price text-xs font-semibold ${
+                      isSelected ? 'text-neutral-200' : 'text-muted'
+                    }`}
+                  >
+                    Mulai {formatRupiah(model.basePrice)}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Modal>
     </div>
   );
 }
