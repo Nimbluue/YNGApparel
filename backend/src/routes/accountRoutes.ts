@@ -4,15 +4,19 @@ import {
   createAccountController,
   createAddressBodySchema,
   deactivateAccountBodySchema,
+  myOrdersQuerySchema,
+  myOrderUuidParamSchema,
   updateAddressBodySchema,
   updateProfileBodySchema,
 } from '../controllers/accountController.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import type { AccountService } from '../services/accountService.js';
+import type { OrderService } from '../services/orderService.js';
 
 export interface AccountRouterOptions {
   accountService?: AccountService;
+  orderService?: OrderService;
   requireAuthMiddleware?: RequestHandler;
 }
 
@@ -22,7 +26,7 @@ export interface AccountRouterOptions {
 export function createAccountRouter(options: AccountRouterOptions = {}): Router {
   const router = Router();
   const requireAuthMiddleware = options.requireAuthMiddleware ?? requireAuth;
-  const controller = createAccountController(options.accountService);
+  const controller = createAccountController(options.accountService, options.orderService);
 
   router.use(requireAuthMiddleware);
 
@@ -44,6 +48,13 @@ export function createAccountRouter(options: AccountRouterOptions = {}): Router 
     '/addresses/:addressUuid',
     validate({ params: addressUuidParamSchema }),
     controller.deleteAddress
+  );
+
+  router.get('/orders', validate({ query: myOrdersQuerySchema }), controller.listMyOrders);
+  router.get(
+    '/orders/:uuid',
+    validate({ params: myOrderUuidParamSchema }),
+    controller.getMyOrderDetail
   );
 
   return router;

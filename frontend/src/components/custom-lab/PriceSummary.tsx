@@ -23,6 +23,8 @@ interface PriceSummaryProps {
   selectedPaymentScheme: PaymentScheme;
   onChangePaymentScheme: (scheme: PaymentScheme) => void;
   isGuest: boolean;
+  isSubmittingCart?: boolean;
+  submitCartLabel?: string;
   onAddToCart: () => void;
   onAskWhatsApp: () => void;
   actionFeedback: string | null;
@@ -43,6 +45,8 @@ export function PriceSummary({
   selectedPaymentScheme,
   onChangePaymentScheme,
   isGuest,
+  isSubmittingCart = false,
+  submitCartLabel,
   onAddToCart,
   onAskWhatsApp,
   actionFeedback,
@@ -285,8 +289,16 @@ export function PriceSummary({
       </div>
 
       <div className="space-y-2.5">
-        <button type="button" onClick={onAddToCart} className="btn-primary w-full">
-          {isGuest ? 'Tambah ke Keranjang (Masuk)' : 'Tambah ke Keranjang'}
+        <button
+          type="button"
+          onClick={onAddToCart}
+          disabled={isSubmittingCart}
+          className="btn-primary w-full"
+        >
+          {isSubmittingCart
+            ? 'Menyimpan...'
+            : (submitCartLabel ??
+              (isGuest ? 'Tambah ke Keranjang (Masuk)' : 'Tambah ke Keranjang'))}
         </button>
 
         <button type="button" onClick={onAskWhatsApp} className="btn-secondary w-full">
@@ -376,9 +388,16 @@ export function PriceSummary({
             <button
               type="button"
               onClick={onAddToCart}
-              className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 text-xs font-semibold text-white"
+              disabled={isSubmittingCart}
+              className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 text-xs font-semibold text-white disabled:opacity-45"
             >
-              {isGuest ? 'Masuk' : 'Keranjang'}
+              {isSubmittingCart
+                ? 'Menyimpan...'
+                : isGuest
+                  ? 'Masuk'
+                  : submitCartLabel
+                    ? 'Simpan'
+                    : 'Keranjang'}
             </button>
           </div>
         </div>

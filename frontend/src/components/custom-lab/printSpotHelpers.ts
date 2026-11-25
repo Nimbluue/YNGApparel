@@ -5,6 +5,10 @@ export interface PrintSpotDraft {
   printPosition: PrintPosition;
   printSizeId: number | null;
   needsDesignHelp: boolean;
+  fileRef: string | null;
+  fileName: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export const ORDERED_PRINT_POSITIONS: readonly PrintPosition[] = [

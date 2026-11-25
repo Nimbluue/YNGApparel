@@ -9,6 +9,7 @@ import PaymentAccounts from '../pages/admin/PaymentAccounts';
 import Settings from '../pages/admin/Settings';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
+import Cart from '../pages/custom-lab/Cart';
 import CustomLab from '../pages/custom-lab/CustomLab';
 import AdminRoute from './AdminRoute';
 import ProtectedRoute from './ProtectedRoute';
@@ -98,17 +99,7 @@ export default function AppRoutes() {
         {/* Route terlindungi USER */}
         <Route element={<ProtectedRoute />}>
           <Route path="/akun" element={<Account />} />
-
-          <Route
-            path="/keranjang"
-            element={
-              <StagePlaceholder
-                stage="Tahap 3a"
-                title="Keranjang Custom Lab"
-                description="Penyimpanan konfigurasi ke keranjang dan unggah file desain akan tersedia pada Tahap 3a."
-              />
-            }
-          />
+          <Route path="/keranjang" element={<Cart />} />
           <Route
             path="/checkout"
             element={

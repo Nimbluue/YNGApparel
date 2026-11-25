@@ -81,6 +81,12 @@ export const CATALOG_IMAGE_MAX_DIMENSION = 2000;
 export const CATALOG_IMAGE_PATH_REGEX =
   /^(models|fabrics|qris|logs|ready)\/[a-f0-9]{32}\.(jpg|png|webp)$/;
 
+export const DEFAULT_MAX_DESIGN_FILE_MB = 20;
+// Batas keras Multer di atas default 20 MB agar admin masih bisa menaikkan max_design_file_mb di app_settings.
+export const DESIGN_UPLOAD_HARD_LIMIT_BYTES = 50 * 1024 * 1024;
+export const CART_DESIGN_PATH_REGEX =
+  /^carts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[a-f0-9]{32}\.(png|jpg|webp|svg|pdf)$/i;
+
 export const APP_SETTING_KEYS = [
   'store_name',
   'admin_whatsapp',

@@ -4,17 +4,24 @@ import {
   type PrintPosition,
   type PublicPrintSizeDto,
 } from '@yng/shared';
+import { useRef } from 'react';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { ORDERED_PRINT_POSITIONS, type PrintSpotDraft } from './printSpotHelpers';
+
+const ACCEPTED_DESIGN_INPUT =
+  '.png,.jpg,.jpeg,.webp,.svg,.pdf,image/png,image/jpeg,image/webp,image/svg+xml,application/pdf';
 
 interface PrintSpotPickerProps {
   spots: readonly PrintSpotDraft[];
   printSizes: readonly PublicPrintSizeDto[];
   isGuest: boolean;
+  maxDesignFileMb: number;
+  uploadingSpotKey: string | null;
   onAddSpot: () => void;
   onUpdateSpot: (key: string, patch: Partial<Omit<PrintSpotDraft, 'key'>>) => void;
   onRemoveSpot: (key: string) => void;
-  onRequestUploadDesign: (spotKey: string) => void;
+  onRequestLoginForUpload: () => void;
+  onSelectDesignFile: (spotKey: string, file: File) => void;
   uploadFeedbackBySpotKey?: Readonly<Record<string, string>>;
 }
 
@@ -22,17 +29,24 @@ export function PrintSpotPicker({
   spots,
   printSizes,
   isGuest,
+  maxDesignFileMb,
+  uploadingSpotKey,
   onAddSpot,
   onUpdateSpot,
   onRemoveSpot,
-  onRequestUploadDesign,
+  onRequestLoginForUpload,
+  onSelectDesignFile,
   uploadFeedbackBySpotKey = {},
 }: PrintSpotPickerProps) {
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs leading-relaxed text-muted">
-          Tambahkan 1 atau lebih titik sablon, atau biarkan 0 titik untuk pesanan polos.
+          Tambahkan 1 atau lebih titik sablon, atau biarkan 0 titik untuk pesanan polos. Format
+          desain: PNG, JPG, WEBP, SVG, PDF (maks.{' '}
+          <span className="tabular-price">{maxDesignFileMb} MB</span>).
         </p>
         <button
           type="button"
@@ -55,6 +69,7 @@ export function PrintSpotPicker({
           {spots.map((spot, index) => {
             const feedback = uploadFeedbackBySpotKey[spot.key];
             const selectedSize = printSizes.find((size) => size.id === spot.printSizeId) ?? null;
+            const isUploading = uploadingSpotKey === spot.key;
 
             return (
               <article
@@ -151,28 +166,99 @@ export function PrintSpotPicker({
                     <input
                       type="checkbox"
                       checked={spot.needsDesignHelp}
-                      onChange={(event) =>
-                        onUpdateSpot(spot.key, { needsDesignHelp: event.target.checked })
-                      }
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        onUpdateSpot(spot.key, {
+                          needsDesignHelp: checked,
+                          ...(checked
+                            ? { fileRef: null, fileName: null, width: null, height: null }
+                            : {}),
+                        });
+                      }}
                       className="h-4 w-4 accent-ink"
                     />
                     <span>Bantu desainkan saya (Gratis)</span>
                   </label>
 
                   {!spot.needsDesignHelp ? (
-                    <button
-                      type="button"
-                      onClick={() => onRequestUploadDesign(spot.key)}
-                      className="btn-secondary w-full px-4 py-2 text-xs sm:w-auto"
-                    >
-                      {isGuest ? 'Upload Desain (Masuk Akun)' : 'Upload Desain'}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        ref={(el) => {
+                          fileInputRefs.current[spot.key] = el;
+                        }}
+                        type="file"
+                        accept={ACCEPTED_DESIGN_INPUT}
+                        className="sr-only"
+                        aria-label={`Pilih file desain titik sablon ${index + 1}`}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          if (file) {
+                            onSelectDesignFile(spot.key, file);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={isUploading}
+                        onClick={() => {
+                          if (isGuest) {
+                            onRequestLoginForUpload();
+                            return;
+                          }
+                          fileInputRefs.current[spot.key]?.click();
+                        }}
+                        className="btn-secondary w-full px-4 py-2 text-xs sm:w-auto"
+                      >
+                        {isUploading
+                          ? 'Mengunggah...'
+                          : isGuest
+                            ? 'Upload Desain (Masuk Akun)'
+                            : spot.fileRef
+                              ? 'Ganti File Desain'
+                              : 'Upload Desain'}
+                      </button>
+
+                      {spot.fileRef ? (
+                        <button
+                          type="button"
+                          disabled={isUploading}
+                          onClick={() =>
+                            onUpdateSpot(spot.key, {
+                              fileRef: null,
+                              fileName: null,
+                              width: null,
+                              height: null,
+                            })
+                          }
+                          className="inline-flex min-h-touch items-center rounded-full border border-line px-3.5 text-xs font-medium text-muted transition-colors hover:border-ink hover:text-ink"
+                        >
+                          Hapus File
+                        </button>
+                      ) : null}
+                    </div>
                   ) : (
                     <span className="text-xs text-muted">
-                      Tim desain kami akan menghubungi via WhatsApp.
+                      Tim desain kami akan menghubungi via WhatsApp (tanpa wajib unggah file).
                     </span>
                   )}
                 </div>
+
+                {!spot.needsDesignHelp && spot.fileRef && spot.fileName ? (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink">File: {spot.fileName}</p>
+                      <p className="mt-0.5 font-mono text-[11px] text-muted">
+                        {spot.width && spot.height
+                          ? `${spot.width}×${spot.height} px · Terverifikasi`
+                          : 'Siap cetak · Terverifikasi'}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-status-ok">
+                      Terunggah
+                    </span>
+                  </div>
+                ) : null}
 
                 {feedback ? (
                   <p

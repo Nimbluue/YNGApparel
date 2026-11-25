@@ -24,13 +24,9 @@ function isAllowedCatalogMime(mime: string | undefined): mime is AllowedCatalogI
   return mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp';
 }
 
-/**
- * Memvalidasi magic bytes gambar katalog, membuang EXIF via re-encode Sharp,
- * mempertahankan format asli tanpa konversi lossy, dan hanya mengecilkan dimensi bila > 2000px.
- */
-export async function processCatalogImage(
+async function processRasterImageBuffer(
   inputBuffer: Buffer,
-  folder: CatalogImageFolder
+  targetPathPrefix: string
 ): Promise<ProcessedCatalogImage> {
   if (!Buffer.isBuffer(inputBuffer) || inputBuffer.length === 0) {
     throw new AppError('File gambar tidak boleh kosong.', 400);
@@ -86,7 +82,7 @@ export async function processCatalogImage(
 
     return {
       buffer: outputBuffer,
-      path: `${folder}/${randomName}.${ext}`,
+      path: `${targetPathPrefix}/${randomName}.${ext}`,
       mimeType,
       sizeBytes: outputBuffer.length,
     };
@@ -96,4 +92,26 @@ export async function processCatalogImage(
     }
     throw new AppError('File gambar rusak atau gagal diproses.', 400);
   }
+}
+
+/**
+ * Memvalidasi magic bytes gambar katalog, membuang EXIF via re-encode Sharp,
+ * mempertahankan format asli tanpa konversi lossy, dan hanya mengecilkan dimensi bila > 2000px.
+ */
+export async function processCatalogImage(
+  inputBuffer: Buffer,
+  folder: CatalogImageFolder
+): Promise<ProcessedCatalogImage> {
+  return processRasterImageBuffer(inputBuffer, folder);
+}
+
+/**
+ * Memvalidasi dan mengompres gambar bukti pembayaran (maks 5 MB, PNG/JPG/WEBP asli, tanpa EXIF).
+ */
+export async function processPaymentProofImage(
+  inputBuffer: Buffer,
+  transactionUuid: string,
+  paymentUuid: string
+): Promise<ProcessedCatalogImage> {
+  return processRasterImageBuffer(inputBuffer, `${transactionUuid}/${paymentUuid}`);
 }
