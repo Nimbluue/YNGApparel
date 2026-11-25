@@ -124,6 +124,72 @@ Uji endpoint kesehatan server setelah menyala:
 
 ---
 
+## Menjalankan & Menguji di HP (PWA)
+
+Service Worker PWA (`frontend/public/sw.js`) hanya aktif pada build produksi. Setiap kali ada perubahan kode frontend, bangun ulang bundle terlebih dahulu sebelum menjalankan server preview:
+
+```bash
+npm -w frontend run build
+```
+
+Buka **3 terminal terpisah** di root repository:
+
+```bash
+# Terminal 1 — Backend API (port 5000)
+npm run dev:backend
+
+# Terminal 2 — Frontend Preview produksi (port 4173)
+# frontend/vite.config.ts sudah mengatur preview.allowedHosts: true dan proxy /api ke http://localhost:5000
+npm -w frontend run preview -- --host
+
+# Terminal 3 — HTTPS Tunnel agar syarat Install App PWA aktif di browser mobile
+npx cloudflared tunnel --url http://localhost:4173
+```
+
+### Cara Install di HP
+
+- **Android (Chrome):** Buka URL `https://xxxx.trycloudflare.com` dari Terminal 3 → buka menu titik tiga (`⋮`) → pilih **Install app** / **Tambahkan ke layar utama**.
+- **iOS (Safari):** Buka URL `https://xxxx.trycloudflare.com` → ketuk tombol **Share** → pilih **Add to Home Screen**.
+
+### Catatan
+
+- URL *quick tunnel* (`trycloudflare.com`) bersifat sementara dan berubah setiap kali proses `cloudflared` di-restart. Untuk URL permanen saat pengujian rutin atau staging, gunakan **Named Tunnel** Cloudflare dengan domain sendiri.
+
+---
+
+## Menjalankan & Menguji di HP (PWA)
+
+Service Worker PWA (`frontend/public/sw.js`) hanya aktif pada build produksi. Setiap kali ada perubahan kode frontend, bangun ulang bundle terlebih dahulu sebelum menjalankan server preview:
+
+```bash
+npm -w frontend run build
+```
+
+Buka **3 terminal terpisah** di root repository:
+
+```bash
+# Terminal 1 — Backend API (port 5000)
+npm run dev:backend
+
+# Terminal 2 — Frontend Preview produksi (port 4173)
+# frontend/vite.config.ts sudah mengatur preview.allowedHosts: true dan proxy /api ke http://localhost:5000
+npm -w frontend run preview -- --host
+
+# Terminal 3 — HTTPS Tunnel agar syarat Install App PWA aktif di browser mobile
+npx cloudflared tunnel --url http://localhost:4173
+```
+
+### Cara Install di HP
+
+- **Android (Chrome):** Buka URL `https://xxxx.trycloudflare.com` dari Terminal 3 → buka menu titik tiga (`⋮`) → pilih **Install app** / **Tambahkan ke layar utama**.
+- **iOS (Safari):** Buka URL `https://xxxx.trycloudflare.com` → ketuk tombol **Share** → pilih **Add to Home Screen**.
+
+### Catatan
+
+- URL _quick tunnel_ (`trycloudflare.com`) bersifat sementara dan berubah setiap kali proses `cloudflared` di-restart. Untuk URL permanen saat pengujian rutin atau staging, gunakan **Named Tunnel** Cloudflare dengan domain sendiri.
+
+---
+
 ## Alur Kerja Tim (5 Orang)
 
 1. **Struktur 3 Branch Tetap (`main`, `Alpha`, `Beta`):**

@@ -347,7 +347,7 @@ export function PriceSummary({
       ) : null}
 
       {/* Mobile bottom sticky bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-3 py-2.5 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-xl items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="tabular-price truncate text-sm font-bold text-ink">
