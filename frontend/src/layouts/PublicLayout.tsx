@@ -99,6 +99,7 @@ export default function PublicLayout() {
               </NavLink>
             ) : (
               <>
+                <NavItem to="/pesanan">Pesanan</NavItem>
                 {user?.role === USER_ROLE.ADMIN ? <NavItem to="/admin">Admin</NavItem> : null}
                 <NavItem to="/akun">Akun</NavItem>
                 <button
@@ -158,6 +159,9 @@ export default function PublicLayout() {
                 </NavItem>
               ) : (
                 <>
+                  <NavItem to="/pesanan" onClick={() => setMobileMenuOpen(false)}>
+                    Pesanan Saya
+                  </NavItem>
                   {user?.role === USER_ROLE.ADMIN ? (
                     <NavItem to="/admin" onClick={() => setMobileMenuOpen(false)}>
                       Admin Studio

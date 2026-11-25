@@ -6,8 +6,8 @@ import {
   type CartItemDto,
   type UpsertCartItemRequestDto,
 } from '@yng/shared';
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -22,6 +22,7 @@ import {
   updateCartItem,
 } from '../../services/cartService';
 import { catalogQueryKeys, getCatalogSizes } from '../../services/catalogService';
+import { saveCheckoutSelection } from '../../services/orderService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
 
@@ -53,6 +54,7 @@ function buildUpsertPayloadFromItem(
 }
 
 export default function Cart() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { checkedItems, toggleItem, setCheckedItems, checkAll, uncheckAll } = useCartStore();
@@ -89,17 +91,28 @@ export default function Cart() {
     [items]
   );
 
-  // Sinkronkan item tercentang agar hanya memuat item tersedia yang masih ada di keranjang
+  const hasInitializedSelectionRef = useRef(false);
+
+  // Inisialisasi pilih semua hanya sekali saat keranjang pertama dimuat; selanjutnya hanya buang item yang terhapus/nonaktif
   useEffect(() => {
     if (!cartQuery.data) return;
     const availableSet = new Set(availableItemUuids);
-    const currentChecked = [...checkedItems].filter((uuid) => availableSet.has(uuid));
-    if (currentChecked.length === 0 && availableItemUuids.length > 0 && checkedItems.size === 0) {
-      setCheckedItems(availableItemUuids);
+    const prunedChecked = [...checkedItems].filter((uuid) => availableSet.has(uuid));
+
+    if (!hasInitializedSelectionRef.current) {
+      hasInitializedSelectionRef.current = true;
+      if (checkedItems.size === 0 && availableItemUuids.length > 0) {
+        setCheckedItems(availableItemUuids);
+        return;
+      }
+      if (prunedChecked.length !== checkedItems.size) {
+        setCheckedItems(prunedChecked);
+      }
       return;
     }
-    if (currentChecked.length !== checkedItems.size) {
-      setCheckedItems(currentChecked);
+
+    if (prunedChecked.length !== checkedItems.size) {
+      setCheckedItems(prunedChecked);
     }
   }, [availableItemUuids, cartQuery.data, checkedItems, setCheckedItems]);
 
@@ -193,6 +206,23 @@ export default function Cart() {
     };
   }, [checkedItems, items, summary?.dpMinQty, summary?.dpPercent]);
 
+  const selectedAvailableUuids = useMemo(
+    () =>
+      items
+        .filter((item) => item.isAvailable && checkedItems.has(item.cartItemUuid))
+        .map((item) => item.cartItemUuid),
+    [checkedItems, items]
+  );
+
+  const hasUnavailableItems = (summary?.unavailableItemCount ?? 0) > 0;
+  const canCheckout = selectedAvailableUuids.length > 0 && !hasUnavailableItems;
+
+  function handleProceedToCheckout() {
+    if (!canCheckout) return;
+    saveCheckoutSelection(selectedAvailableUuids);
+    navigate('/checkout', { state: { cartItemUuids: selectedAvailableUuids } });
+  }
+
   if (cartQuery.isLoading) {
     return (
       <div className="space-y-6">
@@ -227,7 +257,7 @@ export default function Cart() {
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="w-full space-y-6 pb-8">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
           <p className="eyebrow">YNG Studio · Keranjang Custom Lab</p>
@@ -277,9 +307,9 @@ export default function Cart() {
             </div>
           ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+          <div className="grid w-full grid-cols-1 items-start gap-6 lg:grid-cols-12">
             {/* Daftar Item Keranjang */}
-            <div className="min-w-0 space-y-4 lg:col-span-8">
+            <div className="w-full min-w-0 space-y-4 lg:col-span-8">
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface px-4 py-3">
                 <p className="text-xs font-medium text-ink">
                   Dipilih:{' '}
@@ -511,8 +541,8 @@ export default function Cart() {
             </div>
 
             {/* Ringkasan Keranjang & Gatekeeper DP */}
-            <aside className="min-w-0 lg:col-span-4">
-              <div className="space-y-5 rounded-3xl border border-line bg-white p-5 sm:p-6 lg:sticky lg:top-24">
+            <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-4">
+              <div className="w-full space-y-5 rounded-3xl border border-line bg-white p-5 sm:p-6">
                 <div className="border-b border-line pb-4">
                   <p className="eyebrow">Ringkasan Keranjang</p>
                   <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -587,12 +617,19 @@ export default function Cart() {
                 <div className="space-y-2.5">
                   <button
                     type="button"
-                    disabled
-                    className="btn-primary w-full cursor-not-allowed opacity-55"
-                    title="Alur checkout pesanan akan aktif pada Tahap 3b"
+                    disabled={!canCheckout}
+                    onClick={handleProceedToCheckout}
+                    className="btn-primary w-full"
                   >
-                    Checkout Pesanan (Aktif di Tahap 3b)
+                    Checkout Pesanan ({checkedSummary.selectedCount})
                   </button>
+                  {!canCheckout ? (
+                    <p className="text-center text-xs text-muted">
+                      {hasUnavailableItems
+                        ? 'Perbarui atau hapus item yang tidak tersedia sebelum checkout.'
+                        : 'Centang minimal satu item untuk melanjutkan ke checkout.'}
+                    </p>
+                  ) : null}
                   <Link to="/custom-lab" className="btn-secondary w-full">
                     Tambah Konfigurasi Lain
                   </Link>

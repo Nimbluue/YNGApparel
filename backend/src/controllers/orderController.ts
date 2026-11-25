@@ -6,6 +6,7 @@ import {
   type FulfillmentType,
   type OrderDetailDto,
   type OrderPaymentsResponseDto,
+  type OrderSummaryDto,
   type PaymentMethod,
   type PaymentScheme,
   type UploadPaymentProofResultDto,
@@ -31,6 +32,13 @@ const PAYMENT_METHOD_VALUES: readonly [PaymentMethod, ...PaymentMethod[]] = [
   PAYMENT_METHOD.QRIS,
   PAYMENT_METHOD.BANK_TRANSFER,
 ];
+
+export const listOrdersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+  })
+  .strict();
 
 export const orderUuidParamSchema = z
   .object({
@@ -104,6 +112,7 @@ export const createOrderBodySchema: z.ZodType<CreateOrderRequestDto> = z
       required_error: 'Skema pembayaran wajib dipilih.',
       invalid_type_error: 'Skema pembayaran tidak valid.',
     }),
+    idempotencyKey: z.string().uuid('Format idempotencyKey tidak valid.').nullable().optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -151,30 +160,77 @@ const idempotencyHeaderSchema = z.string().uuid('Header Idempotency-Key harus be
  * Membangun controller checkout pesanan dan pembayaran pelanggan.
  */
 export function createOrderController(service: OrderService = defaultOrderService): {
+  listMyOrders: RequestHandler;
+  getMyOrderDetail: RequestHandler;
   createOrder: RequestHandler;
   getOrderPayments: RequestHandler;
   uploadPaymentProof: RequestHandler;
 } {
   return {
+    listMyOrders: asyncHandler(async (req, res) => {
+      if (!req.user) {
+        throw new AppError('Silakan login terlebih dahulu.', 401);
+      }
+
+      const { page, limit } = req.query as unknown as { page: number; limit: number };
+      const result = await service.listMyOrders({
+        userId: req.user.id,
+        page,
+        limit,
+      });
+
+      return sendSuccess<OrderSummaryDto[]>(res, {
+        message: 'Daftar pesanan Anda berhasil dimuat.',
+        data: result.items,
+        meta: result.meta,
+      });
+    }),
+
+    getMyOrderDetail: asyncHandler(async (req, res) => {
+      if (!req.user) {
+        throw new AppError('Silakan login terlebih dahulu.', 401);
+      }
+
+      const { uuid } = req.params as { uuid: string };
+      const detail = await service.getMyOrderDetail(req.user.id, uuid);
+      res.setHeader('Cache-Control', 'no-store');
+      return sendSuccess<OrderDetailDto>(res, {
+        message: 'Detail pesanan berhasil dimuat.',
+        data: detail,
+      });
+    }),
+
     createOrder: asyncHandler(async (req, res) => {
       if (!req.user) {
         throw new AppError('Silakan login terlebih dahulu.', 401);
       }
 
       const rawIdempotencyKey = req.get('Idempotency-Key')?.trim() ?? '';
-      let idempotencyKey: string | null = null;
+      let headerIdempotencyKey: string | null = null;
       if (rawIdempotencyKey.length > 0) {
         const parsed = idempotencyHeaderSchema.safeParse(rawIdempotencyKey);
         if (!parsed.success) {
           throw new AppError('Header Idempotency-Key harus berupa UUID yang valid.', 400);
         }
-        idempotencyKey = parsed.data;
+        headerIdempotencyKey = parsed.data;
       }
+
+      const payload = req.body as CreateOrderRequestDto;
+      const bodyIdempotencyKey = payload.idempotencyKey ?? null;
+      if (
+        headerIdempotencyKey &&
+        bodyIdempotencyKey &&
+        headerIdempotencyKey !== bodyIdempotencyKey
+      ) {
+        throw new AppError('Header Idempotency-Key dan field idempotencyKey tidak cocok.', 400);
+      }
+
+      const idempotencyKey = headerIdempotencyKey ?? bodyIdempotencyKey ?? null;
 
       const result = await service.checkoutFromCart({
         userId: req.user.id,
         idempotencyKey,
-        payload: req.body as CreateOrderRequestDto,
+        payload,
       });
 
       res.setHeader('Cache-Control', 'no-store');

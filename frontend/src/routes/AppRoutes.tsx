@@ -1,15 +1,18 @@
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import PublicLayout from '../layouts/PublicLayout';
 import Home from '../pages/Home';
 import NotFound from '../pages/NotFound';
 import Account from '../pages/account/Account';
+import MyOrderDetail from '../pages/account/MyOrderDetail';
+import MyOrders from '../pages/account/MyOrders';
 import MasterData from '../pages/admin/MasterData';
 import PaymentAccounts from '../pages/admin/PaymentAccounts';
 import Settings from '../pages/admin/Settings';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import Cart from '../pages/custom-lab/Cart';
+import Checkout from '../pages/custom-lab/Checkout';
 import CustomLab from '../pages/custom-lab/CustomLab';
 import AdminRoute from './AdminRoute';
 import ProtectedRoute from './ProtectedRoute';
@@ -100,46 +103,10 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route path="/akun" element={<Account />} />
           <Route path="/keranjang" element={<Cart />} />
-          <Route
-            path="/checkout"
-            element={
-              <StagePlaceholder
-                stage="Tahap 3b"
-                title="Checkout Pesanan"
-                description="Konfirmasi pengiriman, skema pembayaran, dan pembuatan pesanan akan tersedia pada Tahap 3b."
-              />
-            }
-          />
-          <Route
-            path="/checkout/sukses"
-            element={
-              <StagePlaceholder
-                stage="Tahap 3b"
-                title="Order Berhasil"
-                description="Instruksi pembayaran dan unggah bukti transfer akan tampil di sini setelah checkout selesai."
-              />
-            }
-          />
-          <Route
-            path="/pesanan"
-            element={
-              <StagePlaceholder
-                stage="Tahap 3b"
-                title="Pesanan Saya"
-                description="Daftar pesanan yang terhubung dengan akun Anda akan tersedia pada Tahap 3b."
-              />
-            }
-          />
-          <Route
-            path="/pesanan/:uuid"
-            element={
-              <StagePlaceholder
-                stage="Tahap 3b"
-                title="Detail Pesanan"
-                description="Rincian tagihan, foto QC, dan tombol pelacakan resi akan tersedia pada Tahap 3b."
-              />
-            }
-          />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/sukses" element={<Navigate to="/pesanan" replace />} />
+          <Route path="/pesanan" element={<MyOrders />} />
+          <Route path="/pesanan/:uuid" element={<MyOrderDetail />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

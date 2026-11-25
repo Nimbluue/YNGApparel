@@ -642,6 +642,7 @@ export interface CreateOrderRequestDto {
   pickupName?: string | null;
   pickupWhatsapp?: string | null;
   paymentScheme: PaymentScheme;
+  idempotencyKey?: string | null;
 }
 
 export interface OrderPaymentDto {
@@ -670,6 +671,7 @@ export interface OrderPaymentsResponseDto {
   remainingBalance: Rupiah;
   paymentDueAt: string | null;
   payments: OrderPaymentDto[];
+  paymentAccounts: PublicPaymentAccountDto[];
 }
 
 export interface UploadPaymentProofResultDto {
@@ -780,6 +782,7 @@ export interface OrderDetailDto {
   updatedAt: string;
   items: OrderItemDto[];
   payments: OrderPaymentDto[];
+  paymentAccounts: PublicPaymentAccountDto[];
   qcPhotos: OrderQcPhotoDto[];
   statusHistory: OrderStatusHistoryDto[];
 }
