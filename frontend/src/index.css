@@ -1,0 +1,163 @@
+@import '@fontsource-variable/archivo/wdth.css';
+@import '@fontsource/instrument-serif/latin-400.css';
+@import '@fontsource/instrument-serif/latin-400-italic.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --yng-ink: #111111;
+  --yng-bg: #ffffff;
+  --yng-surface: #f5f5f5;
+  --yng-muted: #666666;
+  --yng-line: #e5e5e5;
+  --yng-line-strong: #d4d4d4;
+  --yng-ok: #15803d;
+  --yng-warn: #b45309;
+  --yng-error: #b91c1c;
+}
+
+@layer base {
+  html {
+    min-width: 320px;
+    overflow-x: clip;
+    background-color: var(--yng-bg);
+    color: var(--yng-ink);
+    font-family: 'Archivo Variable', system-ui, sans-serif;
+    font-size: 16px;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: clip;
+    background-color: var(--yng-bg);
+    color: var(--yng-ink);
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    border-color: var(--yng-line);
+  }
+
+  ::selection {
+    background: var(--yng-ink);
+    color: var(--yng-bg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--yng-ink);
+    outline-offset: 2px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    min-height: 44px;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a {
+    touch-action: manipulation;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  p {
+    margin-top: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Archivo Variable', system-ui, sans-serif;
+    letter-spacing: -0.015em;
+    line-height: 1.22;
+  }
+
+  h1 {
+    letter-spacing: -0.02em;
+    line-height: 1.14;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-touch items-center justify-center rounded-full border border-ink bg-ink px-6 py-2.5 font-display text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-touch items-center justify-center rounded-full border border-line-strong bg-white px-6 py-2.5 font-display text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .input-sharp {
+    @apply min-h-touch w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink transition-colors placeholder:text-neutral-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink disabled:bg-surface disabled:text-muted;
+  }
+
+  .card-sharp {
+    @apply rounded-2xl border border-line bg-white;
+  }
+
+  .card-soft {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+
+  .tabular-price {
+    @apply font-mono tabular-nums;
+  }
+
+  .eyebrow {
+    @apply font-sans text-xs font-medium tracking-[0.02em] text-muted;
+  }
+
+  .care-label {
+    @apply rounded-2xl bg-ink px-5 py-4 text-white;
+  }
+}
+
+@layer utilities {
+  .font-editorial {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}

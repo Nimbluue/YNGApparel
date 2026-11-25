@@ -1,0 +1,40 @@
+{
+  "name": "yng-apparel",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "YNG Apparel — Custom Lab & Production Tracker (Monorepo TypeScript)",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "prepare": "npm -w shared run build",
+    "build:shared": "npm -w shared run build",
+    "build": "npm run build:shared && npm -w backend run build && npm -w frontend run build",
+    "typecheck": "npm run build:shared && npm -w backend run typecheck && npm -w frontend run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run build:shared && npm -w backend run test",
+    "db:check": "npm -w backend run db:check",
+    "db:migrate": "npm -w backend run db:migrate",
+    "db:seed": "npm -w backend run db:seed",
+    "storage:init": "npm -w backend run storage:init",
+    "seed:admin": "npm -w backend run seed:admin",
+    "dev:backend": "npm -w backend run dev",
+    "dev:frontend": "npm -w frontend run dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.26.0",
+    "eslint": "^9.26.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.1.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.1"
+  }
+}
