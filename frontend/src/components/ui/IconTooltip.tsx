@@ -20,6 +20,7 @@ export interface IconTooltipProps {
   tone?: 'light' | 'dark';
   tooltipPosition?: 'bottom' | 'top' | 'left';
   hideTooltip?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -41,6 +42,7 @@ export function IconTooltip({
   tone = 'light',
   tooltipPosition = 'bottom',
   hideTooltip = false,
+  disabled = false,
 }: IconTooltipProps) {
   const [visible, setVisible] = useState(false);
 
@@ -53,7 +55,7 @@ export function IconTooltip({
       : 'text-ink hover:bg-surface focus-visible:ring-neutral-900';
 
   const triggerClasses = [
-    'relative inline-flex min-h-touch min-w-touch items-center justify-center rounded-sm transition-colors duration-150 focus:outline-none focus-visible:outline-none focus-visible:ring-1',
+    'relative inline-flex min-h-touch min-w-touch items-center justify-center rounded-sm transition-colors duration-150 focus:outline-none focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-40',
     toneClasses,
     className || 'h-11 w-11',
   ]
@@ -119,13 +121,14 @@ export function IconTooltip({
         <motion.button
           ref={buttonRef}
           type="button"
+          disabled={disabled}
           onClick={onClick}
           aria-label={accessibleLabel}
           aria-expanded={ariaExpanded}
           aria-controls={ariaControls}
           aria-haspopup={ariaHaspopup}
-          whileHover={{ scale: 1.06 }}
-          whileTap={{ scale: 0.94 }}
+          whileHover={disabled ? undefined : { scale: 1.06 }}
+          whileTap={disabled ? undefined : { scale: 0.94 }}
           className={triggerClasses}
         >
           {inner}
@@ -133,7 +136,7 @@ export function IconTooltip({
       )}
 
       <AnimatePresence>
-        {visible && !hideTooltip ? (
+        {visible && !hideTooltip && !disabled ? (
           <div className={`pointer-events-none absolute ${tooltipPositionClass}`}>
             <motion.span
               role="tooltip"

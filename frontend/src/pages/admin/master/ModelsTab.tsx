@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { FabricDto, GarmentModelDto } from '@yng/shared';
+import { Wand2 } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -16,6 +17,7 @@ import {
   AdminFeedbackBanner,
 } from '../../../components/admin/AdminFeedbackBanner';
 import CatalogImageField from '../../../components/admin/CatalogImageField';
+import { IconTooltip } from '../../../components/ui/IconTooltip';
 import {
   createModel,
   deactivateModel,
@@ -735,21 +737,36 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
               <label htmlFor="model-slug" className="block text-sm font-medium text-ink">
                 Slug Unik
               </label>
-              <input
-                id="model-slug"
-                type="text"
-                value={form.slug}
-                onChange={(event) => {
-                  setSlugTouched(true);
-                  setForm((prev) => ({
-                    ...prev,
-                    slug: event.target.value.toLowerCase().replace(/\s+/g, '-'),
-                  }));
-                }}
-                placeholder="kaos-lengan-pendek"
-                className="input-sharp mt-1.5 font-mono"
-                disabled={submitting}
-              />
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  id="model-slug"
+                  type="text"
+                  value={form.slug}
+                  onChange={(event) => {
+                    setSlugTouched(true);
+                    setForm((prev) => ({
+                      ...prev,
+                      slug: event.target.value.toLowerCase().replace(/\s+/g, '-'),
+                    }));
+                  }}
+                  placeholder="kaos-lengan-pendek"
+                  className="input-sharp min-w-0 flex-1 font-mono"
+                  disabled={submitting}
+                />
+                <IconTooltip
+                  label="Samakan slug dengan nama model"
+                  disabled={submitting || !form.name.trim()}
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, slug: slugify(prev.name) }));
+                    if (editingId === null) {
+                      setSlugTouched(false);
+                    }
+                  }}
+                  className="h-11 w-11 shrink-0 border border-neutral-300 bg-white hover:border-ink"
+                >
+                  <Wand2 size={17} strokeWidth={1.5} aria-hidden="true" />
+                </IconTooltip>
+              </div>
               {editingId === null ? (
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
                   <span>
