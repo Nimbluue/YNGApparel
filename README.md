@@ -153,7 +153,7 @@ npx cloudflared tunnel --url http://localhost:4173
 
 ### Catatan
 
-- URL *quick tunnel* (`trycloudflare.com`) bersifat sementara dan berubah setiap kali proses `cloudflared` di-restart. Untuk URL permanen saat pengujian rutin atau staging, gunakan **Named Tunnel** Cloudflare dengan domain sendiri.
+- URL _quick tunnel_ (`trycloudflare.com`) bersifat sementara dan berubah setiap kali proses `cloudflared` di-restart. Untuk URL permanen saat pengujian rutin atau staging, gunakan **Named Tunnel** Cloudflare dengan domain sendiri.
 
 ---
 

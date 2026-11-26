@@ -6,9 +6,12 @@ import * as storageService from './storageService.js';
 
 export const ADVISORY_LOCK_CLEANUP_TMP = 530001;
 export const ADVISORY_LOCK_CLEANUP_CARTS = 530002;
+export const ADVISORY_LOCK_AUTO_CANCEL_ORDERS = 530003;
+export const ADVISORY_LOCK_AUTO_COMPLETE_ORDERS = 530004;
 
 const DEFAULT_TMP_MAX_AGE_HOURS = 24;
 const DEFAULT_CART_STALE_DAYS = 30;
+const DEFAULT_AUTO_COMPLETE_DAYS = 7;
 const TMP_FILE_LIST_PAGE_LIMIT = 100;
 
 export interface AdvisoryLockClient {
@@ -50,6 +53,16 @@ export interface StaleCartCleanupSummary {
   acquired: boolean;
   deletedCartItems: number;
   deletedFiles: string[];
+}
+
+export interface AutoCancelOrdersSummary {
+  acquired: boolean;
+  cancelledOrderCodes: string[];
+}
+
+export interface AutoCompleteOrdersSummary {
+  acquired: boolean;
+  completedOrderCodes: string[];
 }
 
 /**
@@ -294,10 +307,182 @@ export async function cleanupStaleCartItems(
   };
 }
 
+/**
+ * Membatalkan order WEBSITE yang melewati batas waktu pembayaran (`payment_due_at < NOW()`)
+ * dan belum memiliki pembayaran VERIFIED atau bukti PENDING yang sudah diunggah.
+ * Order manual dengan `payment_due_at IS NULL` tidak ikut dibatalkan.
+ */
+export async function cancelExpiredUnpaidOrders(
+  options: {
+    pool?: AdvisoryLockPool;
+  } = {}
+): Promise<AutoCancelOrdersSummary> {
+  let cancelledOrderCodes: string[] = [];
+
+  const lockOutcome = await withAdvisoryLock(
+    ADVISORY_LOCK_AUTO_CANCEL_ORDERS,
+    async (client) => {
+      await client.query('BEGIN');
+      try {
+        const expiredRes = await client.query<{ id: number; order_code: string }>(
+          `SELECT o.id, o.order_code
+           FROM orders o
+           WHERE o.production_status = 'NEW_ORDER'
+             AND o.payment_due_at IS NOT NULL
+             AND o.payment_due_at < NOW()
+             AND NOT EXISTS (
+               SELECT 1
+               FROM payments p
+               WHERE p.order_id = o.id
+                 AND (
+                   p.status = 'VERIFIED'
+                   OR (p.status = 'PENDING' AND p.proof_image_path IS NOT NULL)
+                 )
+             )
+           ORDER BY o.id ASC
+           FOR UPDATE SKIP LOCKED`
+        );
+
+        if (expiredRes.rows.length === 0) {
+          await client.query('COMMIT');
+          return;
+        }
+
+        const expiredIds = expiredRes.rows.map((row) => Number(row.id));
+        const reason = 'Batas waktu pembayaran awal terlewati (dibatalkan otomatis oleh sistem).';
+
+        await client.query(
+          `UPDATE orders
+           SET production_status = 'CANCELLED',
+               cancelled_at = NOW(),
+               cancelled_reason = $2,
+               updated_at = NOW()
+           WHERE id = ANY($1::bigint[])`,
+          [expiredIds, reason]
+        );
+
+        await client.query(
+          `INSERT INTO order_status_history (order_id, from_status, to_status, notes, changed_by)
+           SELECT unnest($1::bigint[]), 'NEW_ORDER', 'CANCELLED', $2, NULL`,
+          [expiredIds, reason]
+        );
+
+        await client.query('COMMIT');
+        cancelledOrderCodes = expiredRes.rows.map((row) => row.order_code);
+      } catch (err: unknown) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // Abaikan error rollback
+        }
+        throw err;
+      }
+    },
+    options.pool
+  );
+
+  return {
+    acquired: lockOutcome.acquired,
+    cancelledOrderCodes,
+  };
+}
+
+/**
+ * Menyelesaikan order berstatus `SHIPPING` yang sudah lunas (`remaining_balance = 0`)
+ * dan melewati `auto_complete_days` hari sejak dikirim/siap diambil (`shipped_at`).
+ */
+export async function autoCompleteShippedOrders(
+  options: {
+    autoCompleteDays?: number;
+    pool?: AdvisoryLockPool;
+  } = {}
+): Promise<AutoCompleteOrdersSummary> {
+  let completedOrderCodes: string[] = [];
+
+  const lockOutcome = await withAdvisoryLock(
+    ADVISORY_LOCK_AUTO_COMPLETE_ORDERS,
+    async (client) => {
+      await client.query('BEGIN');
+      try {
+        let days = DEFAULT_AUTO_COMPLETE_DAYS;
+        if (
+          typeof options.autoCompleteDays === 'number' &&
+          Number.isInteger(options.autoCompleteDays) &&
+          options.autoCompleteDays > 0
+        ) {
+          days = options.autoCompleteDays;
+        } else {
+          const settingsRes = await client.query<{ setting_value: string }>(
+            `SELECT setting_value
+             FROM app_settings
+             WHERE setting_key = 'auto_complete_days'
+             LIMIT 1`
+          );
+          const parsed = Number.parseInt(settingsRes.rows[0]?.setting_value ?? '', 10);
+          if (Number.isInteger(parsed) && parsed > 0) {
+            days = parsed;
+          }
+        }
+
+        const eligibleRes = await client.query<{ id: number; order_code: string }>(
+          `SELECT o.id, o.order_code
+           FROM orders o
+           WHERE o.production_status = 'SHIPPING'
+             AND o.remaining_balance = 0
+             AND o.shipped_at IS NOT NULL
+             AND o.shipped_at < NOW() - ($1::int * INTERVAL '1 day')
+           ORDER BY o.id ASC
+           FOR UPDATE SKIP LOCKED`,
+          [days]
+        );
+
+        if (eligibleRes.rows.length === 0) {
+          await client.query('COMMIT');
+          return;
+        }
+
+        const eligibleIds = eligibleRes.rows.map((row) => Number(row.id));
+        const notes = 'Pesanan diselesaikan otomatis setelah melewati batas hari penyelesaian.';
+
+        await client.query(
+          `UPDATE orders
+           SET production_status = 'COMPLETED',
+               completed_at = NOW(),
+               updated_at = NOW()
+           WHERE id = ANY($1::bigint[])`,
+          [eligibleIds]
+        );
+
+        await client.query(
+          `INSERT INTO order_status_history (order_id, from_status, to_status, notes, changed_by)
+           SELECT unnest($1::bigint[]), 'SHIPPING', 'COMPLETED', $2, NULL`,
+          [eligibleIds, notes]
+        );
+
+        await client.query('COMMIT');
+        completedOrderCodes = eligibleRes.rows.map((row) => row.order_code);
+      } catch (err: unknown) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // Abaikan error rollback
+        }
+        throw err;
+      }
+    },
+    options.pool
+  );
+
+  return {
+    acquired: lockOutcome.acquired,
+    completedOrderCodes,
+  };
+}
+
 let scheduledTasks: ScheduledTask[] = [];
 
 /**
- * Memulai job pembersih otomatis harian memakai `node-cron` + PostgreSQL Advisory Lock.
+ * Memulai job pembersih & otomatisasi siklus order memakai `node-cron` + PostgreSQL Advisory Lock.
  */
 export function startSchedulers(): void {
   if (scheduledTasks.length > 0) {
@@ -340,8 +525,46 @@ export function startSchedulers(): void {
     { timezone: 'Asia/Jakarta' }
   );
 
-  scheduledTasks = [tmpCleanupTask, staleCartTask];
-  console.log('[Scheduler] Cron pembersih tmp/ (02:00 WIB) & cart >30h (03:00 WIB) aktif.');
+  const autoCancelTask = cron.schedule(
+    '*/15 * * * *',
+    () => {
+      void cancelExpiredUnpaidOrders()
+        .then((res) => {
+          if (res.acquired && res.cancelledOrderCodes.length > 0) {
+            console.log(
+              `[Scheduler] Auto-cancel order belum bayar: ${res.cancelledOrderCodes.join(', ')}`
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('[Scheduler] Error auto-cancel order belum bayar:', err);
+        });
+    },
+    { timezone: 'Asia/Jakarta' }
+  );
+
+  const autoCompleteTask = cron.schedule(
+    '0 4 * * *',
+    () => {
+      void autoCompleteShippedOrders()
+        .then((res) => {
+          if (res.acquired && res.completedOrderCodes.length > 0) {
+            console.log(
+              `[Scheduler] Auto-complete order selesai kirim: ${res.completedOrderCodes.join(', ')}`
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('[Scheduler] Error auto-complete order dikirim:', err);
+        });
+    },
+    { timezone: 'Asia/Jakarta' }
+  );
+
+  scheduledTasks = [tmpCleanupTask, staleCartTask, autoCancelTask, autoCompleteTask];
+  console.log(
+    '[Scheduler] Cron aktif: tmp/ (02:00 WIB), cart >30h (03:00 WIB), auto-cancel (tiap 15m), auto-complete (04:00 WIB).'
+  );
 }
 
 /**

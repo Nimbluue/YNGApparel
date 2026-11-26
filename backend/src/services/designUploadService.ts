@@ -79,11 +79,11 @@ export interface DesignUploadDependencies {
   uploadToStorage?: typeof storageService.upload;
 }
 
-async function defaultGetMaxDesignFileMb(): Promise<number> {
-  const result = await query<{ value: string }>(
-    `SELECT value FROM app_settings WHERE key = 'max_design_file_mb' LIMIT 1`
+export async function defaultGetMaxDesignFileMb(queryFn: typeof query = query): Promise<number> {
+  const result = await queryFn<{ setting_value: string }>(
+    `SELECT setting_value FROM app_settings WHERE setting_key = 'max_design_file_mb' LIMIT 1`
   );
-  const parsed = Number.parseInt(result.rows[0]?.value ?? '', 10);
+  const parsed = Number.parseInt(result.rows[0]?.setting_value ?? '', 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_DESIGN_FILE_MB;
 }
 
@@ -91,7 +91,7 @@ async function defaultGetMaxDesignFileMb(): Promise<number> {
  * Membuat service upload file desain pelanggan ke bucket privat `designs` (`carts/<user_uuid>/...`).
  */
 export function createDesignUploadService(deps: DesignUploadDependencies = {}) {
-  const getMaxDesignFileMb = deps.getMaxDesignFileMb ?? defaultGetMaxDesignFileMb;
+  const getMaxDesignFileMb = deps.getMaxDesignFileMb ?? (() => defaultGetMaxDesignFileMb());
   const uploadToStorage = deps.uploadToStorage ?? storageService.upload;
 
   return {
