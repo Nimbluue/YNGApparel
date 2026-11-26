@@ -1,4 +1,5 @@
 import type { PublicFabricColorDto } from '@yng/shared';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ColorPickerProps {
   colors: readonly PublicFabricColorDto[];
@@ -27,13 +28,17 @@ export function ColorPicker({
   onChangeCustomColorHex,
   disabled = false,
 }: ColorPickerProps) {
+  const { pick } = useLanguage();
   const trimmedHex = customColorHex.trim();
   const isHexInvalid = trimmedHex.length > 0 && !HEX_COLOR_REGEX.test(trimmedHex);
 
   if (disabled) {
     return (
       <div className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
-        Pilih bahan terlebih dahulu untuk menampilkan preset warna yang tersedia.
+        {pick(
+          'Pilih bahan terlebih dahulu untuk menampilkan preset warna yang tersedia.',
+          'Select a fabric first to view available preset colors.'
+        )}
       </div>
     );
   }
@@ -88,13 +93,16 @@ export function ColorPicker({
               isCustomColor ? 'border-white bg-white' : 'border-ink bg-transparent'
             }`}
           />
-          Warna custom (konfirmasi via WhatsApp)
+          {pick('Warna custom (konfirmasi via WhatsApp)', 'Custom color (confirm via WhatsApp)')}
         </button>
       </div>
 
       {colors.length === 0 && !isCustomColor ? (
         <p className="text-xs text-muted">
-          Belum ada preset warna pada bahan ini. Anda dapat memilih opsi warna custom di atas.
+          {pick(
+            'Belum ada preset warna pada bahan ini. Anda dapat memilih opsi warna custom di atas.',
+            'No preset colors available for this fabric yet. You can choose the custom color option above.'
+          )}
         </p>
       ) : null}
 
@@ -103,7 +111,7 @@ export function ColorPicker({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="custom-color-name" className="block text-xs font-semibold text-ink">
-                Nama Warna Custom *
+                {pick('Nama Warna Custom *', 'Custom Color Name *')}
               </label>
               <input
                 id="custom-color-name"
@@ -111,19 +119,25 @@ export function ColorPicker({
                 maxLength={50}
                 value={customColorName}
                 onChange={(event) => onChangeCustomColorName(event.target.value)}
-                placeholder="Contoh: Hijau Sage / Dusty Pink"
+                placeholder={pick(
+                  'Contoh: Hijau Sage / Dusty Pink',
+                  'Example: Sage Green / Dusty Pink'
+                )}
                 className="input-sharp mt-1.5"
               />
               {customColorName.trim().length === 0 ? (
                 <p className="mt-1 text-xs text-muted">
-                  Wajib diisi agar warna dapat dikonfirmasi.
+                  {pick(
+                    'Wajib diisi agar warna dapat dikonfirmasi.',
+                    'Required so the color can be confirmed.'
+                  )}
                 </p>
               ) : null}
             </div>
 
             <div>
               <label htmlFor="custom-color-hex" className="block text-xs font-semibold text-ink">
-                Kode Warna Hex (Opsional)
+                {pick('Kode Warna Hex (Opsional)', 'Hex Color Code (Optional)')}
               </label>
               <div className="mt-1.5 flex items-center gap-2">
                 <span
@@ -147,15 +161,20 @@ export function ColorPicker({
               </div>
               {isHexInvalid ? (
                 <p role="alert" className="mt-1 text-xs text-status-err">
-                  Format kode warna harus #RRGGBB (contoh: #9CAF88).
+                  {pick(
+                    'Format kode warna harus #RRGGBB (contoh: #9CAF88).',
+                    'Color code format must be #RRGGBB (e.g. #9CAF88).'
+                  )}
                 </p>
               ) : null}
             </div>
           </div>
 
           <p className="rounded-xl border border-line bg-white px-3.5 py-2.5 text-xs leading-relaxed text-muted">
-            Ketersediaan stok bahan untuk warna custom akan dikonfirmasi oleh admin melalui WhatsApp
-            sebelum pesanan masuk proses cetak.
+            {pick(
+              'Ketersediaan stok bahan untuk warna custom akan dikonfirmasi oleh admin melalui WhatsApp sebelum pesanan masuk proses cetak.',
+              'Fabric stock availability for custom colors will be confirmed by admin via WhatsApp before printing starts.'
+            )}
           </p>
         </div>
       ) : null}

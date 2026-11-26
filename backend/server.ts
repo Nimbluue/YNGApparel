@@ -1,11 +1,15 @@
 import app from './src/app.js';
 import { closePool } from './src/config/database.js';
 import { assertServerEnv, env } from './src/config/env.js';
+import { startSchedulers, stopSchedulers } from './src/services/schedulerService.js';
 
 assertServerEnv();
 
 const server = app.listen(env.port, () => {
   console.log(`[YNG Backend] Server aktif pada port ${env.port} (${env.nodeEnv})`);
+  if (env.nodeEnv !== 'test') {
+    startSchedulers();
+  }
 });
 
 let isShuttingDown = false;
@@ -15,6 +19,7 @@ function shutdown(signal: string): void {
   isShuttingDown = true;
 
   console.log(`[YNG Backend] Menerima ${signal}, menutup server...`);
+  stopSchedulers();
   server.close(() => {
     void closePool()
       .then(() => {

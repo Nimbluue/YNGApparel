@@ -10,6 +10,8 @@ import authRoutes from './authRoutes.js';
 import cartRoutes from './cartRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import publicRoutes from './publicRoutes.js';
+import trackerRoutes from './trackerRoutes.js';
+import wishlistRoutes from './wishlistRoutes.js';
 
 const router = Router();
 
@@ -45,6 +47,8 @@ router.use('/auth', authRoutes);
 router.use('/me', accountRoutes);
 router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
+router.use('/track', trackerRoutes);
+router.use('/wishlist', wishlistRoutes);
 router.use('/', publicRoutes);
 router.use('/admin', adminRoutes);
 

@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import {
   createOrderBodySchema,
   createOrderController,
+  listOrdersQuerySchema,
   orderUuidParamSchema,
   paymentProofParamsSchema,
   uploadProofBodySchema,
@@ -19,13 +20,20 @@ export interface OrderRouterOptions {
 }
 
 /**
- * Membangun router `/api/orders/*` untuk checkout keranjang dan pembayaran bertahap.
+ * Membangun router `/api/orders/*` untuk daftar/detail pesanan, checkout keranjang, dan pembayaran bertahap.
  */
 export function createOrderRouter(options: OrderRouterOptions = {}): Router {
   const router = Router();
   const requireAuthMiddleware = options.requireAuthMiddleware ?? requireAuth;
   const uploadLimiterMiddleware = options.uploadLimiterMiddleware ?? uploadLimiter;
   const controller = createOrderController(options.orderService);
+
+  router.get(
+    '/',
+    requireAuthMiddleware,
+    validate({ query: listOrdersQuerySchema }),
+    controller.listMyOrders
+  );
 
   router.post(
     '/',
@@ -46,6 +54,13 @@ export function createOrderRouter(options: OrderRouterOptions = {}): Router {
     paymentProofUploadMiddleware,
     validate({ params: paymentProofParamsSchema, body: uploadProofBodySchema }),
     controller.uploadPaymentProof
+  );
+
+  router.get(
+    '/:uuid',
+    requireAuthMiddleware,
+    validate({ params: orderUuidParamSchema }),
+    controller.getMyOrderDetail
   );
 
   return router;

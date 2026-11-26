@@ -25,7 +25,7 @@ process.env.SKIP_DOTENV = 'true';
 process.env.JWT_SECRET = 'test_secret_minimal_32_karakter_12345';
 process.env.FRONTEND_ORIGIN = 'http://localhost:5173';
 
-const { env } = await import('../src/config/env.js');
+const { env, isAllowedOrigin, parseOrigins } = await import('../src/config/env.js');
 const { generateOrderCode } = await import('../src/utils/orderCode.js');
 const { getWhatsAppLast4, maskName, normalizeWhatsApp } = await import('../src/utils/phone.js');
 const { mapPostgresError } = await import('../src/middleware/errorHandler.js');
@@ -93,7 +93,7 @@ describe('Tahap 0 — Utilitas & Keamanan Backend', () => {
 
 describe('Tahap 0 — Kurir & buildTrackingUrl (@yng/shared)', () => {
   it('mengembalikan URL resmi untuk kurir terverifikasi saat resi valid', () => {
-    expect(COURIERS).toHaveLength(9);
+    expect(COURIERS).toHaveLength(11);
     expect(buildTrackingUrl('JNE', 'JNE1234567890')).toBe('https://www.jne.co.id/tracking-package');
     expect(buildTrackingUrl('jnt', 'JP-123456789')).toBe('https://www.jet.co.id/track');
     expect(buildTrackingUrl('SICEPAT', '001234567890')).toBe('https://www.sicepat.com/checkAwb');
@@ -103,6 +103,10 @@ describe('Tahap 0 — Kurir & buildTrackingUrl (@yng/shared)', () => {
     );
     expect(buildTrackingUrl('NINJA', 'NLIDAP123456')).toBe(
       'https://www.ninjaxpress.co/id-id/tracking'
+    );
+    expect(buildTrackingUrl('IDEXPRESS', 'IDE-123456')).toBe('https://idexpress.com/lacak-paket');
+    expect(buildTrackingUrl('LIONPARCEL', '11LP123456789')).toBe(
+      'https://lionparcel.com/track/stt'
     );
   });
 
@@ -377,6 +381,62 @@ describe('Tahap 0 — Middleware Auth (USER/ADMIN/Guest), Validasi Zod & HTTP Sm
     const json = (await res.json()) as { success: boolean; message: string };
     expect(json.success).toBe(false);
     expect(json.message).toMatch(/Origin/i);
+  });
+
+  it('parseOrigins & isAllowedOrigin mendukung multiple FRONTEND_ORIGIN serta tunnel/LAN hanya di NODE_ENV=development', () => {
+    const configured = parseOrigins(
+      ' http://localhost:5173/ , https://shop.yngapparel.id , http://localhost:5173 '
+    );
+    expect(configured).toEqual(['http://localhost:5173', 'https://shop.yngapparel.id']);
+    expect(parseOrigins(' , ')).toEqual(['http://localhost:5173']);
+
+    // Multi-origin eksplisit diizinkan di development & production
+    expect(
+      isAllowedOrigin('https://shop.yngapparel.id', {
+        allowedOrigins: configured,
+        nodeEnv: 'production',
+      })
+    ).toBe(true);
+    expect(
+      isAllowedOrigin('http://localhost:5173/', {
+        allowedOrigins: configured,
+        nodeEnv: 'development',
+      })
+    ).toBe(true);
+
+    // Quick Tunnel & IP LAN diizinkan otomatis hanya saat NODE_ENV=development
+    const devValidOrigins = [
+      'https://demo-app.trycloudflare.com',
+      'http://192.168.1.25:5173',
+      'http://192.168.0.10',
+      'http://10.0.0.5:5173',
+      'http://10.24.8.1',
+    ];
+    for (const origin of devValidOrigins) {
+      expect(isAllowedOrigin(origin, { allowedOrigins: configured, nodeEnv: 'development' })).toBe(
+        true
+      );
+      expect(isAllowedOrigin(origin, { allowedOrigins: configured, nodeEnv: 'production' })).toBe(
+        false
+      );
+      expect(isAllowedOrigin(origin, { allowedOrigins: configured, nodeEnv: 'test' })).toBe(false);
+    }
+
+    // Origin palsu/invalid tetap ditolak bahkan di NODE_ENV=development
+    const devInvalidOrigins = [
+      'http://demo-app.trycloudflare.com',
+      'https://evil.trycloudflare.com.attacker.com',
+      'https://trycloudflare.com',
+      'http://192.168.999.1:5173',
+      'http://172.16.0.1:5173',
+      'https://192.168.1.5:5173',
+      'https://evil.example',
+    ];
+    for (const origin of devInvalidOrigins) {
+      expect(isAllowedOrigin(origin, { allowedOrigins: configured, nodeEnv: 'development' })).toBe(
+        false
+      );
+    }
   });
 
   it('middleware validate (Zod) menolak payload tidak valid (400) dan meneruskan payload valid (200)', async () => {

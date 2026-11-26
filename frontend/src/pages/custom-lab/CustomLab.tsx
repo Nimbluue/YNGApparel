@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   PAYMENT_SCHEME,
   PRINT_POSITION,
-  PRINT_POSITION_LABELS,
   type PaymentScheme,
   type PricingQuoteRequestDto,
   type PricingQuoteResponseDto,
@@ -23,8 +22,10 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
+import { WishlistHeartButton } from '../../components/ui/WishlistHeartButton';
 import { useToast } from '../../components/ui/toastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   catalogQueryKeys,
   getCatalogConfig,
@@ -43,7 +44,9 @@ import {
 import { requestPricingQuote } from '../../services/pricingService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
+import { getLocalizedPrintPositionLabel } from '../../utils/localizedLabels';
 import { estimateCustomLabPricing, resolveActivePaymentScheme } from '../../utils/pricing';
+import { rememberViewedModel } from '../../utils/recentlyViewed';
 import { openWaLink } from '../../utils/whatsapp';
 
 const DRAFT_STORAGE_KEY = 'yng_custom_lab_draft_v1';
@@ -162,6 +165,7 @@ function saveDraftToSessionStorage(draft: CustomLabDraft): void {
 
 export default function CustomLab() {
   const { isGuest } = useAuth();
+  const { locale, t, pick } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -218,7 +222,13 @@ export default function CustomLab() {
     );
     if (!targetItem) {
       hydratedEditUuidRef.current = editCartItemUuid;
-      toast('Item keranjang yang akan diubah tidak ditemukan.', 'warn');
+      toast(
+        pick(
+          'Item keranjang yang akan diubah tidak ditemukan.',
+          'The cart item to edit was not found.'
+        ),
+        'warn'
+      );
       return;
     }
 
@@ -254,7 +264,7 @@ export default function CustomLab() {
       productionNotes: targetItem.config.productionNotes ?? '',
       paymentScheme: PAYMENT_SCHEME.FULL,
     });
-  }, [editCartItemUuid, editCartQuery.data, toast]);
+  }, [editCartItemUuid, editCartQuery.data, toast, pick]);
 
   const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
   const sizes = useMemo(() => sizesQuery.data ?? [], [sizesQuery.data]);
@@ -265,6 +275,12 @@ export default function CustomLab() {
     () => models.find((m) => m.id === draft.modelId) ?? null,
     [models, draft.modelId]
   );
+
+  useEffect(() => {
+    if (selectedModel) {
+      rememberViewedModel(selectedModel);
+    }
+  }, [selectedModel]);
 
   const selectedModelIndex = useMemo(() => {
     if (!selectedModel) return 0;
@@ -496,7 +512,10 @@ export default function CustomLab() {
         })
         .catch((err: unknown) => {
           if (controller.signal.aborted || quoteRequestIdRef.current !== requestId) return;
-          const parsed = extractApiError(err, 'Gagal menghitung harga dari server.');
+          const parsed = extractApiError(
+            err,
+            pick('Gagal menghitung harga dari server.', 'Failed to calculate quote from server.')
+          );
           setServerQuote(null);
           setQuoteError(parsed.message);
         });
@@ -505,7 +524,7 @@ export default function CustomLab() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [quotePayload, fetchQuoteAsync]);
+  }, [quotePayload, fetchQuoteAsync, pick]);
 
   useEffect(() => {
     return () => {
@@ -556,8 +575,14 @@ export default function CustomLab() {
       ...DEFAULT_DRAFT,
       modelId: models[0]?.id ?? null,
     });
-    toast('Konfigurasi Custom Lab dikembalikan ke awal.', 'info');
-  }, [models, toast]);
+    toast(
+      pick(
+        'Konfigurasi Custom Lab dikembalikan ke awal.',
+        'Custom Lab configuration has been reset.'
+      ),
+      'info'
+    );
+  }, [models, pick, toast]);
 
   const handleAddSpot = useCallback(() => {
     setActionFeedback(null);
@@ -626,12 +651,18 @@ export default function CustomLab() {
       }));
       setUploadFeedbackBySpotKey((prev) => ({
         ...prev,
-        [spotKey]: `File "${result.fileName}" berhasil diunggah ke storage.`,
+        [spotKey]: pick(
+          `File "${result.fileName}" berhasil diunggah ke storage.`,
+          `File "${result.fileName}" uploaded to storage.`
+        ),
       }));
-      toast('File desain berhasil diunggah.', 'ok');
+      toast(pick('File desain berhasil diunggah.', 'Design file uploaded successfully.'), 'ok');
     },
     onError: (err, variables) => {
-      const parsed = extractApiError(err, 'Gagal mengunggah file desain.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal mengunggah file desain.', 'Failed to upload design file.')
+      );
       setUploadFeedbackBySpotKey((prev) => ({ ...prev, [variables.spotKey]: parsed.message }));
       toast(parsed.message, 'err');
     },
@@ -642,9 +673,15 @@ export default function CustomLab() {
 
   const handleRequestLoginForUpload = useCallback(() => {
     saveDraftToSessionStorage(draft);
-    toast('Silakan masuk terlebih dahulu untuk mengunggah file desain.', 'info');
+    toast(
+      pick(
+        'Silakan masuk terlebih dahulu untuk mengunggah file desain.',
+        'Please sign in first to upload a design file.'
+      ),
+      'info'
+    );
     navigate('/login', { state: { from: '/custom-lab' } });
-  }, [draft, navigate, toast]);
+  }, [draft, navigate, pick, toast]);
 
   const handleSelectDesignFile = useCallback(
     (spotKey: string, file: File) => {
@@ -656,7 +693,10 @@ export default function CustomLab() {
 
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
       if (!ALLOWED_DESIGN_EXTENSIONS.has(ext)) {
-        const msg = 'Format file tidak didukung. Gunakan PNG, JPG, WEBP, SVG, atau PDF.';
+        const msg = pick(
+          'Format file tidak didukung. Gunakan PNG, JPG, WEBP, SVG, atau PDF.',
+          'Unsupported file format. Use PNG, JPG, WEBP, SVG, or PDF.'
+        );
         setUploadFeedbackBySpotKey((prev) => ({ ...prev, [spotKey]: msg }));
         toast(msg, 'warn');
         return;
@@ -664,7 +704,10 @@ export default function CustomLab() {
 
       const maxBytes = config.maxDesignFileMb * 1024 * 1024;
       if (file.size <= 0 || file.size > maxBytes) {
-        const msg = `Ukuran file harus lebih dari 0 dan maksimal ${config.maxDesignFileMb} MB.`;
+        const msg = pick(
+          `Ukuran file harus lebih dari 0 dan maksimal ${config.maxDesignFileMb} MB.`,
+          `File size must be greater than 0 and up to ${config.maxDesignFileMb} MB.`
+        );
         setUploadFeedbackBySpotKey((prev) => ({ ...prev, [spotKey]: msg }));
         toast(msg, 'warn');
         return;
@@ -683,6 +726,7 @@ export default function CustomLab() {
       draft,
       handleRequestLoginForUpload,
       isGuest,
+      pick,
       toast,
       uploadDesignMutation,
     ]
@@ -692,11 +736,11 @@ export default function CustomLab() {
     if (draft.isCustomColor) {
       return draft.customColorName.trim()
         ? `${draft.customColorName.trim()} (Custom · WA)`
-        : 'Warna custom (belum diisi)';
+        : pick('Warna custom (belum diisi)', 'Custom color (not filled)');
     }
     if (!selectedFabric || draft.fabricColorId === null) return null;
     return selectedFabric.colors.find((c) => c.id === draft.fabricColorId)?.colorName ?? null;
-  }, [draft.isCustomColor, draft.customColorName, draft.fabricColorId, selectedFabric]);
+  }, [draft.isCustomColor, draft.customColorName, draft.fabricColorId, pick, selectedFabric]);
 
   const activeColorHex = useMemo(() => {
     if (draft.isCustomColor) {
@@ -726,14 +770,23 @@ export default function CustomLab() {
       setActionFeedback(null);
       toast(
         editCartItemUuid
-          ? 'Konfigurasi item keranjang berhasil diperbarui.'
-          : 'Item berhasil ditambahkan ke Keranjang Custom Lab.',
+          ? pick(
+              'Konfigurasi item keranjang berhasil diperbarui.',
+              'Bag item configuration updated.'
+            )
+          : pick(
+              'Item berhasil ditambahkan ke Keranjang Custom Lab.',
+              'Item added to your Custom Lab bag.'
+            ),
         'ok'
       );
       navigate('/keranjang');
     },
     onError: (err) => {
-      const parsed = extractApiError(err, 'Gagal menyimpan item ke keranjang.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal menyimpan item ke keranjang.', 'Failed to save item to bag.')
+      );
       setActionFeedback(parsed.message);
       toast(parsed.message, 'err');
     },
@@ -742,21 +795,32 @@ export default function CustomLab() {
   const handleAddToCart = useCallback(() => {
     saveDraftToSessionStorage(draft);
     if (isGuest) {
-      toast('Silakan masuk terlebih dahulu untuk menyimpan ke keranjang.', 'info');
+      toast(
+        pick(
+          'Silakan masuk terlebih dahulu untuk menyimpan ke keranjang.',
+          'Please sign in first to save to your bag.'
+        ),
+        'info'
+      );
       navigate('/login', { state: { from: '/custom-lab' } });
       return;
     }
 
     if (uploadingSpotKey) {
-      const msg = 'Tunggu proses unggah file desain selesai terlebih dahulu.';
+      const msg = pick(
+        'Tunggu proses unggah file desain selesai terlebih dahulu.',
+        'Please wait for the design file upload to finish.'
+      );
       setActionFeedback(msg);
       toast(msg, 'warn');
       return;
     }
 
     if (!quotePayload || !quotePayload.items[0]) {
-      const msg =
-        'Lengkapi model, bahan, warna, jumlah ukuran (> 0), dan ukuran sablon terlebih dahulu.';
+      const msg = pick(
+        'Lengkapi model, bahan, warna, jumlah ukuran (> 0), dan ukuran sablon terlebih dahulu.',
+        'Complete model, fabric, color, size quantities (> 0), and print sizes first.'
+      );
       setActionFeedback(msg);
       toast(msg, 'warn');
       return;
@@ -765,7 +829,10 @@ export default function CustomLab() {
     for (let i = 0; i < draft.prints.length; i += 1) {
       const spot = draft.prints[i]!;
       if (!spot.needsDesignHelp && !spot.fileRef) {
-        const msg = `Titik sablon #${i + 1}: unggah file desain atau centang "Bantu desainkan saya (Gratis)".`;
+        const msg = pick(
+          `Titik sablon #${i + 1}: unggah file desain atau centang "Bantu desainkan saya (Gratis)".`,
+          `Print spot #${i + 1}: upload a design file or select "Request free design help".`
+        );
         setActionFeedback(msg);
         toast(msg, 'warn');
         return;
@@ -796,7 +863,7 @@ export default function CustomLab() {
 
     setActionFeedback(null);
     saveCartMutation.mutate(payload);
-  }, [draft, isGuest, navigate, quotePayload, saveCartMutation, toast, uploadingSpotKey]);
+  }, [draft, isGuest, navigate, pick, quotePayload, saveCartMutation, toast, uploadingSpotKey]);
 
   const handleAskWhatsApp = useCallback(() => {
     const sizeText = sizes
@@ -810,22 +877,25 @@ export default function CustomLab() {
         ? draft.prints
             .map((spot) => {
               const pSize = printSizes.find((p) => p.id === spot.printSizeId);
-              return `${PRINT_POSITION_LABELS[spot.printPosition]} (${pSize?.name ?? 'Belum pilih ukuran'})`;
+              return `${getLocalizedPrintPositionLabel(spot.printPosition, locale)} (${pSize?.name ?? pick('Belum pilih ukuran', 'No size selected')})`;
             })
             .join(', ')
-        : 'Polos';
+        : pick('Polos', 'Plain');
 
     const subtotal = serverQuote?.subtotalAmount ?? localEstimate.subtotalAmount;
     const totalQty = serverQuote?.totalQty ?? localEstimate.totalQty;
 
     const lines = [
-      'Halo admin YNG Apparel, saya ingin konsultasi pesanan Custom Lab:',
+      pick(
+        'Halo admin YNG Apparel, saya ingin konsultasi pesanan Custom Lab:',
+        'Hello YNG Apparel admin, I would like to consult on a Custom Lab order:'
+      ),
       `- Model: ${selectedModel?.name ?? '-'}`,
-      `- Bahan: ${selectedFabric?.name ?? '-'}`,
-      `- Warna: ${colorSummary ?? '-'}`,
-      `- Ukuran (${totalQty} pcs): ${sizeText || '-'}`,
-      `- Sablon: ${printText}`,
-      `- Estimasi subtotal: ${formatRupiah(subtotal)}`,
+      `- ${pick('Bahan', 'Fabric')}: ${selectedFabric?.name ?? '-'}`,
+      `- ${pick('Warna', 'Color')}: ${colorSummary ?? '-'}`,
+      `- ${pick('Ukuran', 'Sizes')} (${totalQty} pcs): ${sizeText || '-'}`,
+      `- ${pick('Sablon', 'Print')}: ${printText}`,
+      `- ${pick('Estimasi subtotal', 'Estimated subtotal')}: ${formatRupiah(subtotal)}`,
     ];
 
     openWaLink(config.adminWhatsapp, lines.join('\n'));
@@ -834,6 +904,8 @@ export default function CustomLab() {
     draft.quantities,
     draft.prints,
     printSizes,
+    locale,
+    pick,
     serverQuote?.subtotalAmount,
     serverQuote?.totalQty,
     localEstimate.subtotalAmount,
@@ -878,11 +950,16 @@ export default function CustomLab() {
   }
 
   if (initialError) {
-    const parsed = extractApiError(initialError, 'Gagal memuat katalog Custom Lab.');
+    const parsed = extractApiError(
+      initialError,
+      pick('Gagal memuat katalog Custom Lab.', 'Failed to load Custom Lab catalog.')
+    );
     return (
       <div className="mx-auto max-w-2xl py-6">
         <ErrorState
-          title="Katalog belum dapat dimuat"
+          eyebrow={t('common.errorEyebrow')}
+          retryLabel={t('common.retry')}
+          title={pick('Katalog belum dapat dimuat', 'Catalog could not be loaded')}
           message={parsed.message}
           retry={() => {
             void modelsQuery.refetch();
@@ -899,11 +976,14 @@ export default function CustomLab() {
     return (
       <div className="mx-auto max-w-2xl py-6">
         <EmptyState
-          title="Katalog produk belum tersedia"
-          description="Admin belum mengaktifkan model pakaian di katalog. Silakan hubungi tim kami via WhatsApp."
+          title={pick('Katalog produk belum tersedia', 'No catalog models available')}
+          description={pick(
+            'Admin belum mengaktifkan model pakaian di katalog. Silakan hubungi tim kami via WhatsApp.',
+            'No garment models are active in the catalog yet. Please contact our team via WhatsApp.'
+          )}
           action={
             <button type="button" onClick={handleAskWhatsApp} className="btn-primary">
-              Hubungi via WhatsApp
+              {pick('Hubungi via WhatsApp', 'Contact via WhatsApp')}
             </button>
           }
         />
@@ -929,9 +1009,11 @@ export default function CustomLab() {
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-6 text-center">
                 <span className="font-display text-lg font-semibold text-ink">
-                  {selectedModel?.name ?? 'Model Pakaian'}
+                  {selectedModel?.name ?? pick('Model Pakaian', 'Garment Model')}
                 </span>
-                <span className="text-xs text-muted">Foto katalog segera hadir</span>
+                <span className="text-xs text-muted">
+                  {pick('Foto katalog segera hadir', 'Catalog photo coming soon')}
+                </span>
               </div>
             )}
           </div>
@@ -959,21 +1041,23 @@ export default function CustomLab() {
 
           <div className="space-y-2.5 pt-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-ink">Model Pakaian</p>
+              <p className="text-xs font-semibold text-ink">
+                {pick('Model Pakaian', 'Garment Models')}
+              </p>
               {models.length > 1 ? (
                 <button
                   type="button"
                   onClick={() => setCatalogModalOpen(true)}
                   className="inline-flex min-h-touch items-center rounded-full px-3 text-xs font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
                 >
-                  Lihat Semua Model
+                  {pick('Lihat Semua Model', 'Browse All Models')}
                 </button>
               ) : null}
             </div>
 
             <div
               role="region"
-              aria-label="Pilihan model pakaian"
+              aria-label={pick('Pilihan model pakaian', 'Garment model selector')}
               className="flex gap-2.5 overflow-x-auto pb-1.5 [scrollbar-width:thin]"
             >
               {models.map((model) => {
@@ -1024,27 +1108,39 @@ export default function CustomLab() {
           <header className="border-b border-line pb-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="eyebrow">Custom Lab · {config.storeName}</p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
-              >
-                Reset
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedModel ? (
+                  <WishlistHeartButton
+                    modelSlug={selectedModel.slug}
+                    modelName={selectedModel.name}
+                    modelHint={selectedModel}
+                    variant="inline"
+                    size="sm"
+                    showLabel
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+                >
+                  {pick('Reset', 'Reset')}
+                </button>
+              </div>
             </div>
 
             <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl lg:text-4xl">
-              {selectedModel?.name ?? 'Rancang Pakaian Custom'}
+              {selectedModel?.name ?? pick('Rancang Pakaian Custom', 'Design Custom Apparel')}
             </h1>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <p className="text-base font-semibold text-ink">
-                Mulai{' '}
+                {pick('Mulai', 'From')}{' '}
                 <span className="tabular-price">{formatRupiah(selectedModel?.basePrice ?? 0)}</span>{' '}
                 <span className="text-xs font-normal text-muted">/ pcs</span>
               </p>
               <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
-                Estimasi {config.productionEstimateText}
+                {pick('Estimasi', 'Lead time')} {config.productionEstimateText}
               </span>
             </div>
 
@@ -1052,7 +1148,10 @@ export default function CustomLab() {
               <p className="mt-3 text-sm leading-relaxed text-muted">{selectedModel.description}</p>
             ) : null}
             <p className="mt-2 text-xs text-muted">
-              Seluruh rincian harga divalidasi dan dihitung langsung oleh server.
+              {pick(
+                'Seluruh rincian harga divalidasi dan dihitung langsung oleh server.',
+                'All pricing breakdowns are validated and calculated directly on the server.'
+              )}
             </p>
           </header>
 
@@ -1066,10 +1165,12 @@ export default function CustomLab() {
                 id="step-fabric-heading"
                 className="font-display text-base font-semibold text-ink"
               >
-                <span className="tabular-price mr-1.5 text-muted">01</span> Pilih Bahan
+                <span className="tabular-price mr-1.5 text-muted">01</span>{' '}
+                {pick('Pilih Bahan', 'Select Fabric')}
               </h2>
               <span className="text-xs text-muted">
-                Kompatibel untuk {selectedModel?.name ?? 'model terpilih'}
+                {pick('Kompatibel untuk', 'Compatible with')}{' '}
+                {selectedModel?.name ?? pick('model terpilih', 'selected model')}
               </span>
             </div>
 
@@ -1080,16 +1181,23 @@ export default function CustomLab() {
               </div>
             ) : modelDetailQuery.error ? (
               <ErrorState
-                title="Gagal memuat bahan model"
+                eyebrow={t('common.errorEyebrow')}
+                retryLabel={t('common.retry')}
+                title={pick('Gagal memuat bahan model', 'Failed to load model fabrics')}
                 message={
-                  extractApiError(modelDetailQuery.error, 'Tidak dapat mengambil daftar bahan.')
-                    .message
+                  extractApiError(
+                    modelDetailQuery.error,
+                    pick('Tidak dapat mengambil daftar bahan.', 'Could not fetch fabric list.')
+                  ).message
                 }
                 retry={() => void modelDetailQuery.refetch()}
               />
             ) : availableFabrics.length === 0 ? (
               <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
-                Belum ada bahan aktif yang terhubung dengan model ini.
+                {pick(
+                  'Belum ada bahan aktif yang terhubung dengan model ini.',
+                  'No active fabrics are linked to this model yet.'
+                )}
               </p>
             ) : (
               <div className="grid gap-2.5 sm:grid-cols-2">
@@ -1146,7 +1254,7 @@ export default function CustomLab() {
                             / pcs
                           </>
                         ) : (
-                          'Termasuk harga dasar'
+                          pick('Termasuk harga dasar', 'Included in base price')
                         )}
                       </p>
                     </button>
@@ -1163,10 +1271,14 @@ export default function CustomLab() {
           >
             <div>
               <h2 id="step-color-heading" className="font-display text-base font-semibold text-ink">
-                <span className="tabular-price mr-1.5 text-muted">02</span> Pilih Warna Bahan
+                <span className="tabular-price mr-1.5 text-muted">02</span>{' '}
+                {pick('Pilih Warna Bahan', 'Select Fabric Color')}
               </h2>
               <p className="mt-1 text-xs text-muted">
-                Pilih preset stok bahan atau ajukan warna custom untuk konfirmasi via WhatsApp.
+                {pick(
+                  'Pilih preset stok bahan atau ajukan warna custom untuk konfirmasi via WhatsApp.',
+                  'Choose an in-stock preset color or request a custom shade via WhatsApp.'
+                )}
               </p>
             </div>
 
@@ -1213,13 +1325,29 @@ export default function CustomLab() {
           >
             <div>
               <h2 id="step-size-heading" className="font-display text-base font-semibold text-ink">
-                <span className="tabular-price mr-1.5 text-muted">03</span> Jumlah per Ukuran
+                <span className="tabular-price mr-1.5 text-muted">03</span>{' '}
+                {pick('Jumlah per Ukuran', 'Size Matrix')}
               </h2>
               <p className="mt-1 text-xs text-muted">
-                Minimal{' '}
-                <span className="tabular-price font-medium text-ink">{config.dpMinQty} pcs</span>{' '}
-                total untuk membuka pembayaran DP{' '}
-                <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>.
+                {pick(
+                  <>
+                    Minimal{' '}
+                    <span className="tabular-price font-medium text-ink">
+                      {config.dpMinQty} pcs
+                    </span>{' '}
+                    total untuk membuka pembayaran DP{' '}
+                    <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>.
+                  </>,
+                  <>
+                    Minimum{' '}
+                    <span className="tabular-price font-medium text-ink">
+                      {config.dpMinQty} pcs
+                    </span>{' '}
+                    total to unlock{' '}
+                    <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>{' '}
+                    deposit.
+                  </>
+                )}
               </p>
             </div>
 
@@ -1247,7 +1375,8 @@ export default function CustomLab() {
             aria-labelledby="step-print-heading"
           >
             <h2 id="step-print-heading" className="font-display text-base font-semibold text-ink">
-              <span className="tabular-price mr-1.5 text-muted">04</span> Titik Sablon &amp; Desain
+              <span className="tabular-price mr-1.5 text-muted">04</span>{' '}
+              {pick('Titik Sablon & Desain', 'Print Spots & Artwork')}
             </h2>
 
             <PrintSpotPicker
@@ -1269,9 +1398,12 @@ export default function CustomLab() {
           <section className="space-y-3" aria-labelledby="step-notes-heading">
             <div className="flex items-baseline justify-between gap-2">
               <h2 id="step-notes-heading" className="font-display text-base font-semibold text-ink">
-                <span className="tabular-price mr-1.5 text-muted">05</span> Catatan Produksi
+                <span className="tabular-price mr-1.5 text-muted">05</span>{' '}
+                {pick('Catatan Produksi', 'Production Notes')}
               </h2>
-              <span className="text-xs text-muted">Opsional · maks. 500 karakter</span>
+              <span className="text-xs text-muted">
+                {pick('Opsional · maks. 500 karakter', 'Optional · max 500 chars')}
+              </span>
             </div>
             <textarea
               id="custom-lab-production-notes"
@@ -1282,7 +1414,10 @@ export default function CustomLab() {
                 setActionFeedback(null);
                 setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
               }}
-              placeholder="Contoh: posisi logo 3 cm di bawah kerah, atau instruksi khusus untuk tim desain."
+              placeholder={pick(
+                'Contoh: posisi logo 3 cm di bawah kerah, atau instruksi khusus untuk tim desain.',
+                'Example: logo 3 cm below collar, or specific notes for the design team.'
+              )}
               className="input-sharp min-h-[88px] resize-y py-2.5"
             />
           </section>
@@ -1311,7 +1446,9 @@ export default function CustomLab() {
             }
             isGuest={isGuest}
             isSubmittingCart={saveCartMutation.isPending}
-            submitCartLabel={editCartItemUuid ? 'Simpan Perubahan Keranjang' : undefined}
+            submitCartLabel={
+              editCartItemUuid ? pick('Simpan Perubahan Keranjang', 'Save Bag Changes') : undefined
+            }
             onAddToCart={handleAddToCart}
             onAskWhatsApp={handleAskWhatsApp}
             actionFeedback={actionFeedback}
@@ -1322,8 +1459,11 @@ export default function CustomLab() {
       <Modal
         open={catalogModalOpen}
         onClose={() => setCatalogModalOpen(false)}
-        title="Pilih Model Pakaian"
-        description="Pilih siluet pakaian untuk dikonfigurasi di Custom Lab."
+        title={pick('Pilih Model Pakaian', 'Select Garment Model')}
+        description={pick(
+          'Pilih siluet pakaian untuk dikonfigurasi di Custom Lab.',
+          'Pick a garment silhouette to configure in Custom Lab.'
+        )}
         size="lg"
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1361,7 +1501,7 @@ export default function CustomLab() {
                       isSelected ? 'text-neutral-200' : 'text-muted'
                     }`}
                   >
-                    Mulai {formatRupiah(model.basePrice)}
+                    {pick('Mulai', 'From')} {formatRupiah(model.basePrice)}
                   </p>
                 </div>
               </button>

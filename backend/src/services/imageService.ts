@@ -115,3 +115,13 @@ export async function processPaymentProofImage(
 ): Promise<ProcessedCatalogImage> {
   return processRasterImageBuffer(inputBuffer, `${transactionUuid}/${paymentUuid}`);
 }
+
+/**
+ * Memvalidasi dan mengompres foto hasil QC produk (maks 5 MB, PNG/JPG/WEBP asli, tanpa EXIF).
+ */
+export async function processQcPhotoImage(
+  inputBuffer: Buffer,
+  transactionUuid: string
+): Promise<ProcessedCatalogImage> {
+  return processRasterImageBuffer(inputBuffer, transactionUuid);
+}

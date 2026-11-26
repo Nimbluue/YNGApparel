@@ -9,11 +9,13 @@ import {
   type OrderSummaryDto,
   type PaginationMeta,
   type PaymentMethod,
+  type PublicPaymentAccountDto,
   type UploadPaymentProofResultDto,
 } from '@yng/shared';
 import { STORAGE_BUCKETS } from '../config/constants.js';
 import { AppError } from '../middleware/errorHandler.js';
 import catalogModel, { type CatalogRepository } from '../models/catalogModel.js';
+import type { PaymentAccountRow } from '../models/masterModel.js';
 import orderModel, {
   type DesignFileTransferPlan,
   type OrderDetailRecord,
@@ -23,10 +25,11 @@ import orderModel, {
 } from '../models/orderModel.js';
 import { processPaymentProofImage } from './imageService.js';
 import * as storageService from './storageService.js';
+import defaultTelegramService, { type TelegramService } from './telegramService.js';
 
 export interface OrderServiceDeps {
   orderRepo?: OrderRepository;
-  catalogRepo?: Pick<CatalogRepository, 'loadPricingReferenceData'>;
+  catalogRepo?: Pick<CatalogRepository, 'loadPricingReferenceData' | 'listActivePaymentAccounts'>;
   storage?: {
     upload: typeof storageService.upload;
     download: typeof storageService.download;
@@ -34,7 +37,24 @@ export interface OrderServiceDeps {
     remove: typeof storageService.remove;
     getSignedUrl: typeof storageService.getSignedUrl;
   };
+  getPublicCatalogUrl?: (filePath: string | null) => string | null;
   processProofImage?: typeof processPaymentProofImage;
+  telegram?: Pick<TelegramService, 'notifyNewOrder' | 'notifyPaymentProofUploaded'>;
+}
+
+function toPublicPaymentAccountDto(
+  row: PaymentAccountRow,
+  getPublicCatalogUrl: (filePath: string | null) => string | null
+): PublicPaymentAccountDto {
+  return {
+    id: Number(row.id),
+    method: row.method,
+    providerName: row.provider_name,
+    accountNumber: row.account_number,
+    accountHolder: row.account_holder,
+    qrImageUrl: getPublicCatalogUrl(row.qr_image_path),
+    instructions: row.instructions,
+  };
 }
 
 function toIsoString(value: Date | string): string {
@@ -79,7 +99,8 @@ async function mapPaymentRowToDto(
     paymentStage: payment.payment_stage,
     paymentStageLabel: getPaymentStageLabel(payment.payment_stage, dpPercentSnapshot),
     paymentMethod: payment.payment_method,
-    paymentAccountId: payment.payment_account_id !== null ? Number(payment.payment_account_id) : null,
+    paymentAccountId:
+      payment.payment_account_id !== null ? Number(payment.payment_account_id) : null,
     amount: Number(payment.amount),
     status: payment.status,
     hasProof: Boolean(payment.proof_image_path),
@@ -93,6 +114,7 @@ async function mapPaymentRowToDto(
 
 async function mapOrderDetailRecordToDto(
   record: OrderDetailRecord,
+  paymentAccounts: PublicPaymentAccountDto[],
   getSignedUrl: typeof storageService.getSignedUrl
 ): Promise<OrderDetailDto> {
   const { order, items, itemSizes, itemPrints, payments, qcPhotos, statusHistory } = record;
@@ -202,6 +224,7 @@ async function mapOrderDetailRecordToDto(
       })),
     })),
     payments: paymentDtos,
+    paymentAccounts,
     qcPhotos: qcPhotoDtos.filter((photo) => photo.photoUrl.length > 0),
     statusHistory: statusHistory.map((h) => ({
       fromStatus: h.from_status,
@@ -214,7 +237,8 @@ async function mapOrderDetailRecordToDto(
 
 function buildOrderPaymentsResponse(
   order: OrderRow,
-  paymentDtos: OrderPaymentDto[]
+  paymentDtos: OrderPaymentDto[],
+  paymentAccounts: PublicPaymentAccountDto[]
 ): OrderPaymentsResponseDto {
   return {
     transactionUuid: order.transaction_uuid,
@@ -227,6 +251,7 @@ function buildOrderPaymentsResponse(
     remainingBalance: Number(order.remaining_balance),
     paymentDueAt: toNullableIsoString(order.payment_due_at),
     payments: paymentDtos,
+    paymentAccounts,
   };
 }
 
@@ -243,7 +268,17 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
     remove: storageService.remove,
     getSignedUrl: storageService.getSignedUrl,
   };
+  const getPublicCatalogUrl =
+    deps.getPublicCatalogUrl ??
+    ((filePath: string | null) =>
+      filePath ? storageService.getPublicUrl(STORAGE_BUCKETS.CATALOG, filePath) : null);
   const processProof = deps.processProofImage ?? processPaymentProofImage;
+  const telegram = deps.telegram ?? defaultTelegramService;
+
+  async function loadActivePaymentAccountDtos(): Promise<PublicPaymentAccountDto[]> {
+    const rows = await catalogRepo.listActivePaymentAccounts();
+    return rows.map((row) => toPublicPaymentAccountDto(row, getPublicCatalogUrl));
+  }
 
   async function executeDesignTransfers(plans: DesignFileTransferPlan[]): Promise<void> {
     for (const plan of plans) {
@@ -270,12 +305,31 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
         executeDesignTransfers,
       });
 
-      const detail = await orderRepo.findOrderDetailByUuid(created.transactionUuid, input.userId);
+      const [detail, paymentAccounts] = await Promise.all([
+        orderRepo.findOrderDetailByUuid(created.transactionUuid, input.userId),
+        loadActivePaymentAccountDtos(),
+      ]);
       if (!detail) {
         throw new AppError('Pesanan berhasil dibuat tetapi gagal dimuat kembali.', 500);
       }
 
-      const orderDto = await mapOrderDetailRecordToDto(detail, storage.getSignedUrl);
+      const orderDto = await mapOrderDetailRecordToDto(
+        detail,
+        paymentAccounts,
+        storage.getSignedUrl
+      );
+      if (!created.deduplicated) {
+        void telegram.notifyNewOrder({
+          orderCode: orderDto.orderCode,
+          source: orderDto.source,
+          customerName: orderDto.customerName,
+          totalQty: orderDto.totalQty,
+          grandTotal: orderDto.grandTotal,
+          paymentScheme: orderDto.paymentScheme,
+          dpPercentSnapshot: orderDto.dpPercentSnapshot,
+          fulfillmentType: orderDto.fulfillmentType,
+        });
+      }
       return {
         order: orderDto,
         deduplicated: created.deduplicated,
@@ -323,15 +377,21 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
     },
 
     async getMyOrderDetail(userId: number, transactionUuid: string): Promise<OrderDetailDto> {
-      const record = await orderRepo.findOrderDetailByUuid(transactionUuid, userId);
+      const [record, paymentAccounts] = await Promise.all([
+        orderRepo.findOrderDetailByUuid(transactionUuid, userId),
+        loadActivePaymentAccountDtos(),
+      ]);
       if (!record) {
         throw new AppError('Pesanan tidak ditemukan.', 404);
       }
-      return mapOrderDetailRecordToDto(record, storage.getSignedUrl);
+      return mapOrderDetailRecordToDto(record, paymentAccounts, storage.getSignedUrl);
     },
 
     async getOrderPayments(transactionUuid: string): Promise<OrderPaymentsResponseDto> {
-      const result = await orderRepo.findOrderPaymentsByTransactionUuid(transactionUuid);
+      const [result, paymentAccounts] = await Promise.all([
+        orderRepo.findOrderPaymentsByTransactionUuid(transactionUuid),
+        loadActivePaymentAccountDtos(),
+      ]);
       if (!result) {
         throw new AppError('Pesanan tidak ditemukan.', 404);
       }
@@ -340,7 +400,7 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
           mapPaymentRowToDto(payment, result.order.dp_percent_snapshot, storage.getSignedUrl)
         )
       );
-      return buildOrderPaymentsResponse(result.order, paymentDtos);
+      return buildOrderPaymentsResponse(result.order, paymentDtos, paymentAccounts);
     },
 
     async uploadPaymentProof(input: {
@@ -350,26 +410,47 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
       paymentAccountId: number | null;
       buffer: Buffer;
     }): Promise<UploadPaymentProofResultDto> {
-      const result = await orderRepo.uploadPaymentProofAtomic({
-        transactionUuid: input.transactionUuid,
-        paymentUuid: input.paymentUuid,
-        paymentMethod: input.paymentMethod,
-        paymentAccountId: input.paymentAccountId,
-        processAndUploadProof: async (orderUuid, paymentUuid) => {
-          const processed = await processProof(input.buffer, orderUuid, paymentUuid);
-          await storage.upload(STORAGE_BUCKETS.PAYMENT_PROOFS, processed.path, processed.buffer, {
-            contentType: processed.mimeType,
-            upsert: false,
-          });
-          return { path: processed.path };
-        },
-      });
+      let uploadedPath: string | null = null;
+      let result: Awaited<ReturnType<OrderRepository['uploadPaymentProofAtomic']>>;
+
+      try {
+        result = await orderRepo.uploadPaymentProofAtomic({
+          transactionUuid: input.transactionUuid,
+          paymentUuid: input.paymentUuid,
+          paymentMethod: input.paymentMethod,
+          paymentAccountId: input.paymentAccountId,
+          processAndUploadProof: async (orderUuid, paymentUuid) => {
+            const processed = await processProof(input.buffer, orderUuid, paymentUuid);
+            await storage.upload(STORAGE_BUCKETS.PAYMENT_PROOFS, processed.path, processed.buffer, {
+              contentType: processed.mimeType,
+              upsert: false,
+            });
+            uploadedPath = processed.path;
+            return { path: processed.path };
+          },
+        });
+      } catch (err: unknown) {
+        if (uploadedPath) {
+          try {
+            await storage.remove(STORAGE_BUCKETS.PAYMENT_PROOFS, [uploadedPath]);
+          } catch (cleanupErr: unknown) {
+            console.warn(
+              '[OrderService] Gagal membersihkan bukti bayar yang gagal disimpan:',
+              cleanupErr
+            );
+          }
+        }
+        throw err;
+      }
 
       if (!result) {
         throw new AppError('Pesanan atau tagihan pembayaran tidak ditemukan.', 404);
       }
 
-      if (result.previousProofPath && result.previousProofPath !== result.payment.proof_image_path) {
+      if (
+        result.previousProofPath &&
+        result.previousProofPath !== result.payment.proof_image_path
+      ) {
         try {
           await storage.remove(STORAGE_BUCKETS.PAYMENT_PROOFS, [result.previousProofPath]);
         } catch (err: unknown) {
@@ -382,6 +463,13 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
         result.order.dp_percent_snapshot,
         storage.getSignedUrl
       );
+
+      void telegram.notifyPaymentProofUploaded({
+        orderCode: result.order.order_code,
+        paymentStageLabel: paymentDto.paymentStageLabel,
+        amount: paymentDto.amount,
+        paymentMethod: paymentDto.paymentMethod,
+      });
 
       return {
         transactionUuid: result.order.transaction_uuid,

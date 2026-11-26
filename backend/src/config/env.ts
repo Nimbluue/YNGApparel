@@ -38,11 +38,52 @@ if (process.env.SKIP_DOTENV !== 'true' && fs.existsSync(backendEnvPath)) {
   dotenv.config({ path: backendEnvPath });
 }
 
-function parseOrigins(rawOrigins: string | undefined): string[] {
-  return String(rawOrigins || 'http://localhost:5173')
+export function parseOrigins(rawOrigins: string | undefined): string[] {
+  const parsed = String(rawOrigins || '')
     .split(',')
     .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean);
+  const unique = Array.from(new Set(parsed));
+  return unique.length > 0 ? unique : ['http://localhost:5173'];
+}
+
+const CLOUDFLARE_QUICK_TUNNEL_HOST_REGEX =
+  /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.trycloudflare\.com$/i;
+
+function isPrivateLanIpv4(hostname: string): boolean {
+  const parts = hostname.split('.');
+  if (parts.length !== 4) return false;
+  const octets: number[] = [];
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return false;
+    const value = Number(part);
+    if (!Number.isInteger(value) || value < 0 || value > 255) return false;
+    octets.push(value);
+  }
+  return (octets[0] === 192 && octets[1] === 168) || octets[0] === 10;
+}
+
+function isAllowedDevDynamicOrigin(normalizedOrigin: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(normalizedOrigin);
+  } catch {
+    return false;
+  }
+  if (parsed.origin !== normalizedOrigin) {
+    return false;
+  }
+  if (
+    parsed.protocol === 'https:' &&
+    parsed.port === '' &&
+    CLOUDFLARE_QUICK_TUNNEL_HOST_REGEX.test(parsed.hostname)
+  ) {
+    return true;
+  }
+  if (parsed.protocol === 'http:' && isPrivateLanIpv4(parsed.hostname)) {
+    return true;
+  }
+  return false;
 }
 
 export type DatabaseSslConfig = false | { rejectUnauthorized: boolean };
@@ -103,6 +144,7 @@ const cookieSecure =
 
 export interface AppEnv {
   nodeEnv: string;
+  isDevelopment: boolean;
   isProduction: boolean;
   port: number;
   frontendOrigins: string[];
@@ -126,6 +168,7 @@ export interface AppEnv {
 
 export const env: AppEnv = {
   nodeEnv,
+  isDevelopment: nodeEnv === 'development',
   isProduction: nodeEnv === 'production',
   port: parsePositiveInt(process.env.PORT, 5000, 1, 65535),
   frontendOrigins: parseOrigins(process.env.FRONTEND_ORIGIN),
@@ -155,6 +198,31 @@ export const env: AppEnv = {
   telegramBotToken: String(process.env.TELEGRAM_BOT_TOKEN || '').trim(),
   telegramChatId: String(process.env.TELEGRAM_CHAT_ID || '').trim(),
 };
+
+/**
+ * Memeriksa apakah origin permintaan termasuk dalam `FRONTEND_ORIGIN`
+ * (mendukung multiple origin dipisah koma) atau origin dinamis lokal/Quick Tunnel saat `NODE_ENV=development`.
+ */
+export function isAllowedOrigin(
+  origin: string | null | undefined,
+  options?: { allowedOrigins?: readonly string[]; nodeEnv?: string }
+): boolean {
+  if (!origin) return false;
+  const normalized = origin.trim().replace(/\/+$/, '');
+  if (!normalized) return false;
+
+  const allowedOrigins = options?.allowedOrigins ?? env.frontendOrigins;
+  if (allowedOrigins.includes(normalized)) {
+    return true;
+  }
+
+  const activeNodeEnv = options?.nodeEnv ?? env.nodeEnv;
+  if (activeNodeEnv === 'development') {
+    return isAllowedDevDynamicOrigin(normalized);
+  }
+
+  return false;
+}
 
 export function assertDbEnv(): void {
   if (!env.databaseUrl) {

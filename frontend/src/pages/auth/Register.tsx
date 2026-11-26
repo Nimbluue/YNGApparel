@@ -2,6 +2,7 @@ import { USER_ROLE, type ValidationErrorItem, type ValidationErrorPayload } from
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { ApiClientError } from '../../services/api';
 import { BRAND_LOGO_MAIN_URL } from '../../utils/brandAssets';
 import type { AuthRedirectState } from './Login';
@@ -32,6 +33,7 @@ function isLikelyIndonesianWhatsApp(raw: string): boolean {
 
 export default function Register() {
   const { user, isGuest, checked, register } = useAuth();
+  const { pick } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -60,34 +62,53 @@ export default function Register() {
     const trimmedWa = whatsapp.trim();
 
     if (trimmedName.length < 2) {
-      setErrorMessage('Nama lengkap minimal 2 karakter.');
+      setErrorMessage(
+        pick('Nama lengkap minimal 2 karakter.', 'Full name must be at least 2 characters.')
+      );
       return;
     }
 
     if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setErrorMessage('Masukkan alamat email yang valid.');
+      setErrorMessage(
+        pick('Masukkan alamat email yang valid.', 'Please enter a valid email address.')
+      );
       return;
     }
 
     if (!isLikelyIndonesianWhatsApp(trimmedWa)) {
-      setErrorMessage('Format nomor WhatsApp tidak valid. Gunakan awalan 08 atau 62.');
+      setErrorMessage(
+        pick(
+          'Format nomor WhatsApp tidak valid. Gunakan awalan 08 atau 62.',
+          'Invalid WhatsApp number format. Use 08 or 62 prefix.'
+        )
+      );
       return;
     }
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setErrorMessage(`Password minimal ${MIN_PASSWORD_LENGTH} karakter.`);
+      setErrorMessage(
+        pick(
+          `Password minimal ${MIN_PASSWORD_LENGTH} karakter.`,
+          `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+        )
+      );
       return;
     }
 
     if (textEncoder.encode(password).length > MAX_PASSWORD_BYTES) {
       setErrorMessage(
-        `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8 (karakter simbol/emoji memakan lebih banyak byte).`
+        pick(
+          `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8 (karakter simbol/emoji memakan lebih banyak byte).`,
+          `Password cannot exceed ${MAX_PASSWORD_BYTES} UTF-8 bytes (symbols/emoji take extra bytes).`
+        )
       );
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage('Konfirmasi password tidak cocok.');
+      setErrorMessage(
+        pick('Konfirmasi password tidak cocok.', 'Password confirmation does not match.')
+      );
       return;
     }
 
@@ -104,7 +125,10 @@ export default function Register() {
         replace: true,
         state: {
           from: routeState?.from,
-          registeredMessage: 'Pendaftaran berhasil. Silakan masuk dengan akun Anda.',
+          registeredMessage: pick(
+            'Pendaftaran berhasil. Silakan masuk dengan akun Anda.',
+            'Registration succeeded. Please sign in with your new account.'
+          ),
           registeredEmail: created.email,
         },
       });
@@ -113,7 +137,9 @@ export default function Register() {
         setErrorMessage(err.message);
         setFieldErrors(extractValidationErrors(err.data));
       } else {
-        setErrorMessage('Pendaftaran gagal. Silakan coba lagi.');
+        setErrorMessage(
+          pick('Pendaftaran gagal. Silakan coba lagi.', 'Registration failed. Please try again.')
+        );
       }
     } finally {
       setSubmitting(false);
@@ -128,36 +154,58 @@ export default function Register() {
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
               <img
                 src={BRAND_LOGO_MAIN_URL}
-                alt="Emblem YNG Apparel"
+                alt="YNG Apparel Studio"
                 className="h-full w-full scale-110 object-cover object-center"
               />
             </div>
             <div className="min-w-0">
               <p className="font-display text-base font-semibold text-ink">YNG Apparel</p>
-              <p className="text-xs text-muted">Ruang Pelanggan · Batam</p>
+              <p className="text-xs text-muted">
+                {pick('Ruang Pelanggan · Batam', 'Customer Lounge · Batam')}
+              </p>
             </div>
           </div>
 
           <h2 className="font-display text-2xl font-semibold leading-snug text-ink sm:text-3xl">
-            Mulai dari satu rancangan, wujudkan bersama tim.
+            {pick(
+              'Mulai dari satu rancangan, wujudkan bersama tim.',
+              'Start from a single garment design, produce at team scale.'
+            )}
           </h2>
           <p className="text-sm leading-relaxed text-muted">
-            Daftar sekali untuk menyimpan alamat pengiriman, keranjang Custom Lab, dan memantau
-            status pesanan.
+            {pick(
+              'Daftar sekali untuk menyimpan alamat pengiriman, keranjang Custom Lab, dan memantau status pesanan.',
+              'Register once to save shipping addresses, Custom Lab configurations, and track your order status.'
+            )}
           </p>
 
           <ul className="space-y-2 border-t border-line pt-4 text-xs text-ink">
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>Simulasi harga transparan dengan perhitungan server</span>
+              <span>
+                {pick(
+                  'Simulasi harga transparan dengan perhitungan server',
+                  'Transparent pricing simulation verified by the server'
+                )}
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>Skema DP atau Lunas fleksibel sesuai jumlah pesanan</span>
+              <span>
+                {pick(
+                  'Skema DP atau Lunas fleksibel sesuai jumlah pesanan',
+                  'Flexible Deposit or Full Payment scheme based on quantity'
+                )}
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>Konsultasi bahan &amp; warna custom langsung via WhatsApp</span>
+              <span>
+                {pick(
+                  'Konsultasi bahan & warna custom langsung via WhatsApp',
+                  'Direct fabric & custom color consultation via WhatsApp'
+                )}
+              </span>
             </li>
           </ul>
         </div>
@@ -166,12 +214,15 @@ export default function Register() {
       </aside>
 
       <section className="rounded-3xl border border-line bg-white p-6 sm:p-10">
-        <p className="eyebrow">Registrasi Akun</p>
+        <p className="eyebrow">{pick('Registrasi Akun', 'Account Registration')}</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
-          Daftar Akun
+          {pick('Daftar Akun', 'Create Account')}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          Isi data diri dan nomor WhatsApp aktif untuk mempermudah konfirmasi produksi.
+          {pick(
+            'Isi data diri dan nomor WhatsApp aktif untuk mempermudah konfirmasi produksi.',
+            'Provide your details and an active WhatsApp number for smooth production updates.'
+          )}
         </p>
 
         {errorMessage ? (
@@ -193,7 +244,7 @@ export default function Register() {
         <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-4" noValidate>
           <div>
             <label htmlFor="register-fullname" className="block text-sm font-medium text-ink">
-              Nama Lengkap
+              {pick('Nama Lengkap', 'Full Name')}
             </label>
             <input
               id="register-fullname"
@@ -229,7 +280,7 @@ export default function Register() {
 
           <div>
             <label htmlFor="register-whatsapp" className="block text-sm font-medium text-ink">
-              Nomor WhatsApp
+              {pick('Nomor WhatsApp', 'WhatsApp Number')}
             </label>
             <input
               id="register-whatsapp"
@@ -244,7 +295,10 @@ export default function Register() {
               disabled={submitting}
             />
             <p className="mt-1.5 text-xs text-muted">
-              Contoh: 081234567890 atau 6281234567890 (otomatis dinormalisasi ke format 62).
+              {pick(
+                'Contoh: 081234567890 atau 6281234567890 (otomatis dinormalisasi ke format 62).',
+                'Example: 081234567890 or 6281234567890 (auto-normalized to 62 format).'
+              )}
             </p>
           </div>
 
@@ -260,7 +314,10 @@ export default function Register() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Minimal 8 karakter (maks 72 byte)"
+              placeholder={pick(
+                'Minimal 8 karakter (maks 72 byte)',
+                'Minimum 8 characters (max 72 bytes)'
+              )}
               className="input-sharp mt-1.5"
               disabled={submitting}
             />
@@ -271,7 +328,7 @@ export default function Register() {
               htmlFor="register-confirm-password"
               className="block text-sm font-medium text-ink"
             >
-              Konfirmasi Password
+              {pick('Konfirmasi Password', 'Confirm Password')}
             </label>
             <input
               id="register-confirm-password"
@@ -281,25 +338,27 @@ export default function Register() {
               required
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Ulangi password"
+              placeholder={pick('Ulangi password', 'Repeat password')}
               className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
 
           <button type="submit" className="btn-primary mt-2 w-full" disabled={submitting}>
-            {submitting ? 'Mendaftarkan...' : 'Daftar Sekarang'}
+            {submitting
+              ? pick('Mendaftarkan...', 'Creating account...')
+              : pick('Daftar Sekarang', 'Create Account')}
           </button>
         </form>
 
         <div className="mt-8 border-t border-line pt-5 text-sm text-muted">
-          Sudah punya akun?{' '}
+          {pick('Sudah punya akun?', 'Already have an account?')}{' '}
           <Link
             to="/login"
             state={routeState?.from ? { from: routeState.from } : undefined}
             className="font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
           >
-            Masuk di sini
+            {pick('Masuk di sini', 'Sign in here')}
           </Link>
         </div>
       </section>

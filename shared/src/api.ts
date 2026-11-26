@@ -10,7 +10,7 @@ import type {
   ProductionStatus,
   UserRole,
 } from './enums.js';
-import type { CourierInfo } from './couriers.js';
+import type { CourierCode, CourierInfo } from './couriers.js';
 
 /**
  * Nilai uang dalam aplikasi YNG Apparel selalu memakai bilangan bulat rupiah (integer).
@@ -642,6 +642,7 @@ export interface CreateOrderRequestDto {
   pickupName?: string | null;
   pickupWhatsapp?: string | null;
   paymentScheme: PaymentScheme;
+  idempotencyKey?: string | null;
 }
 
 export interface OrderPaymentDto {
@@ -670,6 +671,7 @@ export interface OrderPaymentsResponseDto {
   remainingBalance: Rupiah;
   paymentDueAt: string | null;
   payments: OrderPaymentDto[];
+  paymentAccounts: PublicPaymentAccountDto[];
 }
 
 export interface UploadPaymentProofResultDto {
@@ -780,6 +782,478 @@ export interface OrderDetailDto {
   updatedAt: string;
   items: OrderItemDto[];
   payments: OrderPaymentDto[];
+  paymentAccounts: PublicPaymentAccountDto[];
   qcPhotos: OrderQcPhotoDto[];
   statusHistory: OrderStatusHistoryDto[];
+}
+
+export interface AdminOrderCardDto {
+  id: number;
+  transactionUuid: string;
+  orderCode: string;
+  source: OrderSource;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  totalQty: number;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  grandTotal: Rupiah;
+  remainingBalance: Rupiah;
+  productionStatus: ProductionStatus;
+  designStatus: DesignStatus;
+  initialPaymentStatus: PaymentStatus | null;
+  initialPaymentHasProof: boolean;
+  hasPendingProof: boolean;
+  readyToProcess: boolean;
+  addressIncomplete: boolean;
+  hasCustomColor: boolean;
+  qcPhotoCount: number;
+  shippingCourier: string | null;
+  trackingReceiptNumber: string | null;
+  paymentDueAt: string | null;
+  estimatedFinishDate: string | null;
+  createdAt: string;
+}
+
+export interface AdminKanbanColumnDto {
+  status: ProductionStatus;
+  label: string;
+  count: number;
+  orders: AdminOrderCardDto[];
+}
+
+export interface AdminKanbanBoardDto {
+  columns: AdminKanbanColumnDto[];
+  archivedCounts: {
+    completed: number;
+    cancelled: number;
+  };
+}
+
+export interface AdminOrderItemPrintDto extends OrderItemPrintDto {
+  id: number;
+  designFileUrl: string | null;
+}
+
+export interface AdminOrderItemDto {
+  id: number;
+  modelId: number;
+  fabricId: number;
+  fabricColorId: number | null;
+  modelName: string;
+  fabricName: string;
+  isCustomColor: boolean;
+  colorName: string;
+  colorHex: string | null;
+  needsDesignHelp: boolean;
+  productionNotes: string | null;
+  lockedBasePrice: Rupiah;
+  lockedFabricPrice: Rupiah;
+  itemQty: number;
+  lineSubtotal: Rupiah;
+  sizes: OrderItemSizeDto[];
+  prints: AdminOrderItemPrintDto[];
+}
+
+export interface AdminOrderQcPhotoDto {
+  id: number;
+  photoUrl: string;
+  createdAt: string;
+}
+
+export interface AdminOrderDetailDto {
+  id: number;
+  transactionUuid: string;
+  orderCode: string;
+  userId: number | null;
+  source: OrderSource;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  provinceName: string | null;
+  cityName: string | null;
+  districtName: string | null;
+  postalCode: string | null;
+  fullAddress: string | null;
+  totalQty: number;
+  dpMinQtySnapshot: number;
+  isDpEligible: boolean;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  subtotalAmount: Rupiah;
+  discountAmount: Rupiah;
+  discountNote: string | null;
+  shippingCost: Rupiah;
+  grandTotal: Rupiah;
+  dpRequiredAmount: Rupiah;
+  remainingBalance: Rupiah;
+  refundedAmount: Rupiah;
+  productionStatus: ProductionStatus;
+  designStatus: DesignStatus;
+  designReviewNotes: string | null;
+  adminNotes: string | null;
+  estimatedFinishDate: string | null;
+  shippingCourier: string | null;
+  shippingService: string | null;
+  trackingReceiptNumber: string | null;
+  courierInfo: CourierInfo | null;
+  trackingUrl: string | null;
+  shippedAt: string | null;
+  paymentDueAt: string | null;
+  cancelledReason: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  readyToProcess: boolean;
+  addressIncomplete: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items: AdminOrderItemDto[];
+  payments: OrderPaymentDto[];
+  qcPhotos: AdminOrderQcPhotoDto[];
+  statusHistory: OrderStatusHistoryDto[];
+}
+
+export interface AdminPaymentListItemDto {
+  paymentUuid: string;
+  orderTransactionUuid: string;
+  orderCode: string;
+  customerName: string;
+  customerWhatsapp: string;
+  productionStatus: ProductionStatus;
+  paymentStage: PaymentStage;
+  paymentStageLabel: string;
+  paymentMethod: PaymentMethod | null;
+  paymentAccountId: number | null;
+  amount: Rupiah;
+  status: PaymentStatus;
+  hasProof: boolean;
+  proofImageUrl: string | null;
+  rejectionReason: string | null;
+  proofUploadedAt: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminTransitionStatusRequestDto {
+  toStatus: ProductionStatus;
+  notes?: string | null;
+}
+
+export interface AdminReviewDesignRequestDto {
+  designStatus: DesignStatus;
+  designReviewNotes?: string | null;
+}
+
+export interface AdminCancelOrderRequestDto {
+  reason: string;
+  refundedAmount?: Rupiah;
+}
+
+export interface AdminUpdateDiscountRequestDto {
+  discountAmount: Rupiah;
+  discountNote?: string | null;
+}
+
+export interface AdminUpdateAddressRequestDto {
+  fulfillmentType?: FulfillmentType;
+  customerName?: string;
+  customerWhatsapp?: string;
+  provinceName?: string | null;
+  cityName?: string | null;
+  districtName?: string | null;
+  postalCode?: string | null;
+  fullAddress?: string | null;
+}
+
+export interface AdminUpdateNotesRequestDto {
+  adminNotes?: string | null;
+  estimatedFinishDate?: string | null;
+}
+
+export interface AdminUpdateShippingCostRequestDto {
+  shippingCost: Rupiah;
+  notes?: string | null;
+}
+
+export interface AdminUpdateShipmentRequestDto {
+  shippingCourier: CourierCode;
+  shippingService?: string | null;
+  trackingReceiptNumber: string;
+}
+
+export interface AdminVerifyPaymentRequestDto {
+  approve: boolean;
+  rejectionReason?: string | null;
+}
+
+export interface AdminRejectPaymentRequestDto {
+  rejectionReason: string;
+}
+
+export interface TrackOrderLookupRequestDto {
+  code: string;
+  whatsappLast4: string;
+}
+
+export type TrackerStageKey =
+  'NEW_ORDER' | 'PRINT_QUEUE' | 'PRESSING_QC' | 'AWAITING_SETTLEMENT' | 'SHIPPING';
+
+export type TrackerStageState = 'completed' | 'current' | 'upcoming' | 'skipped' | 'cancelled';
+
+export interface TrackerProductionStageDto {
+  step: number;
+  key: TrackerStageKey;
+  label: string;
+  state: TrackerStageState;
+}
+
+export interface TrackerOrderDto {
+  transactionUuid: string;
+  orderCode: string;
+  source: OrderSource;
+  customerNameMasked: string;
+  customerWhatsappMasked: string;
+  fulfillmentType: FulfillmentType;
+  cityName: string | null;
+  provinceName: string | null;
+  addressSummaryMasked: string | null;
+  totalQty: number;
+  dpMinQtySnapshot: number;
+  isDpEligible: boolean;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  subtotalAmount: Rupiah;
+  discountAmount: Rupiah;
+  discountNote: string | null;
+  shippingCost: Rupiah;
+  grandTotal: Rupiah;
+  dpRequiredAmount: Rupiah;
+  remainingBalance: Rupiah;
+  productionStatus: ProductionStatus;
+  designStatus: DesignStatus;
+  designReviewNotes: string | null;
+  estimatedFinishDate: string | null;
+  shippingCourier: string | null;
+  shippingService: string | null;
+  trackingReceiptNumber: string | null;
+  courierInfo: CourierInfo | null;
+  trackingUrl: string | null;
+  shippedAt: string | null;
+  paymentDueAt: string | null;
+  cancelledReason: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  stages: TrackerProductionStageDto[];
+  items: OrderItemDto[];
+  payments: OrderPaymentDto[];
+  paymentAccounts: PublicPaymentAccountDto[];
+  qcPhotos: OrderQcPhotoDto[];
+  statusHistory: OrderStatusHistoryDto[];
+}
+
+export type ManualOrderSource = Exclude<OrderSource, 'WEBSITE'>;
+
+export interface AdminCreateManualOrderItemPrintDto {
+  printSizeId: number;
+  printPosition: PrintPosition;
+  fileRef?: string | null;
+  fileName?: string | null;
+  notes?: string | null;
+}
+
+export interface AdminCreateManualOrderItemDto {
+  modelId: number;
+  fabricId: number;
+  isCustomColor?: boolean;
+  fabricColorId?: number | null;
+  colorName?: string | null;
+  colorHex?: string | null;
+  needsDesignHelp?: boolean;
+  productionNotes?: string | null;
+  sizes: CartItemSizeInputDto[];
+  prints?: AdminCreateManualOrderItemPrintDto[];
+}
+
+export interface AdminManualPaymentReceivedDto {
+  received: boolean;
+  paymentMethod?: PaymentMethod | null;
+  paymentAccountId?: number | null;
+}
+
+export interface AdminCreateManualOrderRequestDto {
+  source: ManualOrderSource;
+  userUuid?: string | null;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  provinceName?: string | null;
+  cityName?: string | null;
+  districtName?: string | null;
+  postalCode?: string | null;
+  fullAddress?: string | null;
+  items: AdminCreateManualOrderItemDto[];
+  paymentScheme: PaymentScheme;
+  discountAmount?: Rupiah;
+  discountNote?: string | null;
+  shippingCost?: Rupiah;
+  paymentReceived?: AdminManualPaymentReceivedDto | null;
+  noAutoCancel?: boolean;
+  adminNotes?: string | null;
+  estimatedFinishDate?: string | null;
+}
+
+export type ReportGroupBy = 'day' | 'month';
+
+export type ReportExportType = 'sales' | 'orders' | 'top-models' | 'customers';
+
+export interface ReportDateRangeDto {
+  startDate: string | null;
+  endDate: string | null;
+  allTime: boolean;
+}
+
+export interface AdminReportKpiDto {
+  verifiedRevenue: Rupiah;
+  grossVerifiedPayments: Rupiah;
+  refundedAmount: Rupiah;
+  totalOrders: number;
+  activeOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalQty: number;
+  outstandingBalance: Rupiah;
+}
+
+export interface AdminOperationalSnapshotDto {
+  newOrdersCount: number;
+  pendingPaymentProofCount: number;
+  readyToProcessCount: number;
+  printQueueCount: number;
+  awaitingSettlementCount: number;
+  overdueOrdersCount: number;
+  incompleteAddressCount: number;
+}
+
+export interface AdminDashboardSummaryDto {
+  range: ReportDateRangeDto;
+  kpi: AdminReportKpiDto;
+  operational: AdminOperationalSnapshotDto;
+}
+
+export interface AdminSalesBucketDto {
+  period: string;
+  orderCount: number;
+  totalQty: number;
+  grossVerified: Rupiah;
+  refundedAmount: Rupiah;
+  netRevenue: Rupiah;
+}
+
+export interface AdminStatusBreakdownDto {
+  status: ProductionStatus;
+  label: string;
+  orderCount: number;
+  totalQty: number;
+  grandTotal: Rupiah;
+}
+
+export interface AdminSourceBreakdownDto {
+  source: OrderSource;
+  orderCount: number;
+  totalQty: number;
+  grandTotal: Rupiah;
+}
+
+export interface AdminSalesReportDto {
+  range: ReportDateRangeDto;
+  groupBy: ReportGroupBy;
+  kpi: AdminReportKpiDto;
+  series: AdminSalesBucketDto[];
+  byStatus: AdminStatusBreakdownDto[];
+  bySource: AdminSourceBreakdownDto[];
+}
+
+export interface AdminOrderReportRowDto {
+  transactionUuid: string;
+  orderCode: string;
+  createdAt: string;
+  source: OrderSource;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  productionStatus: ProductionStatus;
+  totalQty: number;
+  grandTotal: Rupiah;
+  verifiedPaid: Rupiah;
+  refundedAmount: Rupiah;
+  remainingBalance: Rupiah;
+}
+
+export interface AdminOrdersReportDto {
+  range: ReportDateRangeDto;
+  kpi: AdminReportKpiDto;
+  rows: AdminOrderReportRowDto[];
+}
+
+export interface AdminTopModelItemDto {
+  modelId: number;
+  modelName: string;
+  orderCount: number;
+  totalQty: number;
+  totalRevenue: Rupiah;
+  revenueSharePercent: number;
+}
+
+export interface AdminTopModelsReportDto {
+  range: ReportDateRangeDto;
+  totalQty: number;
+  totalRevenue: Rupiah;
+  items: AdminTopModelItemDto[];
+}
+
+export interface AdminTopCustomerItemDto {
+  customerWhatsapp: string;
+  customerName: string;
+  hasAccount: boolean;
+  orderCount: number;
+  totalQty: number;
+  totalSpent: Rupiah;
+  verifiedPaid: Rupiah;
+  outstandingBalance: Rupiah;
+  lastOrderAt: string;
+}
+
+export interface AdminTopCustomersReportDto {
+  range: ReportDateRangeDto;
+  items: AdminTopCustomerItemDto[];
+}
+
+export interface WishlistFabricSummaryDto {
+  id: number;
+  code: string;
+  name: string;
+  additionalPrice: Rupiah;
+}
+
+export interface WishlistItemDto {
+  garmentModelId: number;
+  slug: string;
+  name: string;
+  description: string | null;
+  basePrice: Rupiah;
+  imageUrl: string | null;
+  fabrics: WishlistFabricSummaryDto[];
+  createdAt: string;
+}
+
+export interface ToggleWishlistRequestDto {
+  modelSlug?: string;
+  garmentModelId?: number;
+}
+
+export interface MergeWishlistRequestDto {
+  modelSlugs: string[];
 }

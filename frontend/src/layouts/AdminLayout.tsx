@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { BRAND_LOGO_ESSENTIAL_URL } from '../utils/brandAssets';
 
 const ADMIN_NAV_ITEMS: ReadonlyArray<{ to: string; label: string; end?: boolean }> = [
-  { to: '/admin', label: 'Kanban', end: true },
-  { to: '/admin/orders', label: 'Semua Order' },
+  { to: '/admin/kanban', label: 'Kanban' },
+  { to: '/admin/orders', label: 'Semua Order', end: true },
   { to: '/admin/payments', label: 'Pembayaran' },
   { to: '/admin/master', label: 'Master Data' },
   { to: '/admin/payment-accounts', label: 'Rekening & QRIS' },

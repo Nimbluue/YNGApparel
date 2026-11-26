@@ -2,6 +2,7 @@ import { USER_ROLE, type UserRole } from '@yng/shared';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { ApiClientError } from '../../services/api';
 import { BRAND_LOGO_MAIN_URL } from '../../utils/brandAssets';
 
@@ -63,6 +64,7 @@ function resolvePostLoginTarget(role: UserRole, fromPath: string | null): string
 
 export default function Login() {
   const { user, isGuest, checked, login } = useAuth();
+  const { pick } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -84,17 +86,22 @@ export default function Login() {
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setErrorMessage('Email wajib diisi.');
+      setErrorMessage(pick('Email wajib diisi.', 'Email is required.'));
       return;
     }
 
     if (!password) {
-      setErrorMessage('Password wajib diisi.');
+      setErrorMessage(pick('Password wajib diisi.', 'Password is required.'));
       return;
     }
 
     if (textEncoder.encode(password).length > MAX_PASSWORD_BYTES) {
-      setErrorMessage(`Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8.`);
+      setErrorMessage(
+        pick(
+          `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8.`,
+          `Password cannot exceed ${MAX_PASSWORD_BYTES} UTF-8 bytes.`
+        )
+      );
       return;
     }
 
@@ -107,7 +114,9 @@ export default function Login() {
       if (err instanceof ApiClientError) {
         setErrorMessage(err.message);
       } else {
-        setErrorMessage('Gagal masuk. Silakan coba lagi.');
+        setErrorMessage(
+          pick('Gagal masuk. Silakan coba lagi.', 'Sign in failed. Please try again.')
+        );
       }
     } finally {
       setSubmitting(false);
@@ -122,7 +131,7 @@ export default function Login() {
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
               <img
                 src={BRAND_LOGO_MAIN_URL}
-                alt="Emblem YNG Apparel"
+                alt="YNG Apparel Studio"
                 className="h-full w-full scale-110 object-cover object-center"
               />
             </div>
@@ -133,25 +142,45 @@ export default function Login() {
           </div>
 
           <h2 className="font-display text-2xl font-semibold leading-snug text-ink sm:text-3xl">
-            Lanjutkan rancangan pakaian custom Anda.
+            {pick(
+              'Lanjutkan rancangan pakaian custom Anda.',
+              'Continue your custom apparel designs.'
+            )}
           </h2>
           <p className="text-sm leading-relaxed text-muted">
-            Simpan konfigurasi Custom Lab ke keranjang, atur alamat pengiriman, dan pantau setiap
-            tahap produksi dalam satu akun.
+            {pick(
+              'Simpan konfigurasi Custom Lab ke keranjang, atur alamat pengiriman, dan pantau setiap tahap produksi dalam satu akun.',
+              'Save Custom Lab configurations to your bag, manage shipping addresses, and follow every production stage in one account.'
+            )}
           </p>
 
           <ul className="space-y-2 border-t border-line pt-4 text-xs text-ink">
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>Simpan beberapa konfigurasi Custom Lab sekaligus</span>
+              <span>
+                {pick(
+                  'Simpan beberapa konfigurasi Custom Lab sekaligus',
+                  'Save multiple Custom Lab configurations at once'
+                )}
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>Kelola alamat pengiriman tersimpan untuk checkout cepat</span>
+              <span>
+                {pick(
+                  'Kelola alamat pengiriman tersimpan untuk checkout cepat',
+                  'Manage saved shipping addresses for faster checkout'
+                )}
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>Pantau status desain, pembayaran, QC, dan resi pengiriman</span>
+              <span>
+                {pick(
+                  'Pantau status desain, pembayaran, QC, dan resi pengiriman',
+                  'Track design review, payments, QC photos, and courier tracking'
+                )}
+              </span>
             </li>
           </ul>
         </div>
@@ -160,12 +189,15 @@ export default function Login() {
       </aside>
 
       <section className="rounded-3xl border border-line bg-white p-6 sm:p-10">
-        <p className="eyebrow">Akun Pelanggan &amp; Studio</p>
+        <p className="eyebrow">{pick('Akun Pelanggan & Studio', 'Customer & Studio Account')}</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
-          Masuk Akun
+          {pick('Masuk Akun', 'Sign In')}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          Gunakan email dan password yang terdaftar untuk melanjutkan.
+          {pick(
+            'Gunakan email dan password yang terdaftar untuk melanjutkan.',
+            'Use your registered email and password to continue.'
+          )}
         </p>
 
         {routeState?.registeredMessage ? (
@@ -208,7 +240,7 @@ export default function Login() {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="nama@email.com"
+              placeholder={pick('nama@email.com', 'name@email.com')}
               className="input-sharp mt-1.5"
               disabled={submitting}
             />
@@ -226,25 +258,25 @@ export default function Login() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Masukkan password"
+              placeholder={pick('Masukkan password', 'Enter password')}
               className="input-sharp mt-1.5"
               disabled={submitting}
             />
           </div>
 
           <button type="submit" className="btn-primary w-full" disabled={submitting}>
-            {submitting ? 'Memproses...' : 'Masuk'}
+            {submitting ? pick('Memproses...', 'Signing in...') : pick('Masuk', 'Sign In')}
           </button>
         </form>
 
         <div className="mt-8 border-t border-line pt-5 text-sm text-muted">
-          Belum punya akun pelanggan?{' '}
+          {pick('Belum punya akun pelanggan?', "Don't have a customer account yet?")}{' '}
           <Link
             to="/register"
             state={routeState?.from ? { from: routeState.from } : undefined}
             className="font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
           >
-            Daftar di sini
+            {pick('Daftar di sini', 'Register here')}
           </Link>
         </div>
       </section>
