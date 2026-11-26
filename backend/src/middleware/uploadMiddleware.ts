@@ -27,6 +27,18 @@ const paymentProofUpload = multer({
   },
 });
 
+const qcPhotosUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: CATALOG_IMAGE_MAX_BYTES,
+    files: 10,
+  },
+});
+
 export const catalogImageUploadMiddleware: RequestHandler = catalogUpload.single('image');
 export const designFileUploadMiddleware: RequestHandler = designUpload.single('file');
 export const paymentProofUploadMiddleware: RequestHandler = paymentProofUpload.single('file');
+export const qcPhotosUploadMiddleware: RequestHandler = qcPhotosUpload.fields([
+  { name: 'files', maxCount: 10 },
+  { name: 'file', maxCount: 10 },
+]);

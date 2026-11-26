@@ -5,6 +5,8 @@ export const COURIER_CODES = [
   'ANTERAJA',
   'POS',
   'NINJA',
+  'IDEXPRESS',
+  'LIONPARCEL',
   'GOJEK',
   'GRAB',
   'OTHER',
@@ -69,6 +71,20 @@ export const COURIERS: readonly CourierInfo[] = [
     trackingUrl: 'https://www.ninjaxpress.co/id-id/tracking',
     supportsDeepLink: false,
   },
+  // ASSUMPTION: halaman lacak ID Express berbasis SPA interaktif; tombol membuka halaman lacak resmi.
+  {
+    code: 'IDEXPRESS',
+    name: 'ID Express',
+    trackingUrl: 'https://idexpress.com/lacak-paket',
+    supportsDeepLink: false,
+  },
+  // ASSUMPTION: halaman cek resi Lion Parcel (STT) berbasis antarmuka web interaktif; tombol membuka halaman lacak resmi.
+  {
+    code: 'LIONPARCEL',
+    name: 'Lion Parcel',
+    trackingUrl: 'https://lionparcel.com/track/stt',
+    supportsDeepLink: false,
+  },
   // ASSUMPTION: GoSend (Gojek) tidak menyediakan halaman cek resi web publik; pelacakan lewat aplikasi Gojek / link SMS kurir.
   {
     code: 'GOJEK',
@@ -83,10 +99,10 @@ export const COURIERS: readonly CourierInfo[] = [
     trackingUrl: null,
     supportsDeepLink: false,
   },
-  // ASSUMPTION: kode fallback untuk kurir lain atau kurir instan lokal tanpa tautan pelacakan eksternal.
+  // ASSUMPTION: kode fallback untuk kurir instan / lokal area Batam tanpa tautan pelacakan eksternal.
   {
     code: 'OTHER',
-    name: 'Kurir Lainnya / Instan',
+    name: 'Kurir Instan / Lokal Batam',
     trackingUrl: null,
     supportsDeepLink: false,
   },

@@ -1,13 +1,19 @@
-import type {
-  ApiSuccessResponse,
-  CreateOrderRequestDto,
-  OrderDetailDto,
-  OrderSummaryDto,
-  PaginationMeta,
-  PaymentMethod,
-  UploadPaymentProofResultDto,
+import {
+  FULFILLMENT_TYPE,
+  PRODUCTION_STATUS,
+  type ApiSuccessResponse,
+  type CreateOrderRequestDto,
+  type FulfillmentType,
+  type OrderDetailDto,
+  type OrderSummaryDto,
+  type PaginationMeta,
+  type PaymentMethod,
+  type ProductionStatus,
+  type Rupiah,
+  type UploadPaymentProofResultDto,
 } from '@yng/shared';
 import api from './api';
+import { formatRupiah } from '../utils/formatRupiah';
 
 export const CHECKOUT_SELECTION_STORAGE_KEY = 'yng_checkout_selection_v1';
 
@@ -86,6 +92,31 @@ export function formatWibDate(isoString: string | null | undefined): string {
     month: 'short',
     year: 'numeric',
   }).format(date);
+}
+
+/**
+ * Memformat tampilan ongkos kirim pada detail pesanan pelanggan & Live Tracker.
+ */
+export function formatOrderShippingCostLabel(input: {
+  fulfillmentType: FulfillmentType;
+  shippingCost: Rupiah | null | undefined;
+  productionStatus: ProductionStatus;
+}): string {
+  if (input.fulfillmentType === FULFILLMENT_TYPE.PICKUP) {
+    return 'Gratis (Ambil di Workshop)';
+  }
+  const cost = Number(input.shippingCost ?? 0);
+  if (cost > 0) {
+    return formatRupiah(cost);
+  }
+  if (
+    input.productionStatus === PRODUCTION_STATUS.NEW_ORDER ||
+    input.productionStatus === PRODUCTION_STATUS.PRINT_QUEUE ||
+    input.productionStatus === PRODUCTION_STATUS.PRESSING_QC
+  ) {
+    return 'Menunggu QC';
+  }
+  return formatRupiah(0);
 }
 
 /**

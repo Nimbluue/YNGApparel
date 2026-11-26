@@ -49,10 +49,15 @@ api.interceptors.response.use(
       window.dispatchEvent(new CustomEvent('yng:forbidden'));
     }
 
+    const normalizedData =
+      error.response?.data instanceof Blob
+        ? error.response.data
+        : (error.response?.data?.data ?? null);
+
     const normalizedError = new ApiClientError(
       serverMessage || 'Gagal terhubung ke server. Periksa koneksi Anda dan coba lagi.',
       status,
-      error.response?.data?.data ?? null
+      normalizedData
     );
     return Promise.reject(normalizedError);
   }

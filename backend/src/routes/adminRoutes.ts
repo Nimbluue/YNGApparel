@@ -22,15 +22,38 @@ import {
   uploadImageBodySchema,
   uploadImageQuerySchema,
 } from '../controllers/adminMasterController.js';
+import {
+  adminOrderUuidParamSchema,
+  adminPaymentUuidParamSchema,
+  adminQcPhotoParamsSchema,
+  cancelOrderBodySchema,
+  createAdminOrderController,
+  listAdminOrdersQuerySchema,
+  listAdminPaymentsQuerySchema,
+  rejectPaymentBodySchema,
+  reviewDesignBodySchema,
+  transitionStatusBodySchema,
+  updateAddressBodySchema,
+  updateDiscountBodySchema,
+  updateNotesBodySchema,
+  updateShipmentBodySchema,
+  updateShippingCostBodySchema,
+  verifyPaymentBodySchema,
+} from '../controllers/adminOrderController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { uploadLimiter } from '../middleware/rateLimiter.js';
-import { catalogImageUploadMiddleware } from '../middleware/uploadMiddleware.js';
+import {
+  catalogImageUploadMiddleware,
+  qcPhotosUploadMiddleware,
+} from '../middleware/uploadMiddleware.js';
 import { validate } from '../middleware/validate.js';
 import type { AdminMasterService } from '../services/adminMasterService.js';
+import type { AdminOrderService } from '../services/adminOrderService.js';
 
 export interface AdminRouterOptions {
   requireAuthMiddleware?: RequestHandler;
   masterService?: AdminMasterService;
+  adminOrderService?: AdminOrderService;
   imageUploadLimiter?: RequestHandler;
 }
 
@@ -49,6 +72,7 @@ export function createAdminRouter(
   const requireAuthMiddleware = options.requireAuthMiddleware ?? requireAuth;
   const imageUploadLimiter = options.imageUploadLimiter ?? uploadLimiter;
   const masterController = createAdminMasterController(options.masterService);
+  const adminOrderController = createAdminOrderController(options.adminOrderService);
 
   router.use(requireAuthMiddleware, requireRole(USER_ROLE.ADMIN));
 
@@ -180,7 +204,138 @@ export function createAdminRouter(
     masterController.updateSettings
   );
 
-  // Endpoint admin lain (kanban, order manual, pembayaran, laporan) akan ditambahkan pada Tahap 5–6.
+  // Operasional Order, Kanban, Foto QC, Ongkir/Resi, & SPK PDF
+  router.get(
+    '/orders',
+    validate({ query: listAdminOrdersQuerySchema }),
+    adminOrderController.listOrders
+  );
+  router.get('/orders/kanban', adminOrderController.getKanbanBoard);
+  router.get('/orders/board', adminOrderController.getKanbanBoard);
+  router.get(
+    '/orders/:uuid',
+    validate({ params: adminOrderUuidParamSchema }),
+    adminOrderController.getOrderDetail
+  );
+  router.patch(
+    '/orders/:uuid/status',
+    validate({ params: adminOrderUuidParamSchema, body: transitionStatusBodySchema }),
+    adminOrderController.transitionStatus
+  );
+  router.put(
+    '/orders/:uuid/status',
+    validate({ params: adminOrderUuidParamSchema, body: transitionStatusBodySchema }),
+    adminOrderController.transitionStatus
+  );
+  router.patch(
+    '/orders/:uuid/design',
+    validate({ params: adminOrderUuidParamSchema, body: reviewDesignBodySchema }),
+    adminOrderController.reviewDesign
+  );
+  router.put(
+    '/orders/:uuid/design',
+    validate({ params: adminOrderUuidParamSchema, body: reviewDesignBodySchema }),
+    adminOrderController.reviewDesign
+  );
+  router.post(
+    '/orders/:uuid/cancel',
+    validate({ params: adminOrderUuidParamSchema, body: cancelOrderBodySchema }),
+    adminOrderController.cancelOrder
+  );
+  router.put(
+    '/orders/:uuid/cancel',
+    validate({ params: adminOrderUuidParamSchema, body: cancelOrderBodySchema }),
+    adminOrderController.cancelOrder
+  );
+  router.patch(
+    '/orders/:uuid/discount',
+    validate({ params: adminOrderUuidParamSchema, body: updateDiscountBodySchema }),
+    adminOrderController.updateDiscount
+  );
+  router.put(
+    '/orders/:uuid/discount',
+    validate({ params: adminOrderUuidParamSchema, body: updateDiscountBodySchema }),
+    adminOrderController.updateDiscount
+  );
+  router.patch(
+    '/orders/:uuid/address',
+    validate({ params: adminOrderUuidParamSchema, body: updateAddressBodySchema }),
+    adminOrderController.updateAddress
+  );
+  router.put(
+    '/orders/:uuid/address',
+    validate({ params: adminOrderUuidParamSchema, body: updateAddressBodySchema }),
+    adminOrderController.updateAddress
+  );
+  router.patch(
+    '/orders/:uuid/notes',
+    validate({ params: adminOrderUuidParamSchema, body: updateNotesBodySchema }),
+    adminOrderController.updateNotes
+  );
+  router.put(
+    '/orders/:uuid/notes',
+    validate({ params: adminOrderUuidParamSchema, body: updateNotesBodySchema }),
+    adminOrderController.updateNotes
+  );
+  router.post(
+    '/orders/:uuid/qc-photos',
+    imageUploadLimiter,
+    qcPhotosUploadMiddleware,
+    validate({ params: adminOrderUuidParamSchema }),
+    adminOrderController.uploadQcPhotos
+  );
+  router.delete(
+    '/orders/:uuid/qc-photos/:photoId',
+    validate({ params: adminQcPhotoParamsSchema }),
+    adminOrderController.deleteQcPhoto
+  );
+  router.patch(
+    '/orders/:uuid/shipping-cost',
+    validate({ params: adminOrderUuidParamSchema, body: updateShippingCostBodySchema }),
+    adminOrderController.updateShippingCost
+  );
+  router.put(
+    '/orders/:uuid/shipping-cost',
+    validate({ params: adminOrderUuidParamSchema, body: updateShippingCostBodySchema }),
+    adminOrderController.updateShippingCost
+  );
+  router.patch(
+    '/orders/:uuid/shipment',
+    validate({ params: adminOrderUuidParamSchema, body: updateShipmentBodySchema }),
+    adminOrderController.updateShipment
+  );
+  router.put(
+    '/orders/:uuid/shipment',
+    validate({ params: adminOrderUuidParamSchema, body: updateShipmentBodySchema }),
+    adminOrderController.updateShipment
+  );
+  router.get(
+    '/orders/:uuid/spk',
+    validate({ params: adminOrderUuidParamSchema }),
+    adminOrderController.downloadSpkPdf
+  );
+
+  // Antrean & Verifikasi Pembayaran
+  router.get(
+    '/payments',
+    validate({ query: listAdminPaymentsQuerySchema }),
+    adminOrderController.listPayments
+  );
+  router.patch(
+    '/payments/:paymentUuid/verify',
+    validate({ params: adminPaymentUuidParamSchema, body: verifyPaymentBodySchema }),
+    adminOrderController.verifyOrRejectPayment
+  );
+  router.put(
+    '/payments/:paymentUuid/verify',
+    validate({ params: adminPaymentUuidParamSchema, body: verifyPaymentBodySchema }),
+    adminOrderController.verifyOrRejectPayment
+  );
+  router.patch(
+    '/payments/:paymentUuid/reject',
+    validate({ params: adminPaymentUuidParamSchema, body: rejectPaymentBodySchema }),
+    adminOrderController.rejectPayment
+  );
 
   return router;
 }

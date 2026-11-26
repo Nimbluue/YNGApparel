@@ -21,6 +21,7 @@ import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/toastContext';
 import { catalogQueryKeys, getCatalogConfig } from '../../services/catalogService';
 import {
+  formatOrderShippingCostLabel,
   formatWibDate,
   formatWibDateTime,
   getMyOrderDetail,
@@ -815,11 +816,7 @@ export default function MyOrderDetail() {
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-muted">Ongkos kirim</dt>
                 <dd className="tabular-price font-semibold text-ink">
-                  {order.fulfillmentType === FULFILLMENT_TYPE.PICKUP
-                    ? formatRupiah(0)
-                    : order.shippingCost > 0
-                      ? formatRupiah(order.shippingCost)
-                      : 'Menunggu QC'}
+                  {formatOrderShippingCostLabel(order)}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">

@@ -6,8 +6,12 @@ import NotFound from '../pages/NotFound';
 import Account from '../pages/account/Account';
 import MyOrderDetail from '../pages/account/MyOrderDetail';
 import MyOrders from '../pages/account/MyOrders';
+import AdminOrderDetail from '../pages/admin/AdminOrderDetail';
+import AdminOrders from '../pages/admin/AdminOrders';
+import KanbanBoard from '../pages/admin/KanbanBoard';
 import MasterData from '../pages/admin/MasterData';
 import PaymentAccounts from '../pages/admin/PaymentAccounts';
+import PaymentsQueue from '../pages/admin/PaymentsQueue';
 import Settings from '../pages/admin/Settings';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
@@ -37,33 +41,6 @@ function StagePlaceholder({ stage, title, description }: StagePlaceholderProps) 
         </Link>
         <Link to="/" className="btn-secondary">
           Kembali ke Beranda
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function AdminDashboardPlaceholder() {
-  return (
-    <div className="rounded-3xl border border-line bg-white p-6 sm:p-10">
-      <p className="eyebrow">YNG Apparel · Ruang Produksi</p>
-      <h1 className="mt-3 font-display text-3xl font-semibold text-ink sm:text-4xl">
-        Panel Operasional Workshop
-      </h1>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-        Kelola data katalog, rekening pembayaran, dan pengaturan toko. Board Kanban &amp; manajemen
-        order akan aktif pada Tahap 5.
-      </p>
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <Link to="/admin/master" className="btn-primary w-full">
-          Master Data Katalog
-        </Link>
-        <Link to="/admin/payment-accounts" className="btn-secondary w-full">
-          Rekening &amp; QRIS
-        </Link>
-        <Link to="/admin/settings" className="btn-secondary w-full">
-          Pengaturan Toko
         </Link>
       </div>
     </div>
@@ -101,57 +78,21 @@ export default function AppRoutes() {
       {/* Admin routes */}
       <Route element={<AdminLayout />}>
         <Route path="/admin" element={<AdminRoute />}>
-          <Route index element={<AdminDashboardPlaceholder />} />
-          <Route
-            path="kanban"
-            element={
-              <StagePlaceholder
-                stage="Tahap 5"
-                title="Kanban Produksi"
-                description="Board antrean produksi dan verifikasi order akan tersedia pada Tahap 5."
-              />
-            }
-          />
-          <Route
-            path="orders"
-            element={
-              <StagePlaceholder
-                stage="Tahap 5"
-                title="Semua Order"
-                description="Daftar dan pencarian pesanan masuk workshop akan tersedia pada Tahap 5."
-              />
-            }
-          />
+          <Route index element={<Navigate to="/admin/kanban" replace />} />
+          <Route path="kanban" element={<KanbanBoard />} />
+          <Route path="orders" element={<AdminOrders />} />
           <Route
             path="orders/manual"
             element={
               <StagePlaceholder
-                stage="Tahap 5"
+                stage="Tahap 5-3"
                 title="Order Manual"
-                description="Pencatatan order manual dari WhatsApp atau Instagram akan tersedia pada Tahap 5."
+                description="Pencatatan order manual dari WhatsApp atau Instagram akan tersedia pada Tahap 5-3."
               />
             }
           />
-          <Route
-            path="orders/:id"
-            element={
-              <StagePlaceholder
-                stage="Tahap 5"
-                title="Detail Order Admin"
-                description="Detail produksi, SPK PDF, foto QC, dan pengiriman order akan tersedia pada Tahap 5."
-              />
-            }
-          />
-          <Route
-            path="payments"
-            element={
-              <StagePlaceholder
-                stage="Tahap 5"
-                title="Verifikasi Pembayaran"
-                description="Verifikasi bukti transfer dan QRIS pelanggan akan tersedia pada Tahap 5."
-              />
-            }
-          />
+          <Route path="orders/:uuid" element={<AdminOrderDetail />} />
+          <Route path="payments" element={<PaymentsQueue />} />
           <Route path="master" element={<MasterData />} />
           <Route path="payment-accounts" element={<PaymentAccounts />} />
           <Route path="settings" element={<Settings />} />

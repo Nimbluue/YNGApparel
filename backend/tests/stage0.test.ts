@@ -93,7 +93,7 @@ describe('Tahap 0 — Utilitas & Keamanan Backend', () => {
 
 describe('Tahap 0 — Kurir & buildTrackingUrl (@yng/shared)', () => {
   it('mengembalikan URL resmi untuk kurir terverifikasi saat resi valid', () => {
-    expect(COURIERS).toHaveLength(9);
+    expect(COURIERS).toHaveLength(11);
     expect(buildTrackingUrl('JNE', 'JNE1234567890')).toBe('https://www.jne.co.id/tracking-package');
     expect(buildTrackingUrl('jnt', 'JP-123456789')).toBe('https://www.jet.co.id/track');
     expect(buildTrackingUrl('SICEPAT', '001234567890')).toBe('https://www.sicepat.com/checkAwb');
@@ -103,6 +103,10 @@ describe('Tahap 0 — Kurir & buildTrackingUrl (@yng/shared)', () => {
     );
     expect(buildTrackingUrl('NINJA', 'NLIDAP123456')).toBe(
       'https://www.ninjaxpress.co/id-id/tracking'
+    );
+    expect(buildTrackingUrl('IDEXPRESS', 'IDE-123456')).toBe('https://idexpress.com/lacak-paket');
+    expect(buildTrackingUrl('LIONPARCEL', '11LP123456789')).toBe(
+      'https://lionparcel.com/track/stt'
     );
   });
 
