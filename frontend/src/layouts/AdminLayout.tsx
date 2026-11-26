@@ -23,13 +23,13 @@ const ADMIN_NAV_ITEMS: ReadonlyArray<{
   icon: LucideIcon;
   end?: boolean;
 }> = [
-  { to: '/admin/kanban', label: 'Kanban', icon: Columns3 },
+  { to: '/admin/kanban', label: 'Dashboard', icon: Columns3 },
   { to: '/admin/orders', label: 'Order', icon: ClipboardList, end: true },
   { to: '/admin/payments', label: 'Pembayaran', icon: CreditCard },
   { to: '/admin/master', label: 'Master Data', icon: Layers },
   { to: '/admin/payment-accounts', label: 'Rekening', icon: Landmark },
   { to: '/admin/settings', label: 'Pengaturan', icon: Settings },
-  { to: '/admin/reports', label: 'Dashboard & Laporan', icon: BarChart3 },
+  { to: '/admin/reports', label: 'Laporan Keuangan', icon: BarChart3 },
 ];
 
 export default function AdminLayout() {

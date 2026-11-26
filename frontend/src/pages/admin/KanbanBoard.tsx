@@ -184,7 +184,7 @@ export default function KanbanBoard() {
           <div className="min-w-0">
             <p className="eyebrow">Ruang Produksi · Alur Pesanan</p>
             <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
-              Kanban Produksi
+              Dashboard
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
               Pantau antrean produksi aktif per tahap, verifikasi pembayaran dan desain, serta akses
