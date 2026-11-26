@@ -1,30 +1,41 @@
-# YNG Apparel — Aturan Kerja Agent
+This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
-Sumber kebenaran:
-- Spesifikasi: `docs/SPEC.md`
-- Skema database: `docs/yng_apparel_db_v2_1_postgres.sql`
-- Kemajuan: `docs/PROGRESS.md` (update di akhir setiap tahap)
+## Expo has changed — do not trust your training data
 
-Baca ketiganya sebelum mengerjakan tugas apa pun.
+Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
 
-## Cara kerja
-- Kerjakan SATU tahap per sesi sesuai Bagian 11 SPEC. Jangan lanjut ke tahap berikutnya sebelum saya bilang "lanjut".
-- Di akhir tiap tahap tampilkan: daftar file dibuat/diubah, cara menjalankan, cara menguji, lalu update `docs/PROGRESS.md`.
-- Ambiguitas kecil: ambil asumsi paling masuk akal, tulis asumsinya, lanjut. Jika bertentangan dengan SPEC: tanya dulu, jangan menyimpang diam-diam.
+1. Read the major version of the `expo` package in `package.json`.
+2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
+3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
 
-## Aturan keras
-- DB: PostgreSQL via `pg` raw query (`$1, $2, ...`), tanpa ORM, tanpa sintaks MySQL. Transaksi lewat `withTransaction`; `SELECT ... FOR UPDATE` untuk `orders`/`payments`.
-- Skema hanya berubah lewat edit file SQL (selama Tahap 0 belum selesai) atau migrasi `002_xxx.sql` (sesudahnya). Beri tahu saya setiap kali skema berubah.
-- Harga, DP, diskon, dan sisa tagihan SELALU dihitung server (`pricingService`). `grand_total` dan `is_dp_eligible` adalah generated column: jangan ditulis dari aplikasi.
-- Backend stateless: tidak boleh menyimpan file di disk server. Semua file lewat `storageService` (Supabase Storage). Kolom `*_path` = path objek, bukan URL.
-- Frontend TIDAK memakai Supabase langsung dan tidak memegang kunci apa pun. RLS aktif; jangan menambah policy.
-- Jangan mengekspos `id` internal di API publik.
-- Bahasa UI: Indonesia. Nama variabel/tabel/endpoint: Inggris. Tandai asumsi dengan komentar `// ASSUMPTION`.
+## Commands
 
-## Keamanan & keselamatan
-- JANGAN membaca, mencetak, atau menyalin isi `.env` ke output, log, atau commit. Hanya `.env.example` (tanpa nilai rahasia) yang boleh di-commit.
-- JANGAN menjalankan perintah yang mengubah database atau storage (mis. `db:init`, `initStorage`) tanpa persetujuan eksplisit dari saya. Cukup sediakan skripnya dan beri tahu cara menjalankannya.
-- JANGAN menjalankan `git push` atau `git commit` sendiri kecuali saya minta.
+Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
 
-## Lingkungan
-- OS pengembangan: Windows. Skrip utilitas ditulis dengan Node.js (lintas platform), jangan mengandalkan bash di `npm scripts`.
+```bash
+npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
+npx expo start              # start the dev server
+npx expo lint               # lint
+npx tsc --noEmit            # typecheck
+npx expo-doctor             # diagnose dependency and config issues
+npx expo install --fix      # fix incompatible package versions
+```
+
+Run lint and typecheck before declaring any task done.
+
+## Navigation & Routing
+
+- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
+- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
+- Docs: https://docs.expo.dev/router/introduction.md
+
+## Building with EAS
+
+Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
+Docs: https://docs.expo.dev/eas/index.md
+
+## Rules
+
+- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
+- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
+- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md

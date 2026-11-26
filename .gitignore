@@ -1,26 +1,43 @@
-# Dependensi & build
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
 node_modules/
+
+# Expo
+.expo/
 dist/
-build/
-coverage/
+web-build/
+expo-env.d.ts
 
-# SECRET: jangan pernah di-commit
-.env
-.env.*
-!.env.example
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# Log & file sistem
-*.log
-npm-debug.log*
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
 .DS_Store
-Thumbs.db
+*.pem
 
-# Editor
-.vscode/*
-!.vscode/extensions.json
+# local env files
+.env*.local
 
-# Backup database & file sementara
-backups/
-*.dump
-*.sql.gz
-backend/uploads/
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
