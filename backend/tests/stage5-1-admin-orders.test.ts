@@ -646,6 +646,10 @@ function createAdminTestEnv() {
       order.tracking_receipt_number = trackingReceiptNumber;
       return assembleDetail(order);
     },
+
+    async createManualOrderAtomic() {
+      throw new Error('createManualOrderAtomic tidak dipakai di stage5-1');
+    },
   };
 
   const adminOrderService = createAdminOrderService({

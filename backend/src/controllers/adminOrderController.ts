@@ -2,10 +2,15 @@ import {
   COURIER_CODES,
   DESIGN_STATUS,
   FULFILLMENT_TYPE,
+  ORDER_SOURCE,
+  PAYMENT_METHOD,
+  PAYMENT_SCHEME,
   PAYMENT_STATUS,
+  PRINT_POSITION,
   PRODUCTION_STATUS,
   TRACKING_RECEIPT_REGEX,
   type AdminCancelOrderRequestDto,
+  type AdminCreateManualOrderRequestDto,
   type AdminKanbanBoardDto,
   type AdminOrderCardDto,
   type AdminOrderDetailDto,
@@ -23,7 +28,11 @@ import {
   type CourierCode,
   type DesignStatus,
   type FulfillmentType,
+  type ManualOrderSource,
+  type PaymentMethod,
+  type PaymentScheme,
   type PaymentStatus,
+  type PrintPosition,
   type ProductionStatus,
 } from '@yng/shared';
 import type { RequestHandler } from 'express';
@@ -63,6 +72,33 @@ const FULFILLMENT_VALUES: readonly [FulfillmentType, ...FulfillmentType[]] = [
 const COURIER_CODE_VALUES: readonly [CourierCode, ...CourierCode[]] = [...COURIER_CODES] as [
   CourierCode,
   ...CourierCode[],
+];
+
+const MANUAL_ORDER_SOURCE_VALUES: readonly [ManualOrderSource, ...ManualOrderSource[]] = [
+  ORDER_SOURCE.WHATSAPP,
+  ORDER_SOURCE.INSTAGRAM,
+  ORDER_SOURCE.MANUAL,
+];
+
+const PAYMENT_SCHEME_VALUES: readonly [PaymentScheme, ...PaymentScheme[]] = [
+  PAYMENT_SCHEME.FULL,
+  PAYMENT_SCHEME.DP,
+];
+
+const PAYMENT_METHOD_VALUES: readonly [PaymentMethod, ...PaymentMethod[]] = [
+  PAYMENT_METHOD.QRIS,
+  PAYMENT_METHOD.BANK_TRANSFER,
+];
+
+const PRINT_POSITION_VALUES: readonly [PrintPosition, ...PrintPosition[]] = [
+  PRINT_POSITION.FRONT_CHEST,
+  PRINT_POSITION.FRONT_CENTER,
+  PRINT_POSITION.BACK_CENTER,
+  PRINT_POSITION.BACK_UPPER,
+  PRINT_POSITION.LEFT_SLEEVE,
+  PRINT_POSITION.RIGHT_SLEEVE,
+  PRINT_POSITION.COLLAR,
+  PRINT_POSITION.OTHER,
 ];
 
 export const adminOrderUuidParamSchema = z
@@ -259,6 +295,121 @@ export const rejectPaymentBodySchema: z.ZodType<AdminRejectPaymentRequestDto> = 
   })
   .strict();
 
+const manualOrderItemPrintSchema = z
+  .object({
+    printSizeId: z.number().int().positive('Ukuran sablon wajib dipilih.'),
+    printPosition: z.enum(PRINT_POSITION_VALUES, {
+      required_error: 'Posisi sablon wajib dipilih.',
+    }),
+    fileRef: z.string().trim().max(500).nullable().optional(),
+    fileName: z.string().trim().max(255).nullable().optional(),
+    notes: z.string().trim().max(255).nullable().optional(),
+  })
+  .strict();
+
+const manualOrderItemSizeSchema = z
+  .object({
+    sizeId: z.number().int().positive('Ukuran pakaian wajib dipilih.'),
+    qty: z
+      .number({ required_error: 'Kuantitas ukuran wajib diisi.' })
+      .int('Kuantitas ukuran harus bilangan bulat positif.')
+      .positive('Kuantitas ukuran minimal 1.'),
+  })
+  .strict();
+
+const manualOrderItemSchema = z
+  .object({
+    modelId: z.number().int().positive('Model pakaian wajib dipilih.'),
+    fabricId: z.number().int().positive('Bahan pakaian wajib dipilih.'),
+    isCustomColor: z.boolean().optional(),
+    fabricColorId: z.number().int().positive().nullable().optional(),
+    colorName: z.string().trim().max(50).nullable().optional(),
+    colorHex: z
+      .string()
+      .trim()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Format warna hex harus #RRGGBB.')
+      .nullable()
+      .optional(),
+    needsDesignHelp: z.boolean().optional(),
+    productionNotes: z.string().trim().max(1000).nullable().optional(),
+    sizes: z
+      .array(manualOrderItemSizeSchema, {
+        required_error: 'Minimal satu ukuran dengan kuantitas > 0 wajib diisi.',
+      })
+      .min(1, 'Minimal satu ukuran dengan kuantitas > 0 wajib diisi.'),
+    prints: z.array(manualOrderItemPrintSchema).max(20).optional(),
+  })
+  .strict();
+
+export const createManualOrderBodySchema: z.ZodType<AdminCreateManualOrderRequestDto> = z
+  .object({
+    source: z.enum(MANUAL_ORDER_SOURCE_VALUES, {
+      required_error: 'Sumber order manual wajib dipilih (WHATSAPP, INSTAGRAM, atau MANUAL).',
+    }),
+    userUuid: z.string().uuid('Format UUID akun pelanggan tidak valid.').nullable().optional(),
+    customerName: z
+      .string({ required_error: 'Nama pelanggan wajib diisi.' })
+      .trim()
+      .min(2, 'Nama pelanggan minimal 2 karakter.')
+      .max(150, 'Nama pelanggan maksimal 150 karakter.'),
+    customerWhatsapp: z
+      .string({ required_error: 'Nomor WhatsApp pelanggan wajib diisi.' })
+      .trim()
+      .min(8, 'Nomor WhatsApp terlalu pendek.')
+      .max(25, 'Nomor WhatsApp terlalu panjang.'),
+    fulfillmentType: z.enum(FULFILLMENT_VALUES, {
+      required_error: 'Metode pemenuhan pesanan wajib dipilih.',
+    }),
+    provinceName: z.string().trim().max(100).nullable().optional(),
+    cityName: z.string().trim().max(100).nullable().optional(),
+    districtName: z.string().trim().max(100).nullable().optional(),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{5}$/, 'Kode pos harus 5 digit angka.')
+      .nullable()
+      .optional(),
+    fullAddress: z.string().trim().max(1000).nullable().optional(),
+    items: z
+      .array(manualOrderItemSchema, {
+        required_error: 'Minimal satu item pesanan wajib diisi.',
+      })
+      .min(1, 'Minimal satu item pesanan wajib diisi.')
+      .max(20, 'Maksimal 20 item per pesanan manual.'),
+    paymentScheme: z.enum(PAYMENT_SCHEME_VALUES, {
+      required_error: 'Skema pembayaran wajib dipilih.',
+    }),
+    discountAmount: z
+      .number({ invalid_type_error: 'Nominal diskon harus berupa bilangan bulat rupiah.' })
+      .int('Nominal diskon harus berupa bilangan bulat rupiah.')
+      .min(0, 'Nominal diskon tidak boleh negatif.')
+      .optional(),
+    discountNote: z.string().trim().max(255).nullable().optional(),
+    shippingCost: z
+      .number({ invalid_type_error: 'Ongkos kirim harus berupa bilangan bulat rupiah.' })
+      .int('Ongkos kirim harus berupa bilangan bulat rupiah.')
+      .min(0, 'Ongkos kirim tidak boleh negatif.')
+      .optional(),
+    paymentReceived: z
+      .object({
+        received: z.boolean(),
+        paymentMethod: z.enum(PAYMENT_METHOD_VALUES).nullable().optional(),
+        paymentAccountId: z.number().int().positive().nullable().optional(),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+    noAutoCancel: z.boolean().optional(),
+    adminNotes: z.string().trim().max(2000).nullable().optional(),
+    estimatedFinishDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format estimasi selesai harus YYYY-MM-DD.')
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
 /**
  * Membangun controller operasional order & pembayaran untuk Admin (`/api/admin/orders*` & `/api/admin/payments*`).
  */
@@ -266,6 +417,7 @@ export function createAdminOrderController(service: AdminOrderService = defaultA
   listOrders: RequestHandler;
   getKanbanBoard: RequestHandler;
   getOrderDetail: RequestHandler;
+  createManualOrder: RequestHandler;
   transitionStatus: RequestHandler;
   reviewDesign: RequestHandler;
   cancelOrder: RequestHandler;
@@ -306,6 +458,22 @@ export function createAdminOrderController(service: AdminOrderService = defaultA
       res.setHeader('Cache-Control', 'no-store');
       return sendSuccess<AdminOrderDetailDto>(res, {
         message: 'Detail pesanan admin berhasil dimuat.',
+        data: detail,
+      });
+    }),
+
+    createManualOrder: asyncHandler(async (req, res) => {
+      if (!req.user) throw new AppError('Autentikasi admin diperlukan.', 401);
+      const body = req.body as AdminCreateManualOrderRequestDto;
+      const detail = await service.createManualOrder({
+        adminUserId: req.user.id,
+        adminUserUuid: req.user.userUuid,
+        payload: body,
+      });
+      res.setHeader('Cache-Control', 'no-store');
+      return sendSuccess<AdminOrderDetailDto>(res, {
+        status: 201,
+        message: 'Order manual berhasil dibuat.',
         data: detail,
       });
     }),

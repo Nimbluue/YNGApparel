@@ -1257,3 +1257,54 @@ export interface AdminVerifyPaymentRequestDto {
 export interface AdminRejectPaymentRequestDto {
   rejectionReason: string;
 }
+
+export type ManualOrderSource = Exclude<OrderSource, 'WEBSITE'>;
+
+export interface AdminCreateManualOrderItemPrintDto {
+  printSizeId: number;
+  printPosition: PrintPosition;
+  fileRef?: string | null;
+  fileName?: string | null;
+  notes?: string | null;
+}
+
+export interface AdminCreateManualOrderItemDto {
+  modelId: number;
+  fabricId: number;
+  isCustomColor?: boolean;
+  fabricColorId?: number | null;
+  colorName?: string | null;
+  colorHex?: string | null;
+  needsDesignHelp?: boolean;
+  productionNotes?: string | null;
+  sizes: CartItemSizeInputDto[];
+  prints?: AdminCreateManualOrderItemPrintDto[];
+}
+
+export interface AdminManualPaymentReceivedDto {
+  received: boolean;
+  paymentMethod?: PaymentMethod | null;
+  paymentAccountId?: number | null;
+}
+
+export interface AdminCreateManualOrderRequestDto {
+  source: ManualOrderSource;
+  userUuid?: string | null;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  provinceName?: string | null;
+  cityName?: string | null;
+  districtName?: string | null;
+  postalCode?: string | null;
+  fullAddress?: string | null;
+  items: AdminCreateManualOrderItemDto[];
+  paymentScheme: PaymentScheme;
+  discountAmount?: Rupiah;
+  discountNote?: string | null;
+  shippingCost?: Rupiah;
+  paymentReceived?: AdminManualPaymentReceivedDto | null;
+  noAutoCancel?: boolean;
+  adminNotes?: string | null;
+  estimatedFinishDate?: string | null;
+}

@@ -7,6 +7,7 @@ import {
   getCourierByCode,
   getPaymentStageLabel,
   getProductionStatusLabel,
+  type AdminCreateManualOrderRequestDto,
   type AdminKanbanBoardDto,
   type AdminOrderCardDto,
   type AdminOrderDetailDto,
@@ -29,10 +30,12 @@ import adminOrderModel, {
   type AdminOrderRepository,
   type AdminPaymentListFilters,
 } from '../models/adminOrderModel.js';
-import type { OrderDetailRecord } from '../models/orderModel.js';
+import catalogModel, { type CatalogRepository } from '../models/catalogModel.js';
+import type { DesignFileTransferPlan, OrderDetailRecord } from '../models/orderModel.js';
 import { processQcPhotoImage } from './imageService.js';
 import { generateSpkPdfBuffer } from './spkService.js';
 import * as storageService from './storageService.js';
+import defaultTelegramService, { type TelegramService } from './telegramService.js';
 
 export { assertValidStatusTransition };
 
@@ -46,14 +49,17 @@ const KANBAN_COLUMN_ORDER: readonly ProductionStatus[] = [
 
 export interface AdminOrderServiceDeps {
   adminOrderRepo?: AdminOrderRepository;
+  catalogRepo?: Pick<CatalogRepository, 'loadPricingReferenceData'>;
   storage?: {
     upload: typeof storageService.upload;
     download: typeof storageService.download;
+    move?: typeof storageService.move;
     remove: typeof storageService.remove;
     getSignedUrl: typeof storageService.getSignedUrl;
   };
   processQcPhoto?: typeof processQcPhotoImage;
   generateSpk?: typeof generateSpkPdfBuffer;
+  telegram?: Pick<TelegramService, 'notifyNewOrder'>;
 }
 
 function toIsoString(value: Date | string): string {
@@ -125,12 +131,24 @@ function mapAdminOrderCard(row: AdminOrderListRow): AdminOrderCardDto {
  */
 export function createAdminOrderService(deps: AdminOrderServiceDeps = {}) {
   const repo = deps.adminOrderRepo ?? adminOrderModel;
+  const catalogRepo = deps.catalogRepo ?? catalogModel;
+  const telegram = deps.telegram ?? defaultTelegramService;
   const storage = deps.storage ?? {
     upload: storageService.upload,
     download: storageService.download,
+    move: storageService.move,
     remove: storageService.remove,
     getSignedUrl: storageService.getSignedUrl,
   };
+  const moveInStorage: typeof storageService.move = deps.storage
+    ? (deps.storage.move ??
+      (async (bucket, fromPath, toPath) => {
+        const buf = await storage.download(bucket, fromPath);
+        await storage.upload(bucket, toPath, buf, { upsert: true });
+        await storage.remove(bucket, [fromPath]);
+        return { message: 'Moved' };
+      }))
+    : storageService.move;
   const processQcPhoto = deps.processQcPhoto ?? processQcPhotoImage;
   const generateSpk = deps.generateSpk ?? generateSpkPdfBuffer;
 
@@ -680,6 +698,46 @@ export function createAdminOrderService(deps: AdminOrderServiceDeps = {}) {
         orderCode: record.order.order_code,
         pdfBuffer,
       };
+    },
+
+    async createManualOrder(input: {
+      adminUserId: number;
+      adminUserUuid: string;
+      payload: AdminCreateManualOrderRequestDto;
+    }): Promise<AdminOrderDetailDto> {
+      const executeDesignTransfers = async (plans: DesignFileTransferPlan[]) => {
+        for (const plan of plans) {
+          if (plan.mode === 'move') {
+            await moveInStorage(STORAGE_BUCKETS.DESIGNS, plan.fromPath, plan.toPath);
+          } else {
+            const buf = await storage.download(STORAGE_BUCKETS.DESIGNS, plan.fromPath);
+            await storage.upload(STORAGE_BUCKETS.DESIGNS, plan.toPath, buf, { upsert: true });
+          }
+        }
+      };
+
+      const record = await repo.createManualOrderAtomic({
+        adminUserId: input.adminUserId,
+        adminUserUuid: input.adminUserUuid,
+        payload: input.payload,
+        catalogRepo,
+        executeDesignTransfers,
+      });
+
+      const dto = await mapDetailRecordToAdminDto(record);
+
+      void telegram.notifyNewOrder({
+        orderCode: dto.orderCode,
+        source: dto.source,
+        customerName: dto.customerName,
+        totalQty: dto.totalQty,
+        grandTotal: dto.grandTotal,
+        paymentScheme: dto.paymentScheme,
+        dpPercentSnapshot: dto.dpPercentSnapshot,
+        fulfillmentType: dto.fulfillmentType,
+      });
+
+      return dto;
     },
   };
 }

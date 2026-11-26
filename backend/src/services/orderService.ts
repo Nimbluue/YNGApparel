@@ -25,6 +25,7 @@ import orderModel, {
 } from '../models/orderModel.js';
 import { processPaymentProofImage } from './imageService.js';
 import * as storageService from './storageService.js';
+import defaultTelegramService, { type TelegramService } from './telegramService.js';
 
 export interface OrderServiceDeps {
   orderRepo?: OrderRepository;
@@ -38,6 +39,7 @@ export interface OrderServiceDeps {
   };
   getPublicCatalogUrl?: (filePath: string | null) => string | null;
   processProofImage?: typeof processPaymentProofImage;
+  telegram?: Pick<TelegramService, 'notifyNewOrder' | 'notifyPaymentProofUploaded'>;
 }
 
 function toPublicPaymentAccountDto(
@@ -271,6 +273,7 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
     ((filePath: string | null) =>
       filePath ? storageService.getPublicUrl(STORAGE_BUCKETS.CATALOG, filePath) : null);
   const processProof = deps.processProofImage ?? processPaymentProofImage;
+  const telegram = deps.telegram ?? defaultTelegramService;
 
   async function loadActivePaymentAccountDtos(): Promise<PublicPaymentAccountDto[]> {
     const rows = await catalogRepo.listActivePaymentAccounts();
@@ -315,6 +318,18 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
         paymentAccounts,
         storage.getSignedUrl
       );
+      if (!created.deduplicated) {
+        void telegram.notifyNewOrder({
+          orderCode: orderDto.orderCode,
+          source: orderDto.source,
+          customerName: orderDto.customerName,
+          totalQty: orderDto.totalQty,
+          grandTotal: orderDto.grandTotal,
+          paymentScheme: orderDto.paymentScheme,
+          dpPercentSnapshot: orderDto.dpPercentSnapshot,
+          fulfillmentType: orderDto.fulfillmentType,
+        });
+      }
       return {
         order: orderDto,
         deduplicated: created.deduplicated,
@@ -448,6 +463,13 @@ export function createOrderService(deps: OrderServiceDeps = {}) {
         result.order.dp_percent_snapshot,
         storage.getSignedUrl
       );
+
+      void telegram.notifyPaymentProofUploaded({
+        orderCode: result.order.order_code,
+        paymentStageLabel: paymentDto.paymentStageLabel,
+        amount: paymentDto.amount,
+        paymentMethod: paymentDto.paymentMethod,
+      });
 
       return {
         transactionUuid: result.order.transaction_uuid,

@@ -28,6 +28,7 @@ import {
   adminQcPhotoParamsSchema,
   cancelOrderBodySchema,
   createAdminOrderController,
+  createManualOrderBodySchema,
   listAdminOrdersQuerySchema,
   listAdminPaymentsQuerySchema,
   rejectPaymentBodySchema,
@@ -212,6 +213,11 @@ export function createAdminRouter(
   );
   router.get('/orders/kanban', adminOrderController.getKanbanBoard);
   router.get('/orders/board', adminOrderController.getKanbanBoard);
+  router.post(
+    '/orders/manual',
+    validate({ body: createManualOrderBodySchema }),
+    adminOrderController.createManualOrder
+  );
   router.get(
     '/orders/:uuid',
     validate({ params: adminOrderUuidParamSchema }),

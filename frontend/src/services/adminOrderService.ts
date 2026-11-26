@@ -1,5 +1,6 @@
 import type {
   AdminCancelOrderRequestDto,
+  AdminCreateManualOrderRequestDto,
   AdminKanbanBoardDto,
   AdminOrderCardDto,
   AdminOrderDetailDto,
@@ -103,6 +104,19 @@ export async function getAdminKanbanBoard(): Promise<AdminKanbanBoardDto> {
  */
 export async function getAdminOrderDetail(uuid: string): Promise<AdminOrderDetailDto> {
   const response = await api.get<ApiSuccessResponse<AdminOrderDetailDto>>(`/admin/orders/${uuid}`);
+  return response.data.data;
+}
+
+/**
+ * Membuat order manual dari WhatsApp/Instagram/Walk-in (`POST /api/admin/orders/manual`).
+ */
+export async function createAdminManualOrder(
+  payload: AdminCreateManualOrderRequestDto
+): Promise<AdminOrderDetailDto> {
+  const response = await api.post<ApiSuccessResponse<AdminOrderDetailDto>>(
+    '/admin/orders/manual',
+    payload
+  );
   return response.data.data;
 }
 

@@ -9,6 +9,7 @@ import MyOrders from '../pages/account/MyOrders';
 import AdminOrderDetail from '../pages/admin/AdminOrderDetail';
 import AdminOrders from '../pages/admin/AdminOrders';
 import KanbanBoard from '../pages/admin/KanbanBoard';
+import ManualOrder from '../pages/admin/ManualOrder';
 import MasterData from '../pages/admin/MasterData';
 import PaymentAccounts from '../pages/admin/PaymentAccounts';
 import PaymentsQueue from '../pages/admin/PaymentsQueue';
@@ -81,16 +82,8 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="/admin/kanban" replace />} />
           <Route path="kanban" element={<KanbanBoard />} />
           <Route path="orders" element={<AdminOrders />} />
-          <Route
-            path="orders/manual"
-            element={
-              <StagePlaceholder
-                stage="Tahap 5-3"
-                title="Order Manual"
-                description="Pencatatan order manual dari WhatsApp atau Instagram akan tersedia pada Tahap 5-3."
-              />
-            }
-          />
+          <Route path="orders/new" element={<ManualOrder />} />
+          <Route path="orders/manual" element={<ManualOrder />} />
           <Route path="orders/:uuid" element={<AdminOrderDetail />} />
           <Route path="payments" element={<PaymentsQueue />} />
           <Route path="master" element={<MasterData />} />

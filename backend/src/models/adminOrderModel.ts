@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
   DESIGN_STATUS,
   FULFILLMENT_TYPE,
@@ -5,19 +6,29 @@ import {
   PAYMENT_STAGE,
   PAYMENT_STATUS,
   PRODUCTION_STATUS,
+  type AdminCreateManualOrderRequestDto,
   type AdminUpdateAddressRequestDto,
   type CourierCode,
   type DesignStatus,
   type FulfillmentType,
   type PaymentStage,
   type PaymentStatus,
+  type PricingQuotePrintInputDto,
   type ProductionStatus,
   type Rupiah,
 } from '@yng/shared';
 import { query, withTransaction } from '../config/database.js';
 import { AppError } from '../middleware/errorHandler.js';
+import {
+  calculateQuoteFromReferenceData,
+  resolveInitialPaymentRequirement,
+} from '../services/pricingService.js';
+import { generateOrderCode } from '../utils/orderCode.js';
 import { normalizeWhatsApp } from '../utils/phone.js';
+import type { CatalogRepository, PricingLookupIds } from './catalogModel.js';
 import orderModel, {
+  buildUserCartFileRegex,
+  type DesignFileTransferPlan,
   type OrderDetailRecord,
   type OrderPaymentRow,
   type OrderQcPhotoRow,
@@ -156,6 +167,13 @@ export interface AdminOrderRepository {
     trackingReceiptNumber: string;
     adminUserId: number;
   }): Promise<OrderDetailRecord | null>;
+  createManualOrderAtomic(input: {
+    adminUserId: number;
+    adminUserUuid: string;
+    payload: AdminCreateManualOrderRequestDto;
+    catalogRepo: Pick<CatalogRepository, 'loadPricingReferenceData'>;
+    executeDesignTransfers: (transfers: DesignFileTransferPlan[]) => Promise<void>;
+  }): Promise<OrderDetailRecord>;
 }
 
 export interface AdminOrderModelDeps {
@@ -1313,6 +1331,390 @@ export function createAdminOrderModel(deps: AdminOrderModelDeps = {}): AdminOrde
 
       if (!updatedTxUuid) return null;
       return loadDetail(updatedTxUuid);
+    },
+
+    async createManualOrderAtomic({
+      adminUserId,
+      adminUserUuid,
+      payload,
+      catalogRepo,
+      executeDesignTransfers,
+    }) {
+      const normalizedWa = normalizeWhatsApp(payload.customerWhatsapp);
+      if (!normalizedWa) {
+        throw new AppError(
+          'Nomor WhatsApp pelanggan harus berformat 62xxxxxxxxxx atau 08xxxxxxxxxx.',
+          400
+        );
+      }
+
+      const discountAmount = payload.discountAmount ?? 0;
+      const shippingCost = payload.shippingCost ?? 0;
+      if (payload.fulfillmentType === FULFILLMENT_TYPE.PICKUP && shippingCost > 0) {
+        throw new AppError(
+          'Ongkos kirim harus Rp 0 untuk pesanan Ambil di Workshop (PICKUP).',
+          400
+        );
+      }
+
+      const TMP_ADMIN_FILE_REGEX = /^tmp\/[a-f0-9]{32}\.(png|jpg|webp|svg|pdf)$/i;
+      const adminCartFileRegex = buildUserCartFileRegex(adminUserUuid);
+
+      const createdTxUuid = await runInTransaction(async (client) => {
+        let resolvedUserId: number | null = null;
+        if (payload.userUuid) {
+          const userRes = await client.query<{ id: number }>(
+            `SELECT id
+             FROM users
+             WHERE user_uuid = $1
+               AND is_active = TRUE
+             LIMIT 1`,
+            [payload.userUuid]
+          );
+          const linkedUser = userRes.rows[0];
+          if (!linkedUser) {
+            throw new AppError('Akun pelanggan (userUuid) tidak ditemukan atau tidak aktif.', 404);
+          }
+          resolvedUserId = Number(linkedUser.id);
+        }
+
+        if (payload.paymentReceived?.received && payload.paymentReceived.paymentAccountId) {
+          const accRes = await client.query<{ id: number }>(
+            `SELECT id FROM payment_accounts WHERE id = $1 LIMIT 1`,
+            [payload.paymentReceived.paymentAccountId]
+          );
+          if (!accRes.rows[0]) {
+            throw new AppError('Rekening/QRIS pembayaran yang dipilih tidak ditemukan.', 400);
+          }
+        }
+
+        // Kumpulkan ID master untuk kalkulasi harga server
+        const modelIds = new Set<number>();
+        const fabricIds = new Set<number>();
+        const fabricColorIds = new Set<number>();
+        const sizeIds = new Set<number>();
+        const printSizeIds = new Set<number>();
+
+        for (const item of payload.items) {
+          modelIds.add(item.modelId);
+          fabricIds.add(item.fabricId);
+          if (item.fabricColorId !== null && item.fabricColorId !== undefined) {
+            fabricColorIds.add(item.fabricColorId);
+          }
+          for (const s of item.sizes) {
+            sizeIds.add(s.sizeId);
+          }
+          for (const p of item.prints ?? []) {
+            printSizeIds.add(p.printSizeId);
+          }
+        }
+
+        const lookup: PricingLookupIds = {
+          modelIds: [...modelIds],
+          fabricIds: [...fabricIds],
+          fabricColorIds: [...fabricColorIds],
+          sizeIds: [...sizeIds],
+          printSizeIds: [...printSizeIds],
+        };
+
+        const refData = await catalogRepo.loadPricingReferenceData(lookup, client);
+        const quote = calculateQuoteFromReferenceData(
+          {
+            items: payload.items.map((item) => ({
+              modelId: item.modelId,
+              fabricId: item.fabricId,
+              isCustomColor: item.isCustomColor,
+              fabricColorId: item.fabricColorId,
+              colorName: item.colorName,
+              colorHex: item.colorHex,
+              sizes: item.sizes,
+              prints: (item.prints ?? []).map((p): PricingQuotePrintInputDto => ({
+                printSizeId: p.printSizeId,
+                printPosition: p.printPosition,
+              })),
+            })),
+          },
+          refData,
+          { discountAmount }
+        );
+
+        const paymentReq = resolveInitialPaymentRequirement(
+          quote,
+          payload.paymentScheme,
+          discountAmount
+        );
+
+        const isPaymentReceived = Boolean(payload.paymentReceived?.received);
+        const disableAutoCancel = payload.noAutoCancel !== false || isPaymentReceived;
+
+        let paymentDueHours: number | null = null;
+        if (!disableAutoCancel) {
+          const dueRes = await client.query<{ setting_value: string }>(
+            `SELECT setting_value FROM app_settings WHERE setting_key = 'initial_payment_due_hours' LIMIT 1`
+          );
+          const parsedDue = Number.parseInt(dueRes.rows[0]?.setting_value ?? '', 10);
+          paymentDueHours = Number.isInteger(parsedDue) && parsedDue > 0 ? parsedDue : 24;
+        }
+
+        const grandTotal = quote.subtotalAmount - discountAmount + shippingCost;
+        const initialPaid =
+          isPaymentReceived && paymentReq.dpRequiredAmount > 0 ? paymentReq.dpRequiredAmount : 0;
+        const remainingBalance = Math.max(0, grandTotal - initialPaid);
+
+        const provinceName =
+          payload.fulfillmentType === FULFILLMENT_TYPE.SHIP
+            ? payload.provinceName?.trim() || null
+            : null;
+        const cityName =
+          payload.fulfillmentType === FULFILLMENT_TYPE.SHIP
+            ? payload.cityName?.trim() || null
+            : null;
+        const districtName =
+          payload.fulfillmentType === FULFILLMENT_TYPE.SHIP
+            ? payload.districtName?.trim() || null
+            : null;
+        const postalCode =
+          payload.fulfillmentType === FULFILLMENT_TYPE.SHIP
+            ? payload.postalCode?.trim() || null
+            : null;
+        const fullAddress =
+          payload.fulfillmentType === FULFILLMENT_TYPE.SHIP
+            ? payload.fullAddress?.trim() || null
+            : null;
+
+        let insertedOrder: { id: number; transaction_uuid: string; order_code: string } | null =
+          null;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const candidateCode = generateOrderCode();
+          try {
+            await client.query('SAVEPOINT sp_insert_manual_order');
+            const insertRes = await client.query<{
+              id: number;
+              transaction_uuid: string;
+              order_code: string;
+            }>(
+              `INSERT INTO orders (
+                 order_code, user_id, source,
+                 customer_name, customer_whatsapp,
+                 fulfillment_type, province_name, city_name, district_name, postal_code, full_address,
+                 total_qty, dp_min_qty_snapshot, payment_scheme, dp_percent_snapshot,
+                 subtotal_amount, discount_amount, discount_note, shipping_cost,
+                 dp_required_amount, remaining_balance,
+                 production_status, design_status, admin_notes, estimated_finish_date,
+                 payment_due_at
+               )
+               VALUES (
+                 $1, $2, $3,
+                 $4, $5,
+                 $6, $7, $8, $9, $10, $11,
+                 $12, $13, $14, $15,
+                 $16, $17, $18, $19,
+                 $20, $21,
+                 $22, $23, $24, $25,
+                 CASE WHEN $26::int IS NULL THEN NULL ELSE NOW() + ($26::int * INTERVAL '1 hour') END
+               )
+               RETURNING id, transaction_uuid, order_code`,
+              [
+                candidateCode,
+                resolvedUserId,
+                payload.source,
+                payload.customerName.trim(),
+                normalizedWa,
+                payload.fulfillmentType,
+                provinceName,
+                cityName,
+                districtName,
+                postalCode,
+                fullAddress,
+                quote.totalQty,
+                quote.dpMinQty,
+                paymentReq.paymentScheme,
+                paymentReq.dpPercentSnapshot,
+                quote.subtotalAmount,
+                discountAmount,
+                payload.discountNote?.trim() || null,
+                shippingCost,
+                paymentReq.dpRequiredAmount,
+                remainingBalance,
+                PRODUCTION_STATUS.NEW_ORDER,
+                DESIGN_STATUS.PENDING,
+                payload.adminNotes?.trim() || null,
+                payload.estimatedFinishDate?.trim() || null,
+                paymentDueHours,
+              ]
+            );
+            await client.query('RELEASE SAVEPOINT sp_insert_manual_order');
+            insertedOrder = insertRes.rows[0];
+            break;
+          } catch (err: unknown) {
+            await client.query('ROLLBACK TO SAVEPOINT sp_insert_manual_order');
+            const pgErr = err as { code?: string; constraint?: string };
+            if (pgErr.code === '23505' && pgErr.constraint === 'orders_order_code_key') {
+              continue;
+            }
+            throw err;
+          }
+        }
+
+        if (!insertedOrder) {
+          throw new AppError('Gagal menghasilkan kode pesanan unik. Silakan coba lagi.', 500);
+        }
+
+        const transferByFromPath = new Map<string, string>();
+        for (let i = 0; i < payload.items.length; i += 1) {
+          const itemInput = payload.items[i]!;
+          const breakdown = quote.items[i]!;
+          const needsDesignHelp = Boolean(itemInput.needsDesignHelp);
+
+          const itemRes = await client.query<{ id: number }>(
+            `INSERT INTO order_items (
+               order_id, model_id, fabric_id, model_name, fabric_name,
+               fabric_color_id, is_custom_color, color_name, color_hex,
+               needs_design_help, production_notes,
+               locked_base_price, locked_fabric_price, item_qty, line_subtotal
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+             RETURNING id`,
+            [
+              insertedOrder.id,
+              breakdown.modelId,
+              breakdown.fabricId,
+              breakdown.modelName,
+              breakdown.fabricName,
+              breakdown.fabricColorId,
+              breakdown.isCustomColor,
+              breakdown.colorName,
+              breakdown.colorHex,
+              needsDesignHelp,
+              itemInput.productionNotes?.trim() || null,
+              breakdown.basePrice,
+              breakdown.fabricAdditionalPrice,
+              breakdown.itemQty,
+              breakdown.lineSubtotal,
+            ]
+          );
+          const orderItemId = Number(itemRes.rows[0]!.id);
+
+          for (const sz of breakdown.sizes) {
+            await client.query(
+              `INSERT INTO order_item_sizes (
+                 order_item_id, size_id, size_code, qty, locked_extra_charge
+               )
+               VALUES ($1, $2, $3, $4, $5)`,
+              [orderItemId, sz.sizeId, sz.sizeCode, sz.qty, sz.extraCharge]
+            );
+          }
+
+          const inputPrints = itemInput.prints ?? [];
+          for (let pIdx = 0; pIdx < breakdown.prints.length; pIdx += 1) {
+            const pBreakdown = breakdown.prints[pIdx]!;
+            const pInput = inputPrints[pIdx];
+            let targetDesignPath: string | null = null;
+            let designFileName: string | null = null;
+
+            const rawFileRef = pInput?.fileRef?.trim() || null;
+            if (rawFileRef) {
+              if (!adminCartFileRegex.test(rawFileRef) && !TMP_ADMIN_FILE_REGEX.test(rawFileRef)) {
+                throw new AppError(
+                  'Referensi file desain order manual tidak valid atau bukan milik sesi admin.',
+                  400
+                );
+              }
+              const existingTarget = transferByFromPath.get(rawFileRef);
+              const baseFile = path.posix.basename(rawFileRef);
+              targetDesignPath =
+                existingTarget ?? `orders/${insertedOrder.transaction_uuid}/${baseFile}`;
+              designFileName = pInput?.fileName?.trim() || baseFile;
+              if (!existingTarget) {
+                transferByFromPath.set(rawFileRef, targetDesignPath);
+              }
+            }
+
+            await client.query(
+              `INSERT INTO order_item_prints (
+                 order_item_id, print_size_id, print_size_code, print_position,
+                 raw_design_file_path, design_file_name, locked_spot_price, notes
+               )
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                orderItemId,
+                pBreakdown.printSizeId,
+                pBreakdown.printSizeCode,
+                pBreakdown.printPosition,
+                targetDesignPath,
+                designFileName,
+                pBreakdown.pricePerSpot,
+                pInput?.notes?.trim() || null,
+              ]
+            );
+          }
+        }
+
+        if (paymentReq.dpRequiredAmount > 0) {
+          const initialStage =
+            paymentReq.paymentScheme === PAYMENT_SCHEME.DP ? PAYMENT_STAGE.DP : PAYMENT_STAGE.FULL;
+          if (isPaymentReceived) {
+            await client.query(
+              `INSERT INTO payments (
+                 order_id, payment_stage, payment_method, payment_account_id,
+                 amount, status, verified_by, verified_at
+               )
+               VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+              [
+                insertedOrder.id,
+                initialStage,
+                payload.paymentReceived?.paymentMethod ?? null,
+                payload.paymentReceived?.paymentAccountId ?? null,
+                paymentReq.dpRequiredAmount,
+                PAYMENT_STATUS.VERIFIED,
+                adminUserId,
+              ]
+            );
+          } else {
+            await client.query(
+              `INSERT INTO payments (order_id, payment_stage, amount, status)
+               VALUES ($1, $2, $3, $4)`,
+              [insertedOrder.id, initialStage, paymentReq.dpRequiredAmount, PAYMENT_STATUS.PENDING]
+            );
+          }
+        }
+
+        if (paymentReq.paymentScheme === PAYMENT_SCHEME.FULL && shippingCost > 0) {
+          await client.query(
+            `INSERT INTO payments (order_id, payment_stage, amount, status)
+             VALUES ($1, $2, $3, $4)`,
+            [insertedOrder.id, PAYMENT_STAGE.SHIPPING_FEE, shippingCost, PAYMENT_STATUS.PENDING]
+          );
+        }
+
+        await client.query(
+          `INSERT INTO order_status_history (order_id, from_status, to_status, notes, changed_by)
+           VALUES ($1, NULL, $2, $3, $4)`,
+          [
+            insertedOrder.id,
+            PRODUCTION_STATUS.NEW_ORDER,
+            `Order manual (${payload.source}) dibuat oleh admin${isPaymentReceived ? ' dengan pembayaran awal diterima' : ''}`,
+            adminUserId,
+          ]
+        );
+
+        const transferPlans: DesignFileTransferPlan[] = [];
+        for (const [fromPath, toPath] of transferByFromPath.entries()) {
+          transferPlans.push({ fromPath, toPath, mode: 'move' });
+        }
+
+        if (transferPlans.length > 0) {
+          await executeDesignTransfers(transferPlans);
+        }
+
+        return insertedOrder.transaction_uuid;
+      });
+
+      const detail = await loadDetail(createdTxUuid);
+      if (!detail) {
+        throw new AppError('Order manual berhasil dibuat tetapi gagal dimuat kembali.', 500);
+      }
+      return detail;
     },
   };
 }

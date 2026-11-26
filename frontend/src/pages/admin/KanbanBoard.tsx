@@ -176,6 +176,12 @@ export default function KanbanBoard() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
+              to="/admin/orders/new"
+              className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 font-display text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+            >
+              + Order Manual
+            </Link>
+            <Link
               to="/admin/payments"
               className="inline-flex min-h-touch items-center rounded-full border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
             >
