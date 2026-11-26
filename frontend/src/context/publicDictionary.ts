@@ -188,6 +188,14 @@ export const idDictionary = {
   'notes.hideProductionNote': 'Sembunyikan catatan',
   'notes.productionPlaceholder': 'Posisi sablon atau instruksi khusus',
 
+  'track.recentTitle': 'Terakhir Dilacak di Perangkat Ini',
+  'track.recentSubtitle': 'Klik untuk membuka status pesanan tanpa mengetik ulang.',
+  'track.clearAll': 'Hapus Semua',
+  'track.removeItem': 'Hapus dari riwayat',
+  'track.openOrderAria': 'Lacak pesanan {code}',
+  'track.maskedPhone': '•••• {last4}',
+  'track.checkedAt': 'Dicek {time}',
+
   'common.loading': 'Memuat...',
   'common.errorEyebrow': 'Perlu dicek',
   'common.retry': 'Coba Lagi',
@@ -380,6 +388,14 @@ export const enDictionary: Record<TranslationKey, string> = {
   'notes.addProductionNote': '+ Add production note',
   'notes.hideProductionNote': 'Hide note',
   'notes.productionPlaceholder': 'Print placement or special instructions',
+
+  'track.recentTitle': 'Recently Tracked on This Device',
+  'track.recentSubtitle': 'Click to open order status without re-entering details.',
+  'track.clearAll': 'Clear All',
+  'track.removeItem': 'Remove from history',
+  'track.openOrderAria': 'Track order {code}',
+  'track.maskedPhone': '•••• {last4}',
+  'track.checkedAt': 'Checked {time}',
 
   'common.loading': 'Loading...',
   'common.errorEyebrow': 'Needs attention',

@@ -21,6 +21,7 @@ import { useLanguage, type Locale } from '../../context/LanguageContext';
 import { catalogQueryKeys, getCatalogConfig } from '../../services/catalogService';
 import {
   getTrackOrderByUuid,
+  lookupTrackOrder,
   trackerQueryKeys,
   uploadTrackerPaymentProof,
 } from '../../services/trackerService';
@@ -36,10 +37,16 @@ import {
   getLocalizedPrintPositionLabel,
   getLocalizedProductionStatusLabel,
 } from '../../utils/localizedLabels';
+import {
+  buildRecentTrackSummary,
+  getRecentTracks,
+  saveRecentTrack,
+} from '../../utils/recentTracks';
 import { buildWaLink } from '../../utils/whatsapp';
 
 const PROOF_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PROOF_MAX_BYTES = 5 * 1024 * 1024;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function resolveHistoryStageLabel(
   rawStatus: string,
@@ -64,24 +71,56 @@ export default function TrackDetail() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const isUuidParam = UUID_REGEX.test(uuid);
+
   const lookupCredentials = useMemo(() => {
     const rawState = location.state as {
       lookupCredentials?: { code?: unknown; whatsappLast4?: unknown };
     } | null;
-    const code =
+    const stateCode =
       typeof rawState?.lookupCredentials?.code === 'string'
         ? rawState.lookupCredentials.code
         : null;
-    const whatsappLast4 =
+    const stateLast4 =
       typeof rawState?.lookupCredentials?.whatsappLast4 === 'string'
         ? rawState.lookupCredentials.whatsappLast4
         : null;
-    return code && whatsappLast4 ? { code, whatsappLast4 } : null;
-  }, [location.state]);
+    if (stateCode && stateLast4) {
+      return { code: stateCode, whatsappLast4: stateLast4 };
+    }
+
+    if (!isUuidParam && uuid.trim().length > 0) {
+      const normalizedCode = uuid.trim().toUpperCase();
+      const cached = getRecentTracks().find((entry) => entry.orderCode === normalizedCode);
+      if (cached) {
+        return { code: cached.orderCode, whatsappLast4: cached.phoneLast4 };
+      }
+    }
+
+    return null;
+  }, [isUuidParam, location.state, uuid]);
 
   const orderQuery = useQuery({
     queryKey: trackerQueryKeys.detail(uuid),
-    queryFn: () => getTrackOrderByUuid(uuid),
+    queryFn: () => {
+      if (isUuidParam) {
+        return getTrackOrderByUuid(uuid);
+      }
+      if (lookupCredentials) {
+        return lookupTrackOrder({
+          code: lookupCredentials.code,
+          whatsappLast4: lookupCredentials.whatsappLast4,
+        });
+      }
+      return Promise.reject(
+        new Error(
+          pick(
+            'Kredensial pelacakan tidak ditemukan. Silakan cari ulang kode pesanan.',
+            'Tracking credentials not found. Please look up your order code again.'
+          )
+        )
+      );
+    },
     enabled: uuid.length > 0,
   });
 
@@ -91,6 +130,19 @@ export default function TrackDetail() {
   });
 
   const order = orderQuery.data ?? null;
+
+  useEffect(() => {
+    if (!order) return;
+    const last4 =
+      lookupCredentials?.whatsappLast4 ?? order.customerWhatsappMasked.replace(/\D/g, '').slice(-4);
+    if (/^[0-9]{4}$/.test(last4)) {
+      saveRecentTrack({
+        orderCode: order.orderCode,
+        phoneLast4: last4,
+        summary: buildRecentTrackSummary(order),
+      });
+    }
+  }, [lookupCredentials?.whatsappLast4, order]);
 
   const unverifiedPayments = useMemo<OrderPaymentDto[]>(() => {
     if (!order || order.productionStatus === PRODUCTION_STATUS.CANCELLED) {

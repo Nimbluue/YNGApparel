@@ -36,6 +36,7 @@ import {
   getLocalizedPrintPositionLabel,
 } from '../../utils/localizedLabels';
 import { formatWhatsApp, normalizeWhatsApp } from '../../utils/phone';
+import { buildRecentTrackSummary, saveRecentTrack } from '../../utils/recentTracks';
 
 interface ShippingAddressFormState {
   recipientName: string;
@@ -215,6 +216,14 @@ export default function Checkout() {
       idempotencyKey: string;
     }) => createOrder(payload, idempotencyKey),
     onSuccess: async (order) => {
+      const phoneLast4 = order.customerWhatsapp.replace(/\D/g, '').slice(-4);
+      if (/^[0-9]{4}$/.test(phoneLast4)) {
+        saveRecentTrack({
+          orderCode: order.orderCode,
+          phoneLast4,
+          summary: buildRecentTrackSummary(order),
+        });
+      }
       queryClient.setQueryData(orderQueryKeys.detail(order.transactionUuid), order);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: cartQueryKeys.items }),
