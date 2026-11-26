@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { env } from '../config/env.js';
+import { env, isAllowedOrigin } from '../config/env.js';
 import { sendError } from '../utils/response.js';
 
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -16,20 +16,19 @@ function extractOriginFromReferer(referer: string | undefined): string | null {
 /**
  * Middleware proteksi CSRF lintas situs (SPEC Bagian 13):
  * Menolak request ubah-data (`POST`, `PUT`, `PATCH`, `DELETE`) jika header `Origin`
- * (atau asal `Referer`) berada di luar `FRONTEND_ORIGIN`.
+ * (atau asal `Referer`) berada di luar `FRONTEND_ORIGIN` (atau origin dev yang diizinkan).
  */
 export const originCheck: RequestHandler = (req, res, next) => {
   if (!STATE_CHANGING_METHODS.has(req.method)) {
     return next();
   }
 
-  const allowedOrigins = env.frontendOrigins;
   const requestOrigin = req.get('origin')?.trim().replace(/\/+$/, '');
   const refererOrigin = extractOriginFromReferer(req.get('referer'));
   const effectiveOrigin = requestOrigin || refererOrigin;
 
   if (effectiveOrigin) {
-    if (!allowedOrigins.includes(effectiveOrigin)) {
+    if (!isAllowedOrigin(effectiveOrigin)) {
       return sendError(res, {
         status: 403,
         message: 'Origin permintaan tidak diizinkan.',

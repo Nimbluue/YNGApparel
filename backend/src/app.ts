@@ -2,7 +2,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
-import { env } from './config/env.js';
+import { isAllowedOrigin } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { originCheck } from './middleware/originCheck.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
@@ -16,7 +16,14 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(
   cors({
-    origin: env.frontendOrigins,
+    origin(origin, callback) {
+      // Request tanpa header Origin (mis. curl, healthcheck, server-to-server) tidak diblokir CORS
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      callback(null, isAllowedOrigin(origin));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Idempotency-Key'],
