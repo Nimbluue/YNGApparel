@@ -31,6 +31,9 @@ const config: Config = {
       letterSpacing: {
         tightest: '-0.04em',
       },
+      backdropBlur: {
+        xs: '2px',
+      },
     },
   },
   plugins: [],

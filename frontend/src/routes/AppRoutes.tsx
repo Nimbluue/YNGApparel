@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import PublicLayout from '../layouts/PublicLayout';
 import Home from '../pages/Home';
@@ -25,6 +25,11 @@ import TrackLookup from '../pages/track/TrackLookup';
 import AdminRoute from './AdminRoute';
 import ProtectedRoute from './ProtectedRoute';
 
+function RedirectPreservingSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={{ pathname: to, search: location.search }} replace />;
+}
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -39,6 +44,11 @@ export default function AppRoutes() {
         <Route path="/track/:uuid" element={<TrackDetail />} />
         <Route path="/lacak" element={<Navigate to="/track" replace />} />
         <Route path="/lacak/:uuid" element={<TrackDetail />} />
+
+        {/* Alias rute bahasa Inggris ke path kanonik Indonesia */}
+        <Route path="/cart" element={<RedirectPreservingSearch to="/keranjang" />} />
+        <Route path="/account" element={<RedirectPreservingSearch to="/akun" />} />
+        <Route path="/account/orders" element={<RedirectPreservingSearch to="/pesanan" />} />
 
         {/* Route terlindungi USER */}
         <Route element={<ProtectedRoute />}>

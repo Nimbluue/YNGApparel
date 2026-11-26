@@ -44,6 +44,7 @@ import { requestPricingQuote } from '../../services/pricingService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { estimateCustomLabPricing, resolveActivePaymentScheme } from '../../utils/pricing';
+import { rememberViewedModel } from '../../utils/recentlyViewed';
 import { openWaLink } from '../../utils/whatsapp';
 
 const DRAFT_STORAGE_KEY = 'yng_custom_lab_draft_v1';
@@ -265,6 +266,12 @@ export default function CustomLab() {
     () => models.find((m) => m.id === draft.modelId) ?? null,
     [models, draft.modelId]
   );
+
+  useEffect(() => {
+    if (selectedModel) {
+      rememberViewedModel(selectedModel);
+    }
+  }, [selectedModel]);
 
   const selectedModelIndex = useMemo(() => {
     if (!selectedModel) return 0;
