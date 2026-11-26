@@ -19,7 +19,7 @@ export default function MasterData() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Ruang Produksi · Katalog &amp; Harga</p>
@@ -33,7 +33,7 @@ export default function MasterData() {
             </p>
           </div>
 
-          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink">
+          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -58,10 +58,10 @@ export default function MasterData() {
                 type="button"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex min-h-touch shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-4 py-2 font-display text-xs font-semibold transition-colors ${
+                className={`inline-flex min-h-touch shrink-0 items-center justify-center whitespace-nowrap rounded-sm border px-4 py-2 font-display text-xs font-semibold transition-colors ${
                   isActive
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-surface text-ink hover:border-ink'
+                    : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                 }`}
               >
                 {tab.label}

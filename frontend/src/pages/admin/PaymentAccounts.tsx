@@ -176,7 +176,7 @@ export default function PaymentAccounts() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Ruang Produksi · Pembayaran</p>
@@ -189,7 +189,7 @@ export default function PaymentAccounts() {
             </p>
           </div>
 
-          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink">
+          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -370,7 +370,7 @@ export default function PaymentAccounts() {
 
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
+                      <span className="rounded-sm bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
                         {account.method === PAYMENT_METHOD.QRIS ? 'QRIS' : 'Transfer Bank'}
                       </span>
                       <ActiveStatusBadge isActive={account.isActive} />
@@ -408,7 +408,7 @@ export default function PaymentAccounts() {
                     type="button"
                     onClick={() => void handleToggleActive(account)}
                     disabled={busyId === account.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       account.isActive
                         ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
                         : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'

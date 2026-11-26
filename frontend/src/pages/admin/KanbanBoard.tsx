@@ -6,18 +6,22 @@ import {
   type ProductionStatus,
 } from '@yng/shared';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { AlertCircle, Plus, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, DesignBadge, PaymentBadge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { IconTooltip } from '../../components/ui/IconTooltip';
 import { Input } from '../../components/ui/Input';
 import { Spinner } from '../../components/ui/Spinner';
 import { adminOrderQueryKeys, getAdminKanbanBoard } from '../../services/adminOrderService';
 import { formatWibDate } from '../../services/orderService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
+
+const CARD_MOTION = { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const };
 
 function orderNeedsAttention(order: AdminOrderCardDto): boolean {
   return (
@@ -34,7 +38,12 @@ interface KanbanOrderCardProps {
 
 function KanbanOrderCard({ order }: KanbanOrderCardProps) {
   return (
-    <article className="w-full min-w-0 rounded-sm border border-line bg-white p-3.5 transition-colors hover:border-ink">
+    <motion.article
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={CARD_MOTION}
+      className="w-full min-w-0 rounded-sm border border-line bg-white p-3.5 transition-all duration-150 hover:border-ink hover:shadow-xs"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link
@@ -109,7 +118,7 @@ function KanbanOrderCard({ order }: KanbanOrderCardProps) {
           Detail →
         </Link>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -150,6 +159,15 @@ export default function KanbanBoard() {
     [kanbanQuery.data]
   );
 
+  const attentionCount = useMemo(
+    () =>
+      (kanbanQuery.data?.columns ?? []).reduce(
+        (sum, col) => sum + col.orders.filter(orderNeedsAttention).length,
+        0
+      ),
+    [kanbanQuery.data]
+  );
+
   const activeMobileColumn = useMemo(() => {
     if (filteredColumns.length === 0) return null;
     if (mobileStatus) {
@@ -175,33 +193,28 @@ export default function KanbanBoard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/admin/orders/new"
-              className="inline-flex min-h-touch items-center rounded-sm border border-ink bg-ink px-4 font-display text-xs font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-neutral-800"
-            >
-              + Order Manual
-            </Link>
-            <Link
-              to="/admin/payments"
-              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
-            >
-              Antrean Pembayaran
-            </Link>
-            <Link
-              to="/admin/orders"
-              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
-            >
-              Semua Order
-            </Link>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              loading={kanbanQuery.isFetching}
+            <motion.div whileTap={{ scale: 0.97 }}>
+              <Link
+                to="/admin/orders/new"
+                className="inline-flex min-h-touch items-center gap-1.5 rounded-sm border border-ink bg-ink px-4 font-display text-xs font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-neutral-800"
+              >
+                <Plus size={15} strokeWidth={1.5} aria-hidden="true" />
+                <span>Order Manual</span>
+              </Link>
+            </motion.div>
+
+            <IconTooltip
+              label="Muat Ulang Papan Kanban"
               onClick={() => void kanbanQuery.refetch()}
+              className="h-11 w-11 border border-line bg-white hover:border-ink"
             >
-              Muat Ulang
-            </Button>
+              <RefreshCw
+                size={17}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className={kanbanQuery.isFetching ? 'animate-spin' : ''}
+              />
+            </IconTooltip>
           </div>
         </div>
 
@@ -238,15 +251,37 @@ export default function KanbanBoard() {
             />
           </div>
 
-          <label className="inline-flex min-h-touch cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
-            <input
-              type="checkbox"
-              checked={attentionOnly}
-              onChange={(event) => setAttentionOnly(event.target.checked)}
-              className="h-4 w-4 accent-ink"
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.97 }}
+            aria-pressed={attentionOnly}
+            title="Saring order yang butuh cek desain, verifikasi bayar, atau tindak lanjut"
+            onClick={() => setAttentionOnly((prev) => !prev)}
+            className={`inline-flex min-h-touch items-center gap-2 rounded-sm border px-3.5 py-2 font-display text-xs font-semibold transition-colors ${
+              attentionOnly
+                ? 'border-amber-600 bg-amber-50 text-amber-900'
+                : 'border-line bg-white text-ink hover:border-ink hover:bg-[#FAFAFA]'
+            }`}
+          >
+            <AlertCircle
+              size={15}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              className={attentionOnly ? 'text-amber-700' : 'text-muted'}
             />
-            <span>Hanya Perlu Perhatian</span>
-          </label>
+            <span>Perlu Tindakan</span>
+            <span
+              className={`rounded-sm px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums ${
+                attentionOnly
+                  ? 'bg-amber-600 text-white'
+                  : attentionCount > 0
+                    ? 'bg-amber-100 text-amber-900'
+                    : 'bg-surface text-muted'
+              }`}
+            >
+              {attentionCount}
+            </span>
+          </motion.button>
         </div>
       </section>
 
@@ -310,7 +345,7 @@ export default function KanbanBoard() {
                   title="Tidak ada order pada tahap ini"
                   description={
                     searchTerm || attentionOnly
-                      ? 'Coba ubah kata kunci pencarian atau matikan filter perhatian.'
+                      ? 'Coba ubah kata kunci pencarian atau matikan filter tindakan.'
                       : 'Pesanan yang masuk tahap ini akan muncul di sini.'
                   }
                 />

@@ -851,10 +851,7 @@ export default function Account() {
                   onChange={(event) =>
                     setAddressForm((prev) => ({ ...prev, fullAddress: event.target.value }))
                   }
-                  placeholder={pick(
-                    'Nama jalan, nomor rumah, RT/RW, patokan',
-                    'Street name, house/unit number, landmarks'
-                  )}
+                  placeholder={pick('Nama jalan, no., RT/RW, patokan', 'Street, unit, landmarks')}
                   className="input-sharp mt-1.5"
                   disabled={savingAddress || isAddressLimitReached}
                 />

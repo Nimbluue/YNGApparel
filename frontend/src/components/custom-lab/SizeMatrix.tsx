@@ -68,7 +68,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                       Number.isFinite(parsed) && parsed > 0 ? Math.min(100000, parsed) : 0;
                     onChangeQuantity(size.id, safeQty);
                   }}
-                  className="tabular-price h-11 w-14 rounded-sm border border-line bg-[#FAFAFA] px-1.5 text-center text-sm font-semibold text-ink focus:border-ink focus:bg-white focus:outline-none sm:w-16"
+                  className="tabular-price no-spinner h-11 w-14 rounded-sm border border-line bg-[#FAFAFA] px-1.5 text-center text-sm font-semibold text-ink focus:border-ink focus:bg-white focus:outline-none sm:w-16"
                 />
 
                 <button

@@ -889,8 +889,8 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                 return (
                   <label
                     key={fabric.id}
-                    className={`flex min-h-touch cursor-pointer items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-colors ${
-                      checked ? 'border-ink bg-white' : 'border-line bg-surface hover:border-ink'
+                    className={`flex min-h-touch cursor-pointer items-center justify-between gap-3 rounded-sm border px-3.5 py-2.5 transition-colors ${
+                      checked ? 'border-ink bg-white' : 'border-line bg-[#FAFAFA] hover:border-ink'
                     }`}
                   >
                     <span className="flex items-center gap-3">
@@ -1048,7 +1048,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                             ? 'Kosongkan pencarian untuk menggeser urutan'
                             : 'Tahan & geser atau tekan panah keyboard'
                         }
-                        className="inline-flex h-11 w-11 touch-none cursor-grab items-center justify-center rounded-xl border border-line bg-surface text-ink transition-colors hover:border-ink active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex h-11 w-11 touch-none cursor-grab items-center justify-center rounded-sm border border-line bg-[#FAFAFA] text-ink transition-colors hover:border-ink active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <svg
                           viewBox="0 0 16 16"
@@ -1064,7 +1064,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                         </svg>
                       </button>
 
-                      <span className="tabular-price inline-flex items-center rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink">
+                      <span className="tabular-price inline-flex items-center rounded-sm border border-line bg-[#FAFAFA] px-3 py-1 text-xs font-semibold text-ink">
                         #{globalIndex + 1}
                       </span>
                     </div>
@@ -1076,7 +1076,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                         disabled={globalIndex === 0 || isReorderLocked || draggingId !== null}
                         aria-label={`Geser ${model.name} ke urutan sebelumnya`}
                         title="Geser ke urutan sebelumnya"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-35"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-line bg-white text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
                       >
                         ↑
                       </button>
@@ -1090,7 +1090,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                         }
                         aria-label={`Geser ${model.name} ke urutan berikutnya`}
                         title="Geser ke urutan berikutnya"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-35"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-line bg-white text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
                       >
                         ↓
                       </button>
@@ -1098,7 +1098,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-surface">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
                       {model.imageUrl ? (
                         <img
                           src={model.imageUrl}
@@ -1142,7 +1142,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                           return (
                             <span
                               key={fid}
-                              className="rounded-lg border border-line-strong bg-surface px-2.5 py-0.5 font-mono text-[11px] text-ink"
+                              className="rounded-sm border border-line-strong bg-[#FAFAFA] px-2.5 py-0.5 font-mono text-[11px] text-ink"
                             >
                               {f ? f.code : `#${fid}`}
                             </span>
@@ -1175,7 +1175,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                       type="button"
                       onClick={() => void handleToggleActive(model)}
                       disabled={busyId === model.id}
-                      className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 sm:flex-none ${
+                      className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 sm:flex-none ${
                         model.isActive
                           ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
                           : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'

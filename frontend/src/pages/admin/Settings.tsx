@@ -199,7 +199,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="eyebrow">Ruang Produksi · Konfigurasi</p>

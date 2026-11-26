@@ -95,7 +95,7 @@ export default function AdminOrders() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Ruang Produksi · Arsip &amp; Pencarian</p>
@@ -111,13 +111,13 @@ export default function AdminOrders() {
           <div className="flex flex-wrap gap-2">
             <Link
               to="/admin/orders/new"
-              className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 font-display text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+              className="inline-flex min-h-touch items-center rounded-sm bg-ink px-4 font-display text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
             >
               + Order Manual
             </Link>
             <Link
               to="/admin/kanban"
-              className="inline-flex min-h-touch items-center rounded-full border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
             >
               Lihat Kanban
             </Link>
@@ -213,7 +213,7 @@ export default function AdminOrders() {
       </section>
 
       {ordersQuery.isLoading ? (
-        <div className="flex min-h-60 items-center justify-center rounded-2xl border border-line bg-white p-10">
+        <div className="flex min-h-60 items-center justify-center rounded-sm border border-line bg-white p-10">
           <Spinner label="Memuat daftar pesanan admin..." />
         </div>
       ) : ordersQuery.isError ? (
@@ -247,7 +247,7 @@ export default function AdminOrders() {
             {items.map((order) => (
               <article
                 key={order.transactionUuid}
-                className="w-full min-w-0 rounded-2xl border border-line bg-white p-4"
+                className="w-full min-w-0 rounded-sm border border-line bg-white p-4"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -262,7 +262,7 @@ export default function AdminOrders() {
                     </p>
                   </div>
 
-                  <span className="shrink-0 rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-xs font-medium text-ink tabular-nums">
+                  <span className="shrink-0 rounded-sm border border-line bg-[#FAFAFA] px-2.5 py-0.5 font-mono text-xs font-medium text-ink tabular-nums">
                     {order.totalQty} pcs
                   </span>
                 </div>
@@ -307,7 +307,7 @@ export default function AdminOrders() {
 
                   <Link
                     to={`/admin/orders/${order.transactionUuid}`}
-                    className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 font-display text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+                    className="inline-flex min-h-touch items-center rounded-sm bg-ink px-4 font-display text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
                   >
                     Detail
                   </Link>
@@ -317,11 +317,11 @@ export default function AdminOrders() {
           </div>
 
           {/* Tabel Desktop */}
-          <div className="hidden overflow-hidden rounded-2xl border border-line bg-white lg:block">
+          <div className="hidden overflow-hidden rounded-sm border border-line bg-white lg:block">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-line bg-surface text-xs font-semibold tracking-wide text-muted uppercase">
+                  <tr className="border-b border-line bg-[#FAFAFA] text-xs font-semibold tracking-wide text-muted uppercase">
                     <th className="px-4 py-3.5">Order</th>
                     <th className="px-4 py-3.5">Pelanggan</th>
                     <th className="px-4 py-3.5">Qty / Metode</th>
@@ -333,7 +333,7 @@ export default function AdminOrders() {
                 </thead>
                 <tbody className="divide-y divide-line">
                   {items.map((order) => (
-                    <tr key={order.transactionUuid} className="hover:bg-surface/60">
+                    <tr key={order.transactionUuid} className="hover:bg-[#FAFAFA]">
                       <td className="px-4 py-4 align-top">
                         <Link
                           to={`/admin/orders/${order.transactionUuid}`}
@@ -402,7 +402,7 @@ export default function AdminOrders() {
                       <td className="px-4 py-4 text-right align-top">
                         <Link
                           to={`/admin/orders/${order.transactionUuid}`}
-                          className="inline-flex min-h-touch items-center rounded-full border border-ink px-4 font-display text-xs font-semibold text-ink transition-colors hover:bg-ink hover:text-white"
+                          className="inline-flex min-h-touch items-center rounded-sm border border-ink px-4 font-display text-xs font-semibold text-ink transition-colors hover:bg-ink hover:text-white"
                         >
                           Detail
                         </Link>
@@ -415,7 +415,7 @@ export default function AdminOrders() {
           </div>
 
           {meta && meta.totalPages > 1 ? (
-            <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-4 sm:flex-row">
+            <div className="flex flex-col items-center justify-between gap-3 rounded-sm border border-line bg-white px-5 py-4 sm:flex-row">
               <p className="text-xs text-muted tabular-nums">
                 Halaman {meta.page} dari {meta.totalPages} · Total {meta.total} pesanan
               </p>

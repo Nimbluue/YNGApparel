@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import useEmblaCarousel from 'embla-carousel-react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Layers, PenTool, Truck } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Layers, PenTool, Truck } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EditorialCarousel } from '../components/home/EditorialCarousel';
 import { EditorialButton } from '../components/ui/EditorialButton';
@@ -11,6 +13,7 @@ import { catalogQueryKeys, getCatalogFabrics, getCatalogModels } from '../servic
 import { formatRupiah } from '../utils/formatRupiah';
 
 const REVEAL_TRANSITION = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
+const HERO_AUTOPLAY_MS = 5000;
 
 export default function Home() {
   const { t } = useLanguage();
@@ -27,44 +30,129 @@ export default function Home() {
     retry: false,
   });
 
-  const models = modelsQuery.data ?? [];
-  const fabrics = fabricsQuery.data ?? [];
+  const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
+  const fabrics = useMemo(() => fabricsQuery.data ?? [], [fabricsQuery.data]);
 
-  const heroModel = models.find((model) => Boolean(model.imageUrl)) ?? models[0] ?? null;
+  const heroSlides = useMemo(() => {
+    const withImages = models.filter((model) => Boolean(model.imageUrl));
+    if (withImages.length > 0) return withImages;
+    if (models[0]) return [models[0]];
+    return [];
+  }, [models]);
+
+  const [heroEmblaRef, heroEmblaApi] = useEmblaCarousel({
+    loop: heroSlides.length > 1,
+    align: 'start',
+  });
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroPaused, setHeroPaused] = useState(false);
+
+  const syncHeroSlide = useCallback(() => {
+    if (!heroEmblaApi) return;
+    setHeroIndex(heroEmblaApi.selectedScrollSnap());
+  }, [heroEmblaApi]);
+
+  useEffect(() => {
+    if (!heroEmblaApi) return;
+    syncHeroSlide();
+    heroEmblaApi.on('select', syncHeroSlide);
+    heroEmblaApi.on('reInit', syncHeroSlide);
+    return () => {
+      heroEmblaApi.off('select', syncHeroSlide);
+      heroEmblaApi.off('reInit', syncHeroSlide);
+    };
+  }, [heroEmblaApi, syncHeroSlide]);
+
+  useEffect(() => {
+    if (!heroEmblaApi || heroSlides.length <= 1 || heroPaused) return;
+    const timer = window.setInterval(() => {
+      heroEmblaApi.scrollNext();
+    }, HERO_AUTOPLAY_MS);
+    return () => window.clearInterval(timer);
+  }, [heroEmblaApi, heroPaused, heroSlides.length]);
+
+  const primaryHeroModel = heroSlides[0] ?? models[0] ?? null;
   const lookbookLeftModel =
-    models.find((model) => Boolean(model.imageUrl) && model.id !== heroModel?.id) ?? heroModel;
+    models.find((model) => Boolean(model.imageUrl) && model.id !== primaryHeroModel?.id) ??
+    primaryHeroModel;
   const lookbookRightModel =
     models.find(
       (model) =>
-        Boolean(model.imageUrl) && model.id !== heroModel?.id && model.id !== lookbookLeftModel?.id
+        Boolean(model.imageUrl) &&
+        model.id !== primaryHeroModel?.id &&
+        model.id !== lookbookLeftModel?.id
     ) ?? null;
   const lookbookRightImage =
     lookbookRightModel?.imageUrl ??
     fabrics.find((fabric) => Boolean(fabric.imageUrl))?.imageUrl ??
     fabrics.find((fabric) => Boolean(fabric.macroImageUrl))?.macroImageUrl ??
-    heroModel?.imageUrl ??
+    primaryHeroModel?.imageUrl ??
     null;
 
   return (
     <div className="w-full">
-      {/* 1. Hero Full-Bleed Minim Teks */}
-      <section className="relative flex min-h-[68vh] w-full items-end overflow-hidden bg-[#0B0B0B] text-white md:min-h-[78vh]">
-        {heroModel?.imageUrl ? (
-          <img
-            src={heroModel.imageUrl}
-            alt={heroModel.name}
-            className="absolute inset-0 h-full w-full object-cover object-center opacity-75"
-          />
+      {/* 1. Hero Editorial Carousel */}
+      <section
+        aria-label={t('home.heroTitle')}
+        onMouseEnter={() => setHeroPaused(true)}
+        onMouseLeave={() => setHeroPaused(false)}
+        onFocusCapture={() => setHeroPaused(true)}
+        onBlurCapture={() => setHeroPaused(false)}
+        className="relative flex min-h-[68vh] w-full items-end overflow-hidden bg-[#0B0B0B] text-white md:min-h-[78vh]"
+      >
+        {heroSlides.length > 0 ? (
+          <div ref={heroEmblaRef} className="absolute inset-0 overflow-hidden">
+            <div className="flex h-full">
+              {heroSlides.map((slide) => (
+                <div key={slide.id} className="relative h-full min-w-0 flex-[0_0_100%]">
+                  {slide.imageUrl ? (
+                    <img
+                      src={slide.imageUrl}
+                      alt={slide.name}
+                      className="h-full w-full object-cover object-center opacity-75"
+                    />
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      className="h-full w-full bg-[radial-gradient(circle_at_75%_25%,#262626_0%,#0B0B0B_70%)]"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-[radial-gradient(circle_at_75%_25%,#262626_0%,#0B0B0B_70%)]"
           />
         )}
+
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/25"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/25"
         />
+
+        {heroSlides.length > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => heroEmblaApi?.scrollPrev()}
+              aria-label={t('home.prevSlide')}
+              className="absolute left-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-sm border border-white/25 bg-black/40 text-white backdrop-blur-xs transition-colors hover:border-white hover:bg-black/70 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white md:inline-flex"
+            >
+              <ChevronLeft size={18} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => heroEmblaApi?.scrollNext()}
+              aria-label={t('home.nextSlide')}
+              className="absolute right-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-sm border border-white/25 bg-black/40 text-white backdrop-blur-xs transition-colors hover:border-white hover:bg-black/70 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white md:inline-flex"
+            >
+              <ChevronRight size={18} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </>
+        ) : null}
 
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -80,20 +168,37 @@ export default function Home() {
           </h1>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <EditorialButton
-              to="/custom-lab"
-              className="w-full border-white bg-white text-[#0B0B0B] hover:border-neutral-200 hover:bg-neutral-200 sm:w-auto"
-            >
+            <EditorialButton to="/custom-lab" variant="inverse" className="w-full sm:w-auto">
               {t('home.heroCtaLab')}
             </EditorialButton>
-            <EditorialButton
-              to="/katalog"
-              variant="secondary"
-              className="w-full border-white/75 bg-transparent text-white hover:border-white hover:bg-white hover:text-[#0B0B0B] sm:w-auto"
-            >
+            <EditorialButton to="/katalog" variant="outlineInverse" className="w-full sm:w-auto">
               {t('home.heroCtaCatalog')}
             </EditorialButton>
           </div>
+
+          {heroSlides.length > 1 ? (
+            <div className="mt-6 flex items-center gap-2">
+              {heroSlides.map((slide, idx) => {
+                const isActive = idx === heroIndex;
+                return (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    onClick={() => heroEmblaApi?.scrollTo(idx)}
+                    aria-label={t('home.heroGoToSlide', { index: idx + 1 })}
+                    aria-current={isActive ? 'true' : undefined}
+                    className="inline-flex min-h-[28px] items-center py-2 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
+                  >
+                    <span
+                      className={`block h-0.5 transition-all duration-300 ${
+                        isActive ? 'w-8 bg-white' : 'w-4 bg-white/35 hover:bg-white/60'
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </motion.div>
       </section>
 
@@ -165,10 +270,10 @@ export default function Home() {
         aria-label="Studio Lookbook"
         className="mx-auto w-full max-w-[1400px] px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8 xl:px-12"
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 sm:gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
           <Link
             to="/custom-lab"
-            className="group relative flex aspect-[4/5] w-full items-end overflow-hidden bg-[#141414] md:aspect-[5/6] focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+            className="group relative flex aspect-[4/5] w-full items-end overflow-hidden bg-[#141414] focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 md:aspect-[5/6]"
           >
             {lookbookLeftModel?.imageUrl ? (
               <img
@@ -197,7 +302,7 @@ export default function Home() {
 
           <Link
             to="/katalog"
-            className="group relative flex aspect-[4/5] w-full items-end overflow-hidden bg-[#1D1D1D] md:aspect-[5/6] focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+            className="group relative flex aspect-[4/5] w-full items-end overflow-hidden bg-[#1D1D1D] focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 md:aspect-[5/6]"
           >
             {lookbookRightImage ? (
               <img

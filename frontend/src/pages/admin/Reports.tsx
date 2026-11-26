@@ -1,5 +1,6 @@
 import { getFulfillmentLabel, type ReportExportType, type ReportGroupBy } from '@yng/shared';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
@@ -162,7 +163,7 @@ export default function Reports() {
   return (
     <div className="w-full min-w-0 space-y-6">
       {/* Header & Filter Rentang Tanggal */}
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <p className="eyebrow">Ruang Produksi · Analitik Bisnis</p>
@@ -211,18 +212,19 @@ export default function Reports() {
             ).map((btn) => {
               const isActive = preset === btn.key;
               return (
-                <button
+                <motion.button
                   key={btn.key}
                   type="button"
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => handleSelectPreset(btn.key)}
-                  className={`inline-flex min-h-touch items-center rounded-full border px-4 font-display text-xs font-semibold transition-colors ${
+                  className={`inline-flex min-h-touch items-center rounded-sm border px-4 font-display text-xs font-semibold transition-colors ${
                     isActive
                       ? 'border-ink bg-ink text-white'
-                      : 'border-line bg-surface text-ink hover:border-ink'
+                      : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                   }`}
                 >
                   {btn.label}
-                </button>
+                </motion.button>
               );
             })}
           </div>
@@ -285,7 +287,7 @@ export default function Reports() {
 
       {/* Kartu KPI Periode + Snapshot Operasional Live */}
       {dashboardQuery.isLoading ? (
-        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-line bg-white p-8">
+        <div className="flex min-h-40 items-center justify-center rounded-sm border border-line bg-white p-8">
           <Spinner label="Menghitung ringkasan KPI & laporan..." />
         </div>
       ) : dashboardQuery.isError ? (
@@ -297,7 +299,12 @@ export default function Reports() {
       ) : kpi && operational ? (
         <>
           <section className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-2xl border border-ink bg-ink p-4 text-white sm:p-5">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className="rounded-sm border border-ink bg-ink p-4 text-white sm:p-5"
+            >
               <p className="text-xs text-neutral-300">Omzet Terverifikasi Bersih</p>
               <p className="tabular-price mt-2 font-display text-2xl font-bold">
                 {formatRupiah(kpi.verifiedRevenue)}
@@ -306,9 +313,14 @@ export default function Reports() {
                 Masuk {formatRupiah(kpi.grossVerifiedPayments)} · Refund{' '}
                 {formatRupiah(kpi.refundedAmount)}
               </p>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.03 }}
+              className="rounded-sm border border-line bg-white p-4 transition-colors hover:border-ink sm:p-5"
+            >
               <p className="text-xs text-muted">Total Order Masuk</p>
               <p className="tabular-price mt-2 font-display text-2xl font-bold text-ink">
                 {kpi.totalOrders}
@@ -316,17 +328,27 @@ export default function Reports() {
               <p className="tabular-price mt-1 text-xs text-muted">
                 {kpi.totalQty} pcs · {kpi.activeOrders} aktif
               </p>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.06 }}
+              className="rounded-sm border border-line bg-white p-4 transition-colors hover:border-ink sm:p-5"
+            >
               <p className="text-xs text-muted">Order Selesai</p>
               <p className="tabular-price mt-2 font-display text-2xl font-bold text-status-ok">
                 {kpi.completedOrders}
               </p>
               <p className="mt-1 text-xs text-muted">Tuntas dikirim / diambil</p>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.09 }}
+              className="rounded-sm border border-line bg-white p-4 transition-colors hover:border-ink sm:p-5"
+            >
               <p className="text-xs text-muted">Order Dibatalkan</p>
               <p className="tabular-price mt-2 font-display text-2xl font-bold text-status-err">
                 {kpi.cancelledOrders}
@@ -334,19 +356,24 @@ export default function Reports() {
               <p className="tabular-price mt-1 text-xs text-muted">
                 Refund {formatRupiah(kpi.refundedAmount)}
               </p>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, delay: 0.12 }}
+              className="rounded-sm border border-line bg-white p-4 transition-colors hover:border-ink sm:p-5"
+            >
               <p className="text-xs text-muted">Sisa Piutang Berjalan</p>
               <p className="tabular-price mt-2 font-display text-2xl font-bold text-status-warn">
                 {formatRupiah(kpi.outstandingBalance)}
               </p>
               <p className="mt-1 text-xs text-muted">Dari order non-batal</p>
-            </div>
+            </motion.div>
           </section>
 
           {/* Strip Snapshot Operasional Saat Ini */}
-          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
+          <section className="rounded-sm border border-line bg-white p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-line">
               <p className="eyebrow">Snapshot Operasional Live</p>
               <div className="flex flex-wrap gap-2 text-xs">
@@ -387,7 +414,7 @@ export default function Reports() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-xl border border-line bg-surface px-3 py-2.5"
+                  className="rounded-sm border border-line bg-[#FAFAFA] px-3 py-2.5"
                 >
                   <p className="text-[11px] text-muted">{stat.label}</p>
                   <p
@@ -405,7 +432,7 @@ export default function Reports() {
       ) : null}
 
       {/* Navigasi Tab Laporan */}
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 space-y-5">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-5">
         <div
           role="tablist"
           aria-label="Kategori laporan"
@@ -420,10 +447,10 @@ export default function Reports() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex min-h-touch shrink-0 items-center rounded-full border px-4 font-display text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`inline-flex min-h-touch shrink-0 items-center rounded-sm border px-4 font-display text-xs font-semibold whitespace-nowrap transition-colors ${
                   isActive
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-surface text-ink hover:border-ink'
+                    : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                 }`}
               >
                 {tab.label}
@@ -446,7 +473,7 @@ export default function Reports() {
             <div className="space-y-6">
               {/* Breakdown Sumber & Status */}
               <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
+                <div className="rounded-sm border border-line bg-[#FAFAFA] p-4 space-y-3">
                   <h2 className="font-display text-sm font-bold text-ink">Distribusi Sumber</h2>
                   {salesQuery.data.bySource.length === 0 ? (
                     <p className="text-xs text-muted">Belum ada order pada periode ini.</p>
@@ -466,9 +493,9 @@ export default function Reports() {
                                 {formatRupiah(src.grandTotal)}
                               </span>
                             </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white">
+                            <div className="h-1.5 w-full overflow-hidden rounded-sm bg-white">
                               <div
-                                className="h-full rounded-full bg-ink"
+                                className="h-full rounded-sm bg-ink"
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -479,7 +506,7 @@ export default function Reports() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
+                <div className="rounded-sm border border-line bg-[#FAFAFA] p-4 space-y-3">
                   <h2 className="font-display text-sm font-bold text-ink">
                     Distribusi Status Produksi
                   </h2>
@@ -490,7 +517,7 @@ export default function Reports() {
                       {salesQuery.data.byStatus.map((st) => (
                         <div
                           key={st.status}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-white px-3 py-2 text-xs"
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-3 py-2 text-xs"
                         >
                           <ProductionBadge status={st.status} />
                           <span className="tabular-price font-medium text-ink">
@@ -516,7 +543,7 @@ export default function Reports() {
                     {salesQuery.data.series.map((row) => (
                       <div
                         key={row.period}
-                        className="rounded-xl border border-line bg-surface p-3.5 text-xs space-y-1.5"
+                        className="rounded-sm border border-line bg-[#FAFAFA] p-3.5 text-xs space-y-1.5"
                       >
                         <div className="flex justify-between font-semibold text-ink">
                           <span className="font-mono tabular-nums">{row.period}</span>
@@ -536,7 +563,7 @@ export default function Reports() {
                   <div className="hidden overflow-x-auto md:block">
                     <table className="w-full border-collapse text-left text-sm">
                       <thead>
-                        <tr className="border-b border-line bg-surface text-xs font-semibold text-muted uppercase">
+                        <tr className="border-b border-line bg-[#FAFAFA] text-xs font-semibold text-muted uppercase">
                           <th className="px-4 py-3">Periode</th>
                           <th className="px-4 py-3 text-right">Order</th>
                           <th className="px-4 py-3 text-right">Total Pcs</th>
@@ -547,7 +574,7 @@ export default function Reports() {
                       </thead>
                       <tbody className="divide-y divide-line">
                         {salesQuery.data.series.map((row) => (
-                          <tr key={row.period} className="hover:bg-surface/60">
+                          <tr key={row.period} className="hover:bg-[#FAFAFA]">
                             <td className="px-4 py-3 font-mono text-xs font-semibold text-ink tabular-nums">
                               {row.period}
                             </td>
@@ -594,7 +621,7 @@ export default function Reports() {
                 {topModelsQuery.data.items.map((item, idx) => (
                   <div
                     key={item.modelId}
-                    className="rounded-xl border border-line bg-surface p-4 space-y-2 text-xs"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4 space-y-2 text-xs"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-display text-sm font-bold text-ink">
@@ -613,7 +640,7 @@ export default function Reports() {
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-line bg-surface text-xs font-semibold text-muted uppercase">
+                    <tr className="border-b border-line bg-[#FAFAFA] text-xs font-semibold text-muted uppercase">
                       <th className="px-4 py-3">Peringkat</th>
                       <th className="px-4 py-3">Model Pakaian</th>
                       <th className="px-4 py-3 text-right">Order</th>
@@ -624,7 +651,7 @@ export default function Reports() {
                   </thead>
                   <tbody className="divide-y divide-line">
                     {topModelsQuery.data.items.map((item, idx) => (
-                      <tr key={item.modelId} className="hover:bg-surface/60">
+                      <tr key={item.modelId} className="hover:bg-[#FAFAFA]">
                         <td className="px-4 py-3 font-mono text-xs font-bold text-ink tabular-nums">
                           #{idx + 1}
                         </td>
@@ -640,9 +667,9 @@ export default function Reports() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center gap-2">
-                            <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface">
+                            <span className="h-1.5 w-16 overflow-hidden rounded-sm bg-[#FAFAFA]">
                               <span
-                                className="block h-full rounded-full bg-ink"
+                                className="block h-full rounded-sm bg-ink"
                                 style={{ width: `${Math.min(100, item.revenueSharePercent)}%` }}
                               />
                             </span>
@@ -681,7 +708,7 @@ export default function Reports() {
                 {customersQuery.data.items.map((c, idx) => (
                   <div
                     key={c.customerWhatsapp}
-                    className="rounded-xl border border-line bg-surface p-4 space-y-1.5 text-xs"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4 space-y-1.5 text-xs"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-display text-sm font-bold text-ink">
@@ -706,7 +733,7 @@ export default function Reports() {
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-line bg-surface text-xs font-semibold text-muted uppercase">
+                    <tr className="border-b border-line bg-[#FAFAFA] text-xs font-semibold text-muted uppercase">
                       <th className="px-4 py-3">Pelanggan</th>
                       <th className="px-4 py-3">Tipe</th>
                       <th className="px-4 py-3 text-right">Order</th>
@@ -718,7 +745,7 @@ export default function Reports() {
                   </thead>
                   <tbody className="divide-y divide-line">
                     {customersQuery.data.items.map((c) => (
-                      <tr key={c.customerWhatsapp} className="hover:bg-surface/60">
+                      <tr key={c.customerWhatsapp} className="hover:bg-[#FAFAFA]">
                         <td className="px-4 py-3">
                           <p className="font-display font-semibold text-ink">{c.customerName}</p>
                           <p className="font-mono text-xs text-muted tabular-nums">
@@ -771,7 +798,7 @@ export default function Reports() {
                 {ordersQuery.data.rows.map((r) => (
                   <article
                     key={r.transactionUuid}
-                    className="rounded-xl border border-line bg-surface p-4 space-y-2 text-xs"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4 space-y-2 text-xs"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <Link
@@ -800,7 +827,7 @@ export default function Reports() {
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-line bg-surface text-xs font-semibold text-muted uppercase">
+                    <tr className="border-b border-line bg-[#FAFAFA] text-xs font-semibold text-muted uppercase">
                       <th className="px-4 py-3">Kode</th>
                       <th className="px-4 py-3">Pelanggan</th>
                       <th className="px-4 py-3">Status</th>
@@ -812,7 +839,7 @@ export default function Reports() {
                   </thead>
                   <tbody className="divide-y divide-line">
                     {ordersQuery.data.rows.map((r) => (
-                      <tr key={r.transactionUuid} className="hover:bg-surface/60">
+                      <tr key={r.transactionUuid} className="hover:bg-[#FAFAFA]">
                         <td className="px-4 py-3">
                           <Link
                             to={`/admin/orders/${r.transactionUuid}`}

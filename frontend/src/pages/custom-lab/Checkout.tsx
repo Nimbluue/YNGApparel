@@ -828,8 +828,8 @@ export default function Checkout() {
                           setShippingForm((prev) => ({ ...prev, fullAddress: e.target.value }))
                         }
                         placeholder={pick(
-                          'Nama jalan, nomor rumah/ruko, RT/RW, patokan',
-                          'Street name, house/unit number, landmarks'
+                          'Nama jalan, no., RT/RW, patokan',
+                          'Street, unit, landmarks'
                         )}
                         className="input-sharp mt-1.5 min-h-[88px] resize-y py-2"
                       />

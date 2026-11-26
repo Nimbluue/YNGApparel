@@ -275,7 +275,7 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
                     type="button"
                     onClick={() => void handleToggleActive(size)}
                     disabled={busyId === size.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       size.isActive
                         ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
                         : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'

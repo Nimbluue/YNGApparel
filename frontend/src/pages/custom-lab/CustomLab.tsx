@@ -182,6 +182,9 @@ export default function CustomLab() {
   const [uploadingSpotKey, setUploadingSpotKey] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [catalogModalOpen, setCatalogModalOpen] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(
+    () => readInitialDraft().productionNotes.trim().length > 0
+  );
 
   const hydratedEditUuidRef = useRef<string | null>(null);
   const quoteRequestIdRef = useRef(0);
@@ -240,6 +243,7 @@ export default function CustomLab() {
     }
 
     hydratedEditUuidRef.current = editCartItemUuid;
+    setNotesExpanded(Boolean(targetItem.config.productionNotes?.trim()));
     setServerQuote(null);
     setQuoteError(null);
     setActionFeedback(null);
@@ -1394,32 +1398,43 @@ export default function CustomLab() {
             />
           </section>
 
-          {/* 05 · Catatan Produksi */}
+          {/* 05 · Catatan Produksi (Collapsible) */}
           <section className="space-y-3" aria-labelledby="step-notes-heading">
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="step-notes-heading" className="font-display text-base font-semibold text-ink">
                 <span className="tabular-price mr-1.5 text-muted">05</span>{' '}
                 {pick('Catatan Produksi', 'Production Notes')}
               </h2>
-              <span className="text-xs text-muted">
-                {pick('Opsional · maks. 500 karakter', 'Optional · max 500 chars')}
-              </span>
+              <button
+                type="button"
+                aria-expanded={notesExpanded}
+                aria-controls="custom-lab-notes-panel"
+                onClick={() => setNotesExpanded((prev) => !prev)}
+                className="inline-flex min-h-[36px] items-center rounded-sm border border-line bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
+              >
+                {notesExpanded ? t('notes.hideProductionNote') : t('notes.addProductionNote')}
+              </button>
             </div>
-            <textarea
-              id="custom-lab-production-notes"
-              rows={3}
-              maxLength={500}
-              value={draft.productionNotes}
-              onChange={(event) => {
-                setActionFeedback(null);
-                setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
-              }}
-              placeholder={pick(
-                'Contoh: posisi logo 3 cm di bawah kerah, atau instruksi khusus untuk tim desain.',
-                'Example: logo 3 cm below collar, or specific notes for the design team.'
-              )}
-              className="input-sharp min-h-[88px] resize-y py-2.5"
-            />
+
+            {notesExpanded ? (
+              <div id="custom-lab-notes-panel" className="space-y-1.5">
+                <textarea
+                  id="custom-lab-production-notes"
+                  rows={3}
+                  maxLength={500}
+                  value={draft.productionNotes}
+                  onChange={(event) => {
+                    setActionFeedback(null);
+                    setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
+                  }}
+                  placeholder={t('notes.productionPlaceholder')}
+                  className="input-sharp min-h-[84px] resize-y py-2.5"
+                />
+                <p className="text-right font-mono text-[11px] text-muted tabular-nums">
+                  {draft.productionNotes.length}/500
+                </p>
+              </div>
+            ) : null}
           </section>
 
           <PriceSummary

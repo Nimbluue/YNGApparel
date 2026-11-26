@@ -592,7 +592,7 @@ export default function Cart() {
             </div>
 
             {/* Ringkasan Keranjang & Gatekeeper DP */}
-            <aside className="w-full min-w-0 lg:sticky lg:top-28 lg:col-span-4">
+            <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-4">
               <div className="w-full space-y-5 rounded-sm border border-line bg-white p-5 sm:p-6">
                 <div className="border-b border-line pb-4">
                   <p className="eyebrow">{pick('Ringkasan Keranjang', 'Bag Summary')}</p>
@@ -757,7 +757,7 @@ export default function Cart() {
                             [size.id]: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
                           }));
                         }}
-                        className="input-sharp tabular-price bg-white"
+                        className="input-sharp tabular-price no-spinner bg-white"
                       />
                     </label>
                   );

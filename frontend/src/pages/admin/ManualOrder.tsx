@@ -531,7 +531,7 @@ export default function ManualOrder() {
 
   if (catalogLoading) {
     return (
-      <div className="flex min-h-72 items-center justify-center rounded-2xl border border-line bg-white p-10">
+      <div className="flex min-h-72 items-center justify-center rounded-sm border border-line bg-white p-10">
         <Spinner label="Memuat katalog aktif untuk form order manual..." />
       </div>
     );
@@ -553,7 +553,7 @@ export default function ManualOrder() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <Link to="/admin/kanban" className="hover:text-ink hover:underline">
             Kanban
@@ -599,7 +599,7 @@ export default function ManualOrder() {
         {/* Kolom Kiri — Pelanggan & Daftar Item */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7 xl:col-span-8">
           {/* 1. Sumber & Data Pelanggan */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 space-y-4">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-4">
             <div>
               <p className="eyebrow">01 · Data Pemesan</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -697,7 +697,7 @@ export default function ManualOrder() {
               </div>
             ) : null}
 
-            <details className="rounded-xl border border-line bg-surface p-3.5">
+            <details className="rounded-sm border border-line bg-[#FAFAFA] p-3.5">
               <summary className="cursor-pointer font-display text-xs font-semibold text-ink">
                 Tautkan ke Akun Website Pelanggan (Opsional — biarkan kosong jika tanpa akun)
               </summary>
@@ -713,7 +713,7 @@ export default function ManualOrder() {
           </section>
 
           {/* 2. Rincian Item Kustomisasi */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 space-y-5">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="eyebrow">02 · Spesifikasi Item</p>
@@ -750,14 +750,14 @@ export default function ManualOrder() {
                 return (
                   <article
                     key={item.localId}
-                    className="rounded-2xl border border-line bg-surface p-4 sm:p-5 space-y-4"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4 sm:p-5 space-y-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
                       <div className="flex items-center gap-2">
                         <span className="font-display text-sm font-bold text-ink">
                           Item #{idx + 1}
                         </span>
-                        <span className="rounded-full border border-line bg-white px-2.5 py-0.5 font-mono text-xs text-ink tabular-nums">
+                        <span className="rounded-sm border border-line bg-white px-2.5 py-0.5 font-mono text-xs text-ink tabular-nums">
                           {itemTotalQty} pcs
                         </span>
                       </div>
@@ -908,7 +908,7 @@ export default function ManualOrder() {
                           return (
                             <label
                               key={sz.id}
-                              className="flex flex-col gap-1 rounded-xl border border-line bg-white p-2.5 text-xs"
+                              className="flex flex-col gap-1 rounded-sm border border-line bg-white p-2.5 text-xs"
                             >
                               <span className="font-mono font-bold text-ink">
                                 {sz.code}
@@ -979,7 +979,7 @@ export default function ManualOrder() {
                       {item.prints.map((spot) => (
                         <div
                           key={spot.localId}
-                          className="rounded-xl border border-line bg-white p-3 space-y-2.5"
+                          className="rounded-sm border border-line bg-white p-3 space-y-2.5"
                         >
                           <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
                             <Select
@@ -1043,7 +1043,7 @@ export default function ManualOrder() {
                                     void handleUploadSpotFile(item.localId, spot.localId, f);
                                   }
                                 }}
-                                className="block w-full text-xs text-muted file:mr-3 file:min-h-touch file:rounded-full file:border file:border-line-strong file:bg-surface file:px-3.5 file:text-xs file:font-semibold file:text-ink"
+                                className="block w-full text-xs text-muted file:mr-3 file:min-h-touch file:rounded-sm file:border file:border-line-strong file:bg-[#FAFAFA] file:px-3.5 file:text-xs file:font-semibold file:text-ink"
                               />
                               {spot.fileName ? (
                                 <p className="mt-1 truncate font-mono text-[11px] text-status-ok">
@@ -1090,7 +1090,7 @@ export default function ManualOrder() {
 
         {/* Kolom Kanan — Ringkasan Tagihan, Skema Bayar & Submit */}
         <aside className="w-full min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-span-5 xl:col-span-4">
-          <section className="rounded-2xl border border-ink bg-white p-5 space-y-4">
+          <section className="rounded-sm border border-ink bg-white p-5 space-y-4">
             <div>
               <p className="eyebrow">03 · Tagihan &amp; Pembayaran</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -1149,10 +1149,10 @@ export default function ManualOrder() {
                 <button
                   type="button"
                   onClick={() => setPaymentScheme(PAYMENT_SCHEME.FULL)}
-                  className={`min-h-touch rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                  className={`min-h-touch rounded-sm border px-3 py-2 text-xs font-semibold transition-colors ${
                     effectiveScheme === PAYMENT_SCHEME.FULL
                       ? 'border-ink bg-ink text-white'
-                      : 'border-line bg-surface text-ink hover:border-ink'
+                      : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                   }`}
                 >
                   Lunas (100%)
@@ -1161,10 +1161,10 @@ export default function ManualOrder() {
                   type="button"
                   disabled={!dpEligible}
                   onClick={() => setPaymentScheme(PAYMENT_SCHEME.DP)}
-                  className={`min-h-touch rounded-xl border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                  className={`min-h-touch rounded-sm border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                     effectiveScheme === PAYMENT_SCHEME.DP
                       ? 'border-ink bg-ink text-white'
-                      : 'border-line bg-surface text-ink hover:border-ink'
+                      : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                   }`}
                 >
                   DP {dpPercent}%
@@ -1226,7 +1226,7 @@ export default function ManualOrder() {
               </label>
 
               {paymentReceived ? (
-                <div className="grid w-full grid-cols-1 gap-2.5 rounded-xl border border-line bg-surface p-3">
+                <div className="grid w-full grid-cols-1 gap-2.5 rounded-sm border border-line bg-[#FAFAFA] p-3">
                   <Select
                     label="Metode Diterima"
                     value={paymentMethod}
