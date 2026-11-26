@@ -54,8 +54,13 @@
     color: var(--yng-bg);
   }
 
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible) {
+    outline: none;
+  }
+
   :focus-visible {
-    outline: 2px solid var(--yng-ink);
+    outline: 1px solid var(--yng-ink);
     outline-offset: 2px;
   }
 

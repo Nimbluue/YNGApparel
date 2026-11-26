@@ -9,6 +9,7 @@ export interface IconTooltipProps {
   children: ReactNode;
   onClick?: MouseEventHandler<HTMLElement>;
   to?: string;
+  href?: string;
   state?: unknown;
   badge?: number;
   ariaExpanded?: boolean;
@@ -16,17 +17,20 @@ export interface IconTooltipProps {
   ariaHaspopup?: boolean | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
   buttonRef?: Ref<HTMLButtonElement>;
   className?: string;
+  tone?: 'light' | 'dark';
+  tooltipPosition?: 'bottom' | 'top' | 'left';
   hideTooltip?: boolean;
 }
 
 /**
- * Pembungkus tombol/tautan ikon dengan tactile hover/tap dan tooltip ringkas di bawah ikon.
+ * Pembungkus tombol/tautan ikon dengan tactile hover/tap dan tooltip ringkas.
  */
 export function IconTooltip({
   label,
   children,
   onClick,
   to,
+  href,
   state,
   badge,
   ariaExpanded,
@@ -34,6 +38,8 @@ export function IconTooltip({
   ariaHaspopup,
   buttonRef,
   className = '',
+  tone = 'light',
+  tooltipPosition = 'bottom',
   hideTooltip = false,
 }: IconTooltipProps) {
   const [visible, setVisible] = useState(false);
@@ -41,12 +47,25 @@ export function IconTooltip({
   const hasBadge = typeof badge === 'number' && badge > 0;
   const accessibleLabel = hasBadge ? `${label} (${badge})` : label;
 
+  const toneClasses =
+    tone === 'dark'
+      ? 'border border-white/15 bg-[#0B0B0B] text-white shadow-lg hover:bg-neutral-800 focus-visible:ring-white'
+      : 'text-ink hover:bg-surface focus-visible:ring-neutral-900';
+
   const triggerClasses = [
-    'relative inline-flex min-h-touch min-w-touch items-center justify-center rounded-sm text-ink transition-colors duration-150 hover:bg-surface',
+    'relative inline-flex min-h-touch min-w-touch items-center justify-center rounded-sm transition-colors duration-150 focus:outline-none focus-visible:outline-none focus-visible:ring-1',
+    toneClasses,
     className || 'h-11 w-11',
   ]
     .filter(Boolean)
     .join(' ');
+
+  const tooltipPositionClass =
+    tooltipPosition === 'left'
+      ? 'right-full top-1/2 z-50 mr-2 -translate-y-1/2'
+      : tooltipPosition === 'top'
+        ? 'bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2'
+        : 'left-1/2 top-full z-50 mt-1.5 -translate-x-1/2';
 
   const showHandlers = {
     onMouseEnter: () => setVisible(true),
@@ -71,7 +90,20 @@ export function IconTooltip({
 
   return (
     <div className="relative inline-flex items-center" {...showHandlers}>
-      {to ? (
+      {href ? (
+        <motion.a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onClick}
+          aria-label={accessibleLabel}
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.94 }}
+          className={triggerClasses}
+        >
+          {inner}
+        </motion.a>
+      ) : to ? (
         <MotionLink
           to={to}
           state={state}
@@ -102,12 +134,12 @@ export function IconTooltip({
 
       <AnimatePresence>
         {visible && !hideTooltip ? (
-          <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 -translate-x-1/2">
+          <div className={`pointer-events-none absolute ${tooltipPositionClass}`}>
             <motion.span
               role="tooltip"
-              initial={{ opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: tooltipPosition === 'left' ? 0 : 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
+              exit={{ opacity: 0, y: tooltipPosition === 'left' ? 0 : 4 }}
               transition={{ duration: 0.15 }}
               className="block whitespace-nowrap rounded-sm bg-ink px-2 py-1 text-[11px] font-medium tracking-[0.06em] text-white"
             >

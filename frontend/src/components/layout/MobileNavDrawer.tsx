@@ -189,9 +189,9 @@ export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDraw
 
               <div className="space-y-3 py-4">
                 <Link
-                  to="/akun?tab=wishlist"
+                  to="/wishlist"
                   onClick={onClose}
-                  className="flex min-h-touch items-center justify-between gap-2.5 text-sm font-medium text-ink"
+                  className="flex min-h-touch items-center justify-between gap-2.5 text-sm font-medium text-ink focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
                 >
                   <span className="inline-flex items-center gap-2.5">
                     <Heart size={18} strokeWidth={1.5} aria-hidden="true" />

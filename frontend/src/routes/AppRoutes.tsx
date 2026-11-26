@@ -4,6 +4,7 @@ import PublicLayout from '../layouts/PublicLayout';
 import Catalog from '../pages/Catalog';
 import Home from '../pages/Home';
 import NotFound from '../pages/NotFound';
+import Wishlist from '../pages/Wishlist';
 import Account from '../pages/account/Account';
 import MyOrderDetail from '../pages/account/MyOrderDetail';
 import MyOrders from '../pages/account/MyOrders';
@@ -38,6 +39,7 @@ export default function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/katalog" element={<Catalog />} />
         <Route path="/catalog" element={<RedirectPreservingSearch to="/katalog" />} />
+        <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/custom-lab" element={<CustomLab />} />

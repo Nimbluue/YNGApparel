@@ -134,11 +134,7 @@ export function SiteHeader() {
               <IconTooltip label={t('tooltip.search')} onClick={openSearch}>
                 <Search size={20} strokeWidth={1.5} aria-hidden="true" />
               </IconTooltip>
-              <IconTooltip
-                label={t('tooltip.wishlist')}
-                to="/akun?tab=wishlist"
-                badge={wishlistCount}
-              >
+              <IconTooltip label={t('tooltip.wishlist')} to="/wishlist" badge={wishlistCount}>
                 <Heart size={20} strokeWidth={1.5} aria-hidden="true" />
               </IconTooltip>
               <IconTooltip label={t('tooltip.cart')} badge={cartBadgeCount} onClick={openCart}>
