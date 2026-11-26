@@ -14,6 +14,8 @@ import Register from '../pages/auth/Register';
 import Cart from '../pages/custom-lab/Cart';
 import Checkout from '../pages/custom-lab/Checkout';
 import CustomLab from '../pages/custom-lab/CustomLab';
+import TrackDetail from '../pages/track/TrackDetail';
+import TrackLookup from '../pages/track/TrackLookup';
 import AdminRoute from './AdminRoute';
 import ProtectedRoute from './ProtectedRoute';
 
@@ -78,26 +80,10 @@ export default function AppRoutes() {
         <Route path="/custom-lab" element={<CustomLab />} />
 
         {/* Live Tracker — Publik (Tahap 4) */}
-        <Route
-          path="/track"
-          element={
-            <StagePlaceholder
-              stage="Tahap 4"
-              title="Live Tracker"
-              description="Pantau status produksi dan informasi pengiriman pesanan menggunakan kode order dan 4 digit akhir WhatsApp."
-            />
-          }
-        />
-        <Route
-          path="/track/:uuid"
-          element={
-            <StagePlaceholder
-              stage="Tahap 4"
-              title="Detail Tracker"
-              description="Ringkasan progres produksi dan pengiriman untuk tautan tracker pesanan."
-            />
-          }
-        />
+        <Route path="/track" element={<TrackLookup />} />
+        <Route path="/track/:uuid" element={<TrackDetail />} />
+        <Route path="/lacak" element={<Navigate to="/track" replace />} />
+        <Route path="/lacak/:uuid" element={<TrackDetail />} />
 
         {/* Route terlindungi USER */}
         <Route element={<ProtectedRoute />}>

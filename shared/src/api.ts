@@ -786,3 +786,66 @@ export interface OrderDetailDto {
   qcPhotos: OrderQcPhotoDto[];
   statusHistory: OrderStatusHistoryDto[];
 }
+
+export interface TrackOrderLookupRequestDto {
+  code: string;
+  whatsappLast4: string;
+}
+
+export type TrackerStageKey =
+  'NEW_ORDER' | 'PRINT_QUEUE' | 'PRESSING_QC' | 'AWAITING_SETTLEMENT' | 'SHIPPING';
+
+export type TrackerStageState = 'completed' | 'current' | 'upcoming' | 'skipped' | 'cancelled';
+
+export interface TrackerProductionStageDto {
+  step: number;
+  key: TrackerStageKey;
+  label: string;
+  state: TrackerStageState;
+}
+
+export interface TrackerOrderDto {
+  transactionUuid: string;
+  orderCode: string;
+  source: OrderSource;
+  customerNameMasked: string;
+  customerWhatsappMasked: string;
+  fulfillmentType: FulfillmentType;
+  cityName: string | null;
+  provinceName: string | null;
+  addressSummaryMasked: string | null;
+  totalQty: number;
+  dpMinQtySnapshot: number;
+  isDpEligible: boolean;
+  paymentScheme: PaymentScheme;
+  dpPercentSnapshot: number | null;
+  subtotalAmount: Rupiah;
+  discountAmount: Rupiah;
+  discountNote: string | null;
+  shippingCost: Rupiah;
+  grandTotal: Rupiah;
+  dpRequiredAmount: Rupiah;
+  remainingBalance: Rupiah;
+  productionStatus: ProductionStatus;
+  designStatus: DesignStatus;
+  designReviewNotes: string | null;
+  estimatedFinishDate: string | null;
+  shippingCourier: string | null;
+  shippingService: string | null;
+  trackingReceiptNumber: string | null;
+  courierInfo: CourierInfo | null;
+  trackingUrl: string | null;
+  shippedAt: string | null;
+  paymentDueAt: string | null;
+  cancelledReason: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  stages: TrackerProductionStageDto[];
+  items: OrderItemDto[];
+  payments: OrderPaymentDto[];
+  paymentAccounts: PublicPaymentAccountDto[];
+  qcPhotos: OrderQcPhotoDto[];
+  statusHistory: OrderStatusHistoryDto[];
+}

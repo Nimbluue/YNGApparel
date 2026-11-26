@@ -215,6 +215,15 @@ export interface OrderRepository {
   } | null>;
 }
 
+export interface TrackerRepository {
+  findOrderDetailByUuid(
+    transactionUuid: string,
+    userId?: number
+  ): Promise<OrderDetailRecord | null>;
+  findOrderDetailByOrderCode(orderCode: string): Promise<OrderDetailRecord | null>;
+  getSignedUrlExpirySeconds(): Promise<number>;
+}
+
 const ORDER_COLUMNS =
   'id, transaction_uuid, order_code, user_id, source, idempotency_key, customer_name, customer_whatsapp, fulfillment_type, province_name, city_name, district_name, postal_code, full_address, total_qty, dp_min_qty_snapshot, is_dp_eligible, payment_scheme, dp_percent_snapshot, subtotal_amount, discount_amount, discount_note, shipping_cost, grand_total, dp_required_amount, remaining_balance, refunded_amount, production_status, design_status, design_review_notes, admin_notes, estimated_finish_date, shipping_courier, shipping_service, tracking_receipt_number, shipped_at, payment_due_at, cancelled_reason, cancelled_at, completed_at, created_at, updated_at';
 
@@ -387,7 +396,7 @@ async function loadOrderDetailWithExecutor(
   };
 }
 
-export function createOrderModel(deps: OrderModelDeps = {}): OrderRepository {
+export function createOrderModel(deps: OrderModelDeps = {}): OrderRepository & TrackerRepository {
   const dbQuery = deps.query ?? query;
   const runInTransaction = deps.withTransaction ?? withTransaction;
 
@@ -854,6 +863,35 @@ export function createOrderModel(deps: OrderModelDeps = {}): OrderRepository {
       return loadOrderDetailWithExecutor({ query: dbQuery }, transactionUuid, userId);
     },
 
+    async findOrderDetailByOrderCode(orderCode) {
+      const orderRes = await dbQuery<{ transaction_uuid: string }>(
+        `SELECT transaction_uuid
+         FROM orders
+         WHERE UPPER(order_code) = $1
+         LIMIT 1`,
+        [orderCode.trim().toUpperCase()]
+      );
+      const row = orderRes.rows[0];
+      if (!row) {
+        return null;
+      }
+      return loadOrderDetailWithExecutor({ query: dbQuery }, row.transaction_uuid);
+    },
+
+    async getSignedUrlExpirySeconds() {
+      const settingsRes = await dbQuery<{ setting_value: string }>(
+        `SELECT setting_value
+         FROM app_settings
+         WHERE setting_key = 'signed_url_expiry_seconds'
+         LIMIT 1`
+      );
+      const parsed = Number.parseInt(settingsRes.rows[0]?.setting_value ?? '', 10);
+      if (!Number.isInteger(parsed)) {
+        return 3600;
+      }
+      return Math.min(86400, Math.max(60, parsed));
+    },
+
     async findOrderPaymentsByTransactionUuid(transactionUuid) {
       const orderRes = await dbQuery<OrderRow>(
         `SELECT ${ORDER_COLUMNS}
@@ -974,6 +1012,6 @@ export function createOrderModel(deps: OrderModelDeps = {}): OrderRepository {
   };
 }
 
-export const orderModel: OrderRepository = createOrderModel();
+export const orderModel: OrderRepository & TrackerRepository = createOrderModel();
 
 export default orderModel;
