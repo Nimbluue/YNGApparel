@@ -1,6 +1,6 @@
 import { USER_ROLE } from '@yng/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, Package, Shield, User } from 'lucide-react';
+import { Heart, LogOut, Package, Shield, User } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -118,6 +118,15 @@ export function AccountMenu() {
                 >
                   <Package size={16} strokeWidth={1.5} aria-hidden="true" />
                   <span>{t('account.myOrders')}</span>
+                </Link>
+                <Link
+                  to="/akun?tab=wishlist"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex min-h-touch items-center gap-2.5 px-4 py-2.5 text-sm text-ink transition-colors hover:bg-surface"
+                >
+                  <Heart size={16} strokeWidth={1.5} aria-hidden="true" />
+                  <span>{t('tooltip.wishlist')}</span>
                 </Link>
                 {user?.role === USER_ROLE.ADMIN ? (
                   <Link

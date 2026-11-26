@@ -22,6 +22,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
+import { WishlistHeartButton } from '../../components/ui/WishlistHeartButton';
 import { useToast } from '../../components/ui/toastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -997,7 +998,7 @@ export default function CustomLab() {
     <div className="pb-28 lg:pb-12">
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start xl:gap-12">
         {/* Kolom Kiri PDP: Galeri Model Aktif & Thumbnail Strip (sticky di desktop) */}
-        <div className="min-w-0 space-y-4 lg:sticky lg:top-28">
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-24">
           <div className="aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line bg-surface">
             {selectedModel?.imageUrl ? (
               <img
@@ -1107,13 +1108,25 @@ export default function CustomLab() {
           <header className="border-b border-line pb-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="eyebrow">Custom Lab · {config.storeName}</p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
-              >
-                {pick('Reset', 'Reset')}
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedModel ? (
+                  <WishlistHeartButton
+                    modelSlug={selectedModel.slug}
+                    modelName={selectedModel.name}
+                    modelHint={selectedModel}
+                    variant="inline"
+                    size="sm"
+                    showLabel
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+                >
+                  {pick('Reset', 'Reset')}
+                </button>
+              </div>
             </div>
 
             <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl lg:text-4xl">

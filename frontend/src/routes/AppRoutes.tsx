@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import PublicLayout from '../layouts/PublicLayout';
+import Catalog from '../pages/Catalog';
 import Home from '../pages/Home';
 import NotFound from '../pages/NotFound';
 import Account from '../pages/account/Account';
@@ -35,6 +36,8 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/katalog" element={<Catalog />} />
+        <Route path="/catalog" element={<RedirectPreservingSearch to="/katalog" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/custom-lab" element={<CustomLab />} />

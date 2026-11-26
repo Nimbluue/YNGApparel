@@ -1230,3 +1230,30 @@ export interface AdminTopCustomersReportDto {
   range: ReportDateRangeDto;
   items: AdminTopCustomerItemDto[];
 }
+
+export interface WishlistFabricSummaryDto {
+  id: number;
+  code: string;
+  name: string;
+  additionalPrice: Rupiah;
+}
+
+export interface WishlistItemDto {
+  garmentModelId: number;
+  slug: string;
+  name: string;
+  description: string | null;
+  basePrice: Rupiah;
+  imageUrl: string | null;
+  fabrics: WishlistFabricSummaryDto[];
+  createdAt: string;
+}
+
+export interface ToggleWishlistRequestDto {
+  modelSlug?: string;
+  garmentModelId?: number;
+}
+
+export interface MergeWishlistRequestDto {
+  modelSlugs: string[];
+}

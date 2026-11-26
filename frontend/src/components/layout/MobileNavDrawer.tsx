@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { catalogQueryKeys, getCatalogModels } from '../../services/catalogService';
@@ -20,11 +21,11 @@ export interface MobileNavDrawerProps {
 /**
  * Drawer navigasi mobile dari kiri (`360px` friendly) dengan kategori model, bahasa, dan akun.
  */
-// ASSUMPTION: karena skema katalog belum memiliki entitas kategori terpisah, menu Kategori memetakan setiap model aktif ke `/custom-lab?model=<slug>`.
-// ASSUMPTION: halaman Wishlist belum tersedia; tautan mengarah ke `/akun?tab=wishlist` dan fitur menyusul di gelombang berikutnya.
+// ASSUMPTION: karena skema katalog belum memiliki entitas kategori terpisah, menu Kategori memetakan setiap model aktif ke `/custom-lab?model=<slug>` dan tautan koleksi ke `/katalog`.
 export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDrawerProps) {
   const { user, isGuest, logout } = useAuth();
   const { t } = useLanguage();
+  const { count: wishlistCount } = useWishlist();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -176,11 +177,11 @@ export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDraw
                   ))}
                   <li>
                     <Link
-                      to="/custom-lab"
+                      to="/katalog"
                       onClick={onClose}
                       className="flex min-h-touch items-center py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink"
                     >
-                      {t('nav.viewAllCategories')}
+                      {t('nav.allCollections')}
                     </Link>
                   </li>
                 </ul>
@@ -190,10 +191,17 @@ export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDraw
                 <Link
                   to="/akun?tab=wishlist"
                   onClick={onClose}
-                  className="flex min-h-touch items-center gap-2.5 text-sm font-medium text-ink"
+                  className="flex min-h-touch items-center justify-between gap-2.5 text-sm font-medium text-ink"
                 >
-                  <Heart size={18} strokeWidth={1.5} aria-hidden="true" />
-                  <span>{t('tooltip.wishlist')}</span>
+                  <span className="inline-flex items-center gap-2.5">
+                    <Heart size={18} strokeWidth={1.5} aria-hidden="true" />
+                    <span>{t('tooltip.wishlist')}</span>
+                  </span>
+                  {wishlistCount > 0 ? (
+                    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-sm bg-ink px-1.5 font-mono text-[10px] font-semibold text-white tabular-nums">
+                      {wishlistCount}
+                    </span>
+                  ) : null}
                 </Link>
                 <LanguageSwitcher variant="row" />
               </div>

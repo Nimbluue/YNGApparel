@@ -3,6 +3,7 @@ import type { ApiSuccessResponse, HealthStatusDto } from '@yng/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CardSkeleton } from '../components/ui/Skeleton';
+import { WishlistHeartButton } from '../components/ui/WishlistHeartButton';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 import { catalogQueryKeys, getCatalogConfig, getCatalogModels } from '../services/catalogService';
@@ -226,8 +227,8 @@ export default function Home() {
               </h2>
             </div>
 
-            <Link to="/custom-lab" className="btn-secondary px-5 py-2 text-xs">
-              {pick('Lihat Semua di Custom Lab', 'View All in Custom Lab')}
+            <Link to="/katalog" className="btn-secondary rounded-sm px-5 py-2 text-xs">
+              {pick('Lihat Semua Koleksi', 'View All Collections')}
             </Link>
           </div>
 
@@ -240,61 +241,73 @@ export default function Home() {
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:gap-7">
               {previewModels.map((model) => (
-                <Link
+                <article
                   key={model.id}
-                  to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white transition-colors hover:border-ink"
+                  className="group relative flex flex-col overflow-hidden rounded-sm border border-line bg-white transition-colors hover:border-ink"
                 >
-                  <div className="aspect-[4/5] w-full overflow-hidden bg-surface">
-                    {model.imageUrl ? (
-                      <img
-                        src={model.imageUrl}
-                        alt={model.name}
-                        className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-5 text-center">
-                        <span className="font-display text-base font-semibold text-ink">
-                          {model.name}
-                        </span>
-                        <span className="text-xs text-muted">
-                          {pick('Foto katalog segera hadir', 'Catalog photo coming soon')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  <WishlistHeartButton
+                    modelSlug={model.slug}
+                    modelName={model.name}
+                    modelHint={model}
+                    variant="overlay"
+                    className="absolute right-2.5 top-2.5 z-10"
+                  />
 
-                  <div className="flex flex-1 flex-col justify-between gap-3 p-5">
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-display text-base font-semibold text-ink">
-                          {model.name}
-                        </h3>
-                        <span className="shrink-0 rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs text-muted">
-                          <span className="tabular-price font-medium text-ink">
-                            {model.fabricIds.length}
-                          </span>{' '}
-                          {pick('bahan', 'fabrics')}
-                        </span>
-                      </div>
-                      {model.description ? (
-                        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted">
-                          {model.description}
-                        </p>
-                      ) : null}
+                  <Link
+                    to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
+                    className="flex flex-1 flex-col"
+                  >
+                    <div className="aspect-[3/4] w-full overflow-hidden bg-surface">
+                      {model.imageUrl ? (
+                        <img
+                          src={model.imageUrl}
+                          alt={model.name}
+                          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-5 text-center">
+                          <span className="font-display text-base font-semibold text-ink">
+                            {model.name}
+                          </span>
+                          <span className="text-xs text-muted">
+                            {pick('Foto katalog segera hadir', 'Catalog photo coming soon')}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-line pt-3">
-                      <span className="text-sm font-semibold text-ink">
-                        {pick('Mulai', 'From')}{' '}
-                        <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
-                      </span>
-                      <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">
-                        {pick('Rancang →', 'Design →')}
-                      </span>
+                    <div className="flex flex-1 flex-col justify-between gap-3 p-5">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-display text-base font-semibold text-ink">
+                            {model.name}
+                          </h3>
+                          <span className="shrink-0 rounded-sm border border-line bg-surface px-2 py-0.5 text-[11px] text-muted">
+                            <span className="tabular-price font-medium text-ink">
+                              {model.fabricIds.length}
+                            </span>{' '}
+                            {pick('bahan', 'fabrics')}
+                          </span>
+                        </div>
+                        {model.description ? (
+                          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted">
+                            {model.description}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-line pt-3">
+                        <span className="text-sm font-semibold text-ink">
+                          {pick('Mulai', 'From')}{' '}
+                          <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
+                        </span>
+                        <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">
+                          {pick('Rancang →', 'Design →')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </article>
               ))}
             </div>
           )}

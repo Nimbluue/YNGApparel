@@ -1151,7 +1151,7 @@ export default function Checkout() {
         </div>
 
         {/* Kolom Kanan: Ringkasan Tagihan Sticky */}
-        <aside className="w-full min-w-0 lg:sticky lg:top-28 lg:col-span-5">
+        <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-5">
           <div className="w-full space-y-5 rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
               <p className="eyebrow">{pick('Ringkasan Tagihan', 'Invoice Summary')}</p>

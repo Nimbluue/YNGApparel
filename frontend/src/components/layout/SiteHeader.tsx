@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { cartQueryKeys, getCartItems } from '../../services/cartService';
-import { catalogQueryKeys, getCatalogConfig } from '../../services/catalogService';
 import { IconTooltip } from '../ui/IconTooltip';
 import { AccountMenu } from './AccountMenu';
 import { CartDrawer } from './CartDrawer';
@@ -20,7 +20,7 @@ function DesktopNavLink({ to, label, end = false }: { to: string; label: string;
       to={to}
       end={end}
       className={({ isActive }) =>
-        `relative inline-flex min-h-touch items-center text-[12px] font-medium uppercase tracking-[0.14em] text-ink after:absolute after:bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:bg-ink after:transition-transform after:duration-300 hover:after:scale-x-100 ${
+        `relative inline-flex min-h-touch items-center text-[12px] font-medium uppercase tracking-[0.14em] text-ink after:absolute after:bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:bg-ink after:transition-transform after:duration-300 hover:after:scale-x-100 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 ${
           isActive ? 'after:scale-x-100' : 'after:scale-x-0'
         }`
       }
@@ -31,13 +31,13 @@ function DesktopNavLink({ to, label, end = false }: { to: string; label: string;
 }
 
 /**
- * Header publik dengan Studio Bar (28px), navbar 3-zona editorial (64px),
- * shortcut Ctrl+K / ⌘K Command Palette, Studio Bag Drawer, dan Mobile Drawer.
+ * Header publik 1 baris putih editorial (64px), shortcut Ctrl+K / ⌘K Command Palette,
+ * badge Wishlist & Studio Bag, serta Mobile Drawer.
  */
-// ASSUMPTION: ikon Wishlist mengarah ke `/akun?tab=wishlist` sambil menunggu implementasi backend Wishlist pada gelombang berikutnya.
 export function SiteHeader() {
   const { isGuest, loading: authLoading } = useAuth();
   const { t } = useLanguage();
+  const { count: wishlistCount } = useWishlist();
   const location = useLocation();
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -47,11 +47,6 @@ export function SiteHeader() {
   const searchReturnRef = useRef<HTMLElement | null>(null);
   const cartReturnRef = useRef<HTMLElement | null>(null);
   const mobileMenuBtnRef = useRef<HTMLButtonElement>(null);
-
-  const configQuery = useQuery({
-    queryKey: catalogQueryKeys.config,
-    queryFn: getCatalogConfig,
-  });
 
   const cartQuery = useQuery({
     queryKey: cartQueryKeys.items,
@@ -84,8 +79,6 @@ export function SiteHeader() {
     return () => window.removeEventListener('keydown', handleShortcut);
   }, []);
 
-  const dpPercent = configQuery.data?.dpPercent ?? 70;
-  const dpMinQty = configQuery.data?.dpMinQty ?? 12;
   const cartBadgeCount = !isGuest ? (cartQuery.data?.summary.totalItems ?? 0) : 0;
 
   function openSearch() {
@@ -113,15 +106,12 @@ export function SiteHeader() {
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-white">
-        <div className="flex h-7 w-full items-center justify-center bg-ink px-3 text-center text-white">
-          <p className="truncate font-mono text-[10px] uppercase tracking-[0.08em] tabular-nums sm:tracking-widest">
-            {t('studioBar.text', { percent: dpPercent, minQty: dpMinQty })}
-          </p>
-        </div>
-
         <div className="mx-auto grid h-16 max-w-[1400px] grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-start">
-            <Link to="/" className="inline-flex min-h-touch items-baseline gap-2">
+            <Link
+              to="/"
+              className="inline-flex min-h-touch items-baseline gap-2 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+            >
               <span className="font-display text-lg font-extrabold tracking-[0.18em] text-ink">
                 YNG
               </span>
@@ -144,7 +134,11 @@ export function SiteHeader() {
               <IconTooltip label={t('tooltip.search')} onClick={openSearch}>
                 <Search size={20} strokeWidth={1.5} aria-hidden="true" />
               </IconTooltip>
-              <IconTooltip label={t('tooltip.wishlist')} to="/akun?tab=wishlist">
+              <IconTooltip
+                label={t('tooltip.wishlist')}
+                to="/akun?tab=wishlist"
+                badge={wishlistCount}
+              >
                 <Heart size={20} strokeWidth={1.5} aria-hidden="true" />
               </IconTooltip>
               <IconTooltip label={t('tooltip.cart')} badge={cartBadgeCount} onClick={openCart}>

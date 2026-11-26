@@ -83,7 +83,7 @@ export function CategoryMenu() {
           cancelCloseTimer();
           setOpen((prev) => !prev);
         }}
-        className="relative inline-flex min-h-touch items-center gap-1.5 text-[12px] font-medium uppercase tracking-[0.14em] text-ink after:absolute after:bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-ink after:transition-transform after:duration-300 hover:after:scale-x-100"
+        className="relative inline-flex min-h-touch items-center gap-1.5 text-[12px] font-medium uppercase tracking-[0.14em] text-ink after:absolute after:bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-ink after:transition-transform after:duration-300 hover:after:scale-x-100 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
       >
         <span>{t('nav.categories')}</span>
         <ChevronDown
@@ -128,11 +128,11 @@ export function CategoryMenu() {
                 ))}
                 <li>
                   <Link
-                    to="/custom-lab"
+                    to="/katalog"
                     onClick={() => setOpen(false)}
-                    className="flex min-h-touch items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-surface"
+                    className="flex min-h-touch items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink transition-colors hover:bg-surface focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
                   >
-                    <span>{t('nav.viewAllCategories')}</span>
+                    <span>{t('nav.allCollections')}</span>
                     <ArrowRight size={14} strokeWidth={1.5} aria-hidden="true" />
                   </Link>
                 </li>
