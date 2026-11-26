@@ -41,6 +41,11 @@ import {
   updateShippingCostBodySchema,
   verifyPaymentBodySchema,
 } from '../controllers/adminOrderController.js';
+import {
+  createAdminReportController,
+  reportBaseQuerySchema,
+  reportExportQuerySchema,
+} from '../controllers/adminReportController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { uploadLimiter } from '../middleware/rateLimiter.js';
 import {
@@ -50,11 +55,13 @@ import {
 import { validate } from '../middleware/validate.js';
 import type { AdminMasterService } from '../services/adminMasterService.js';
 import type { AdminOrderService } from '../services/adminOrderService.js';
+import type { AdminReportService } from '../services/adminReportService.js';
 
 export interface AdminRouterOptions {
   requireAuthMiddleware?: RequestHandler;
   masterService?: AdminMasterService;
   adminOrderService?: AdminOrderService;
+  adminReportService?: AdminReportService;
   imageUploadLimiter?: RequestHandler;
 }
 
@@ -74,6 +81,7 @@ export function createAdminRouter(
   const imageUploadLimiter = options.imageUploadLimiter ?? uploadLimiter;
   const masterController = createAdminMasterController(options.masterService);
   const adminOrderController = createAdminOrderController(options.adminOrderService);
+  const adminReportController = createAdminReportController(options.adminReportService);
 
   router.use(requireAuthMiddleware, requireRole(USER_ROLE.ADMIN));
 
@@ -341,6 +349,43 @@ export function createAdminRouter(
     '/payments/:paymentUuid/reject',
     validate({ params: adminPaymentUuidParamSchema, body: rejectPaymentBodySchema }),
     adminOrderController.rejectPayment
+  );
+
+  // Dashboard & Laporan + Export CSV (Tahap 6)
+  router.get(
+    '/dashboard',
+    validate({ query: reportBaseQuerySchema }),
+    adminReportController.getDashboard
+  );
+  router.get(
+    '/reports/sales',
+    validate({ query: reportBaseQuerySchema }),
+    adminReportController.getSalesReport
+  );
+  router.get(
+    '/reports/orders',
+    validate({ query: reportBaseQuerySchema }),
+    adminReportController.getOrdersReport
+  );
+  router.get(
+    '/reports/top-models',
+    validate({ query: reportBaseQuerySchema }),
+    adminReportController.getTopModelsReport
+  );
+  router.get(
+    '/reports/customers',
+    validate({ query: reportBaseQuerySchema }),
+    adminReportController.getTopCustomersReport
+  );
+  router.get(
+    '/reports/export',
+    validate({ query: reportExportQuerySchema }),
+    adminReportController.exportCsv
+  );
+  router.get(
+    '/reports/csv',
+    validate({ query: reportExportQuerySchema }),
+    adminReportController.exportCsv
   );
 
   return router;

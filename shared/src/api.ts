@@ -1308,3 +1308,129 @@ export interface AdminCreateManualOrderRequestDto {
   adminNotes?: string | null;
   estimatedFinishDate?: string | null;
 }
+
+export type ReportGroupBy = 'day' | 'month';
+
+export type ReportExportType = 'sales' | 'orders' | 'top-models' | 'customers';
+
+export interface ReportDateRangeDto {
+  startDate: string | null;
+  endDate: string | null;
+  allTime: boolean;
+}
+
+export interface AdminReportKpiDto {
+  verifiedRevenue: Rupiah;
+  grossVerifiedPayments: Rupiah;
+  refundedAmount: Rupiah;
+  totalOrders: number;
+  activeOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalQty: number;
+  outstandingBalance: Rupiah;
+}
+
+export interface AdminOperationalSnapshotDto {
+  newOrdersCount: number;
+  pendingPaymentProofCount: number;
+  readyToProcessCount: number;
+  printQueueCount: number;
+  awaitingSettlementCount: number;
+  overdueOrdersCount: number;
+  incompleteAddressCount: number;
+}
+
+export interface AdminDashboardSummaryDto {
+  range: ReportDateRangeDto;
+  kpi: AdminReportKpiDto;
+  operational: AdminOperationalSnapshotDto;
+}
+
+export interface AdminSalesBucketDto {
+  period: string;
+  orderCount: number;
+  totalQty: number;
+  grossVerified: Rupiah;
+  refundedAmount: Rupiah;
+  netRevenue: Rupiah;
+}
+
+export interface AdminStatusBreakdownDto {
+  status: ProductionStatus;
+  label: string;
+  orderCount: number;
+  totalQty: number;
+  grandTotal: Rupiah;
+}
+
+export interface AdminSourceBreakdownDto {
+  source: OrderSource;
+  orderCount: number;
+  totalQty: number;
+  grandTotal: Rupiah;
+}
+
+export interface AdminSalesReportDto {
+  range: ReportDateRangeDto;
+  groupBy: ReportGroupBy;
+  kpi: AdminReportKpiDto;
+  series: AdminSalesBucketDto[];
+  byStatus: AdminStatusBreakdownDto[];
+  bySource: AdminSourceBreakdownDto[];
+}
+
+export interface AdminOrderReportRowDto {
+  transactionUuid: string;
+  orderCode: string;
+  createdAt: string;
+  source: OrderSource;
+  customerName: string;
+  customerWhatsapp: string;
+  fulfillmentType: FulfillmentType;
+  productionStatus: ProductionStatus;
+  totalQty: number;
+  grandTotal: Rupiah;
+  verifiedPaid: Rupiah;
+  refundedAmount: Rupiah;
+  remainingBalance: Rupiah;
+}
+
+export interface AdminOrdersReportDto {
+  range: ReportDateRangeDto;
+  kpi: AdminReportKpiDto;
+  rows: AdminOrderReportRowDto[];
+}
+
+export interface AdminTopModelItemDto {
+  modelId: number;
+  modelName: string;
+  orderCount: number;
+  totalQty: number;
+  totalRevenue: Rupiah;
+  revenueSharePercent: number;
+}
+
+export interface AdminTopModelsReportDto {
+  range: ReportDateRangeDto;
+  totalQty: number;
+  totalRevenue: Rupiah;
+  items: AdminTopModelItemDto[];
+}
+
+export interface AdminTopCustomerItemDto {
+  customerWhatsapp: string;
+  customerName: string;
+  hasAccount: boolean;
+  orderCount: number;
+  totalQty: number;
+  totalSpent: Rupiah;
+  verifiedPaid: Rupiah;
+  outstandingBalance: Rupiah;
+  lastOrderAt: string;
+}
+
+export interface AdminTopCustomersReportDto {
+  range: ReportDateRangeDto;
+  items: AdminTopCustomerItemDto[];
+}
