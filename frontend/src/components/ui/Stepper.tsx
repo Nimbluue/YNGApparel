@@ -122,9 +122,9 @@ export function ProductionStepper({
           return (
             <li
               key={stage.key}
-              className={`relative flex items-start gap-3 rounded-2xl border p-3.5 md:flex-col md:gap-2.5 ${
+              className={`relative flex items-start gap-3 rounded-sm border p-3.5 md:flex-col md:gap-2.5 ${
                 isCurrent
-                  ? 'border-ink bg-surface'
+                  ? 'border-ink bg-[#FAFAFA]'
                   : isCancelled
                     ? 'border-red-200 bg-red-50/40'
                     : 'border-line bg-white'
@@ -132,7 +132,7 @@ export function ProductionStepper({
             >
               <div className="flex shrink-0 items-center gap-2 md:w-full">
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${getStageIndicatorClass(stage.state)}`}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border text-xs font-semibold tabular-nums ${getStageIndicatorClass(stage.state)}`}
                   aria-hidden="true"
                 >
                   {getStageSymbol(stage)}
@@ -185,7 +185,7 @@ export function ProductionStepper({
       </ol>
 
       {currentStatus === PRODUCTION_STATUS.COMPLETED ? (
-        <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-status-ok">
+        <div className="flex items-center gap-2.5 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-status-ok">
           <span aria-hidden="true">✓</span>
           <span>
             {locale === 'en'

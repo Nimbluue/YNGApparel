@@ -1,5 +1,5 @@
 import { USER_ROLE } from '@yng/shared';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { BRAND_LOGO_ESSENTIAL_URL } from '../utils/brandAssets';
 
@@ -16,6 +16,8 @@ const ADMIN_NAV_ITEMS: ReadonlyArray<{ to: string; label: string; end?: boolean 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isKanban = location.pathname === '/admin/kanban';
 
   async function handleLogout() {
     await logout();
@@ -97,7 +99,13 @@ export default function AdminLayout() {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-16 pt-6 sm:px-6 sm:py-8 lg:px-8 xl:px-12">
+      <main
+        className={
+          isKanban
+            ? 'w-full flex-1 px-4 pb-16 pt-6 sm:px-6 sm:py-8 lg:px-8'
+            : 'mx-auto w-full max-w-[1400px] flex-1 px-4 pb-16 pt-6 sm:px-6 sm:py-8 lg:px-8 xl:px-12'
+        }
+      >
         <Outlet />
       </main>
     </div>

@@ -65,7 +65,7 @@ export function PrintSpotPicker({
       </div>
 
       {spots.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-5 text-center">
+        <div className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-5 text-center">
           <p className="text-sm font-medium text-ink">
             {pick('Belum ada titik sablon (Polos)', 'No print spots added (Plain)')}
           </p>
@@ -84,10 +84,7 @@ export function PrintSpotPicker({
             const isUploading = uploadingSpotKey === spot.key;
 
             return (
-              <article
-                key={spot.key}
-                className="rounded-2xl border border-line bg-white p-4 sm:p-5"
-              >
+              <article key={spot.key} className="rounded-sm border border-line bg-white p-4 sm:p-5">
                 <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
                   <div>
                     <p className="font-display text-sm font-semibold text-ink">
@@ -107,7 +104,7 @@ export function PrintSpotPicker({
                   <button
                     type="button"
                     onClick={() => onRemoveSpot(spot.key)}
-                    className="inline-flex min-h-touch items-center rounded-full border border-line px-3.5 text-xs font-semibold text-status-err transition-colors hover:border-status-err hover:bg-red-50"
+                    className="inline-flex min-h-touch items-center rounded-sm border border-line px-3.5 text-xs font-semibold text-status-err transition-colors hover:border-status-err hover:bg-red-50"
                   >
                     {pick('Hapus Titik', 'Remove Spot')}
                   </button>
@@ -247,7 +244,7 @@ export function PrintSpotPicker({
                               height: null,
                             })
                           }
-                          className="inline-flex min-h-touch items-center rounded-full border border-line px-3.5 text-xs font-medium text-muted transition-colors hover:border-ink hover:text-ink"
+                          className="inline-flex min-h-touch items-center rounded-sm border border-line px-3.5 text-xs font-medium text-muted transition-colors hover:border-ink hover:text-ink"
                         >
                           {pick('Hapus File', 'Remove File')}
                         </button>
@@ -264,7 +261,7 @@ export function PrintSpotPicker({
                 </div>
 
                 {!spot.needsDesignHelp && spot.fileRef && spot.fileName ? (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-ink">
                         {pick('File:', 'File:')} {spot.fileName}
@@ -275,7 +272,7 @@ export function PrintSpotPicker({
                           : pick('Siap cetak · Terverifikasi', 'Print ready · Verified')}
                       </p>
                     </div>
-                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-status-ok">
+                    <span className="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-status-ok">
                       {pick('Terunggah', 'Uploaded')}
                     </span>
                   </div>
@@ -284,7 +281,7 @@ export function PrintSpotPicker({
                 {feedback ? (
                   <p
                     role="status"
-                    className="mt-3 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs leading-relaxed text-ink"
+                    className="mt-3 rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs leading-relaxed text-ink"
                   >
                     {feedback}
                   </p>

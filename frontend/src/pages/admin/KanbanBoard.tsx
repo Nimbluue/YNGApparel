@@ -34,7 +34,7 @@ interface KanbanOrderCardProps {
 
 function KanbanOrderCard({ order }: KanbanOrderCardProps) {
   return (
-    <article className="w-full min-w-0 rounded-2xl border border-line bg-white p-4 transition-colors hover:border-ink">
+    <article className="w-full min-w-0 rounded-sm border border-line bg-white p-3.5 transition-colors hover:border-ink">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Link
@@ -43,25 +43,25 @@ function KanbanOrderCard({ order }: KanbanOrderCardProps) {
           >
             #{order.orderCode}
           </Link>
-          <p className="mt-0.5 text-xs text-muted tabular-nums">
+          <p className="mt-0.5 text-[11px] text-muted tabular-nums">
             {formatWibDate(order.createdAt)} · {order.totalQty} pcs ·{' '}
             {getFulfillmentLabel(order.fulfillmentType)}
           </p>
         </div>
 
-        <span className="shrink-0 rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[11px] font-medium text-ink tabular-nums">
+        <span className="shrink-0 rounded-sm border border-line bg-[#FAFAFA] px-2 py-0.5 font-mono text-[10px] font-medium text-ink tabular-nums">
           QC {order.qcPhotoCount}
         </span>
       </div>
 
-      <div className="mt-3 border-t border-line pt-3">
+      <div className="mt-2.5 border-t border-line pt-2.5">
         <p className="truncate font-display text-sm font-semibold text-ink">{order.customerName}</p>
-        <p className="mt-0.5 truncate font-mono text-xs text-muted tabular-nums">
+        <p className="mt-0.5 truncate font-mono text-[11px] text-muted tabular-nums">
           {order.customerWhatsapp}
         </p>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      <div className="mt-2.5 flex flex-wrap gap-1">
         <DesignBadge status={order.designStatus} />
         {order.initialPaymentStatus ? (
           <PaymentBadge
@@ -87,7 +87,7 @@ function KanbanOrderCard({ order }: KanbanOrderCardProps) {
         {order.hasCustomColor ? <Badge variant="neutral">Warna Custom</Badge> : null}
       </div>
 
-      <div className="mt-3 flex items-end justify-between gap-2 border-t border-line pt-3">
+      <div className="mt-2.5 flex items-end justify-between gap-2 border-t border-line pt-2.5">
         <div className="min-w-0">
           <p className="text-[11px] text-muted">Total</p>
           <p className="tabular-price text-sm font-semibold text-ink">
@@ -104,7 +104,7 @@ function KanbanOrderCard({ order }: KanbanOrderCardProps) {
 
         <Link
           to={`/admin/orders/${order.transactionUuid}`}
-          className="inline-flex min-h-touch shrink-0 items-center rounded-full border border-ink px-3.5 font-display text-xs font-semibold text-ink transition-colors hover:bg-ink hover:text-white"
+          className="inline-flex min-h-touch shrink-0 items-center rounded-sm border border-ink px-3 font-display text-xs font-semibold text-ink transition-colors hover:bg-ink hover:text-white"
         >
           Detail →
         </Link>
@@ -161,7 +161,7 @@ export default function KanbanBoard() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
             <p className="eyebrow">Ruang Produksi · Alur Pesanan</p>
@@ -177,19 +177,19 @@ export default function KanbanBoard() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/admin/orders/new"
-              className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 font-display text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+              className="inline-flex min-h-touch items-center rounded-sm border border-ink bg-ink px-4 font-display text-xs font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-neutral-800"
             >
               + Order Manual
             </Link>
             <Link
               to="/admin/payments"
-              className="inline-flex min-h-touch items-center rounded-full border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
             >
               Antrean Pembayaran
             </Link>
             <Link
               to="/admin/orders"
-              className="inline-flex min-h-touch items-center rounded-full border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
             >
               Semua Order
             </Link>
@@ -207,19 +207,19 @@ export default function KanbanBoard() {
 
         {kanbanQuery.data ? (
           <div className="mt-6 grid w-full grid-cols-3 gap-2.5 border-t border-line pt-5 sm:gap-4">
-            <div className="rounded-xl border border-line bg-surface p-3 sm:p-4">
+            <div className="rounded-sm border border-line bg-[#FAFAFA] p-3 sm:p-4">
               <p className="text-xs text-muted">Aktif Produksi</p>
               <p className="tabular-price mt-1 font-display text-xl font-bold text-ink sm:text-2xl">
                 {totalActiveOrders}
               </p>
             </div>
-            <div className="rounded-xl border border-line bg-surface p-3 sm:p-4">
+            <div className="rounded-sm border border-line bg-[#FAFAFA] p-3 sm:p-4">
               <p className="text-xs text-muted">Selesai</p>
               <p className="tabular-price mt-1 font-display text-xl font-bold text-status-ok sm:text-2xl">
                 {kanbanQuery.data.archivedCounts.completed}
               </p>
             </div>
-            <div className="rounded-xl border border-line bg-surface p-3 sm:p-4">
+            <div className="rounded-sm border border-line bg-[#FAFAFA] p-3 sm:p-4">
               <p className="text-xs text-muted">Dibatalkan</p>
               <p className="tabular-price mt-1 font-display text-xl font-bold text-muted sm:text-2xl">
                 {kanbanQuery.data.archivedCounts.cancelled}
@@ -238,7 +238,7 @@ export default function KanbanBoard() {
             />
           </div>
 
-          <label className="inline-flex min-h-touch cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink">
+          <label className="inline-flex min-h-touch cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
             <input
               type="checkbox"
               checked={attentionOnly}
@@ -251,7 +251,7 @@ export default function KanbanBoard() {
       </section>
 
       {kanbanQuery.isLoading ? (
-        <div className="flex min-h-60 items-center justify-center rounded-2xl border border-line bg-white p-10">
+        <div className="flex min-h-60 items-center justify-center rounded-sm border border-line bg-white p-10">
           <Spinner label="Memuat papan Kanban produksi..." />
         </div>
       ) : kanbanQuery.isError ? (
@@ -267,7 +267,7 @@ export default function KanbanBoard() {
         />
       ) : (
         <>
-          {/* Tampilan Mobile (360px+) — Tab tahap + daftar vertikal penuh */}
+          {/* Tampilan Mobile / Tablet Kecil (< 1024px) — Tab tahap + daftar vertikal penuh */}
           <section className="space-y-4 lg:hidden">
             <div
               role="tablist"
@@ -283,7 +283,7 @@ export default function KanbanBoard() {
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => setMobileStatus(column.status)}
-                    className={`inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full border px-4 py-2 font-display text-xs font-semibold transition-colors ${
+                    className={`inline-flex min-h-touch shrink-0 items-center gap-2 rounded-sm border px-4 py-2 font-display text-xs font-semibold transition-colors ${
                       isActive
                         ? 'border-ink bg-ink text-white'
                         : 'border-line bg-white text-ink hover:border-ink'
@@ -293,7 +293,7 @@ export default function KanbanBoard() {
                       {column.label || getProductionStatusLabel(column.status)}
                     </span>
                     <span
-                      className={`rounded-full px-2 py-0.5 font-mono text-[11px] tabular-nums ${
+                      className={`rounded-sm px-2 py-0.5 font-mono text-[11px] tabular-nums ${
                         isActive ? 'bg-white text-ink' : 'bg-surface text-muted'
                       }`}
                     >
@@ -324,29 +324,29 @@ export default function KanbanBoard() {
             ) : null}
           </section>
 
-          {/* Tampilan Desktop — Papan kolom horizontal */}
+          {/* Tampilan Desktop — Grid penuh 5 kolom proporsional di xl (termasuk zoom 75%-100%), scroll horizontal mulus di lg */}
           <section className="hidden lg:block">
-            <div className="flex w-full items-start gap-4 overflow-x-auto pb-4">
+            <div className="flex w-full items-start gap-3.5 overflow-x-auto pb-4 xl:grid xl:grid-cols-5 xl:overflow-visible">
               {filteredColumns.map((column) => (
                 <div
                   key={column.status}
-                  className="flex w-[310px] shrink-0 flex-col rounded-2xl border border-line bg-neutral-100/70 p-3 xl:w-[325px]"
+                  className="flex w-[280px] shrink-0 flex-col rounded-sm border border-line bg-[#FAFAFA] p-3 xl:w-auto xl:min-w-0"
                 >
-                  <div className="mb-3 flex items-center justify-between gap-2 px-1 pt-1">
-                    <h2 className="truncate font-display text-xs font-bold tracking-wide text-ink uppercase">
+                  <div className="mb-3 flex items-center justify-between gap-2 px-1 pt-0.5">
+                    <h2 className="truncate font-display text-xs font-bold uppercase tracking-wide text-ink">
                       {column.label || getProductionStatusLabel(column.status)}
                     </h2>
-                    <span className="shrink-0 rounded-full border border-line bg-white px-2.5 py-0.5 font-mono text-xs font-semibold text-ink tabular-nums">
+                    <span className="shrink-0 rounded-sm border border-line bg-white px-2 py-0.5 font-mono text-xs font-semibold text-ink tabular-nums">
                       {column.filteredCount}
                     </span>
                   </div>
 
                   {column.orders.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-line-strong bg-white/60 px-4 py-8 text-center text-xs text-muted">
+                    <div className="rounded-sm border border-dashed border-line-strong bg-white px-4 py-8 text-center text-xs text-muted">
                       Tidak ada pesanan di tahap ini.
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {column.orders.map((order) => (
                         <KanbanOrderCard key={order.transactionUuid} order={order} />
                       ))}

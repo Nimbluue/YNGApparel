@@ -148,10 +148,10 @@ export default function Register() {
 
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
-      <aside className="flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 sm:p-10">
+      <aside className="flex flex-col justify-between rounded-sm border border-line bg-[#FAFAFA] p-6 sm:p-10">
         <div className="space-y-6">
           <div className="flex items-center gap-3.5">
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-sm border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
               <img
                 src={BRAND_LOGO_MAIN_URL}
                 alt="YNG Apparel Studio"
@@ -213,7 +213,7 @@ export default function Register() {
         <p className="mt-8 font-editorial text-2xl italic text-ink">@yng.apparel.official</p>
       </aside>
 
-      <section className="rounded-3xl border border-line bg-white p-6 sm:p-10">
+      <section className="rounded-sm border border-line bg-white p-6 sm:p-10">
         <p className="eyebrow">{pick('Registrasi Akun', 'Account Registration')}</p>
         <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
           {pick('Daftar Akun', 'Create Account')}
@@ -228,7 +228,7 @@ export default function Register() {
         {errorMessage ? (
           <div
             role="alert"
-            className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-status-err"
+            className="mt-5 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-status-err"
           >
             <p className="font-medium">{errorMessage}</p>
             {fieldErrors.length > 1 ? (

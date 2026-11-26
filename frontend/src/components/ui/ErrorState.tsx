@@ -25,7 +25,7 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
-      className={`rounded-2xl border border-red-200 bg-red-50/60 p-6 text-left ${className}`}
+      className={`rounded-sm border border-red-200 bg-red-50/60 p-6 text-left ${className}`}
       role="alert"
     >
       <span className="inline-block text-xs font-semibold text-status-err">{eyebrow}</span>

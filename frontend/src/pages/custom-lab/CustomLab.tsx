@@ -929,11 +929,11 @@ export default function CustomLab() {
     return (
       <div className="grid gap-8 lg:grid-cols-2 xl:gap-12">
         <div className="space-y-4">
-          <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+          <Skeleton className="aspect-[4/5] w-full rounded-sm" />
           <div className="flex gap-2.5 overflow-hidden">
-            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
-            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
-            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-sm sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-sm sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-sm sm:w-24" />
           </div>
         </div>
         <div className="space-y-5">
@@ -999,7 +999,7 @@ export default function CustomLab() {
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start xl:gap-12">
         {/* Kolom Kiri PDP: Galeri Model Aktif & Thumbnail Strip (sticky di desktop) */}
         <div className="min-w-0 space-y-4 lg:sticky lg:top-24">
-          <div className="aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line bg-surface">
+          <div className="aspect-[4/5] w-full overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
             {selectedModel?.imageUrl ? (
               <img
                 src={selectedModel.imageUrl}
@@ -1048,7 +1048,7 @@ export default function CustomLab() {
                 <button
                   type="button"
                   onClick={() => setCatalogModalOpen(true)}
-                  className="inline-flex min-h-touch items-center rounded-full px-3 text-xs font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
+                  className="inline-flex min-h-touch items-center rounded-sm px-3 text-xs font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
                 >
                   {pick('Lihat Semua Model', 'Browse All Models')}
                 </button>
@@ -1071,7 +1071,7 @@ export default function CustomLab() {
                     className="group w-20 shrink-0 text-left sm:w-24"
                   >
                     <div
-                      className={`aspect-[4/5] w-full overflow-hidden rounded-xl border bg-surface transition-colors ${
+                      className={`aspect-[4/5] w-full overflow-hidden rounded-sm border bg-[#FAFAFA] transition-colors ${
                         isSelected
                           ? 'border-ink ring-1 ring-ink'
                           : 'border-line group-hover:border-line-strong'
@@ -1122,7 +1122,7 @@ export default function CustomLab() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+                  className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
                 >
                   {pick('Reset', 'Reset')}
                 </button>
@@ -1139,7 +1139,7 @@ export default function CustomLab() {
                 <span className="tabular-price">{formatRupiah(selectedModel?.basePrice ?? 0)}</span>{' '}
                 <span className="text-xs font-normal text-muted">/ pcs</span>
               </p>
-              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
+              <span className="rounded-sm border border-line bg-[#FAFAFA] px-3 py-1 text-xs font-medium text-muted">
                 {pick('Estimasi', 'Lead time')} {config.productionEstimateText}
               </span>
             </div>
@@ -1193,7 +1193,7 @@ export default function CustomLab() {
                 retry={() => void modelDetailQuery.refetch()}
               />
             ) : availableFabrics.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
+              <p className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4 text-sm text-muted">
                 {pick(
                   'Belum ada bahan aktif yang terhubung dengan model ini.',
                   'No active fabrics are linked to this model yet.'
@@ -1209,10 +1209,10 @@ export default function CustomLab() {
                       type="button"
                       onClick={() => handleSelectFabric(fabric.id)}
                       aria-pressed={isSelected}
-                      className={`flex flex-col justify-between rounded-2xl border p-3.5 text-left transition-colors ${
+                      className={`flex flex-col justify-between rounded-sm border p-3.5 text-left transition-colors ${
                         isSelected
                           ? 'border-ink bg-ink text-white'
-                          : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                          : 'border-line bg-white text-ink hover:border-line-strong hover:bg-[#FAFAFA]'
                       }`}
                     >
                       <div className="space-y-1">
@@ -1220,10 +1220,10 @@ export default function CustomLab() {
                           <p className="font-display text-sm font-semibold">{fabric.name}</p>
                           {fabric.gsmWeight ? (
                             <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] ${
+                              className={`shrink-0 rounded-sm px-2 py-0.5 font-mono text-[11px] ${
                                 isSelected
                                   ? 'bg-neutral-800 text-neutral-200'
-                                  : 'bg-surface text-muted'
+                                  : 'bg-[#FAFAFA] text-muted'
                               }`}
                             >
                               {fabric.gsmWeight} GSM
@@ -1475,13 +1475,13 @@ export default function CustomLab() {
                 type="button"
                 onClick={() => handleSelectModel(model.id)}
                 aria-pressed={isSelected}
-                className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-colors ${
+                className={`flex flex-col overflow-hidden rounded-sm border text-left transition-colors ${
                   isSelected
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                    : 'border-line bg-white text-ink hover:border-line-strong hover:bg-[#FAFAFA]'
                 }`}
               >
-                <div className="aspect-[4/5] w-full overflow-hidden bg-surface">
+                <div className="aspect-[4/5] w-full overflow-hidden bg-[#FAFAFA]">
                   {model.imageUrl ? (
                     <img
                       src={model.imageUrl}

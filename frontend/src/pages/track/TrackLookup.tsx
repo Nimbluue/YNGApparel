@@ -113,7 +113,7 @@ export default function TrackLookup() {
       </header>
 
       <div className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-12">
-        <section className="w-full min-w-0 rounded-3xl border border-line bg-white p-5 sm:p-7 lg:col-span-7">
+        <section className="w-full min-w-0 rounded-sm border border-line bg-white p-5 sm:p-7 lg:col-span-7">
           <div className="border-b border-line pb-4">
             <p className="eyebrow">{pick('Cari Pesanan Anda', 'Find Your Order')}</p>
             <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -127,7 +127,7 @@ export default function TrackLookup() {
           {formError ? (
             <div
               role="alert"
-              className={`mt-4 rounded-2xl border px-4 py-3 text-xs leading-relaxed sm:text-sm ${
+              className={`mt-4 rounded-sm border px-4 py-3 text-xs leading-relaxed sm:text-sm ${
                 isRateLimited
                   ? 'border-amber-200 bg-amber-50 text-status-warn'
                   : 'border-red-200 bg-red-50 text-status-err'
@@ -214,7 +214,7 @@ export default function TrackLookup() {
         </section>
 
         <aside className="w-full min-w-0 space-y-4 lg:col-span-5">
-          <div className="w-full space-y-4 rounded-3xl border border-line bg-surface p-5 sm:p-6">
+          <div className="w-full space-y-4 rounded-sm border border-line bg-[#FAFAFA] p-5 sm:p-6">
             <div>
               <p className="eyebrow">{pick('Informasi Pelacakan', 'Tracking Guide')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">

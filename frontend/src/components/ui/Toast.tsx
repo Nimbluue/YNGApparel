@@ -25,14 +25,14 @@ function ToastRow({ item, onDismiss }: { item: ToastEntry; onDismiss: () => void
     <div
       role="status"
       aria-live="polite"
-      className={`flex min-h-touch items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-2.5 shadow-sm ${VARIANT_CLASSES[item.variant]}`}
+      className={`flex min-h-touch items-center justify-between gap-3 rounded-sm border border-line bg-white px-4 py-2.5 shadow-sm ${VARIANT_CLASSES[item.variant]}`}
     >
       <p className="text-sm font-medium">{item.message}</p>
       <button
         type="button"
         onClick={onDismiss}
         aria-label="Tutup notifikasi"
-        className="inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full text-sm text-muted transition-colors hover:bg-surface hover:text-ink"
+        className="inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-sm text-sm text-muted transition-colors hover:bg-surface hover:text-ink"
       >
         ✕
       </button>

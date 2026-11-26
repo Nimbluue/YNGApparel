@@ -14,7 +14,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
 
   if (sizes.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
+      <p className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4 text-sm text-muted">
         {pick('Daftar ukuran belum tersedia di katalog.', 'Size matrix is not available yet.')}
       </p>
     );
@@ -22,7 +22,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
 
   return (
     <div className="space-y-3">
-      <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
+      <div className="divide-y divide-line overflow-hidden rounded-sm border border-line bg-white">
         {sizes.map((size) => {
           const qty = Math.max(0, quantities[size.id] ?? 0);
           return (
@@ -49,7 +49,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                   onClick={() => onChangeQuantity(size.id, Math.max(0, qty - 1))}
                   disabled={qty === 0}
                   aria-label={pick(`Kurangi ukuran ${size.code}`, `Decrease size ${size.code}`)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-strong bg-white text-lg font-medium text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-35"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-line-strong bg-white text-lg font-medium text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   −
                 </button>
@@ -68,14 +68,14 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                       Number.isFinite(parsed) && parsed > 0 ? Math.min(100000, parsed) : 0;
                     onChangeQuantity(size.id, safeQty);
                   }}
-                  className="tabular-price h-11 w-14 rounded-xl border border-line bg-surface px-1.5 text-center text-sm font-semibold text-ink focus:border-ink focus:bg-white focus:outline-none sm:w-16"
+                  className="tabular-price h-11 w-14 rounded-sm border border-line bg-[#FAFAFA] px-1.5 text-center text-sm font-semibold text-ink focus:border-ink focus:bg-white focus:outline-none sm:w-16"
                 />
 
                 <button
                   type="button"
                   onClick={() => onChangeQuantity(size.id, Math.min(100000, qty + 1))}
                   aria-label={pick(`Tambah ukuran ${size.code}`, `Increase size ${size.code}`)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-strong bg-white text-lg font-medium text-ink transition-colors hover:border-ink hover:bg-surface"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-line-strong bg-white text-lg font-medium text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
                 >
                   +
                 </button>
@@ -85,11 +85,11 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
         })}
       </div>
 
-      <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
+      <div className="flex items-center justify-between rounded-sm border border-line bg-[#FAFAFA] px-4 py-3">
         <span className="text-sm font-medium text-muted">
           {pick('Total kuantitas sementara', 'Current total quantity')}
         </span>
-        <span className="tabular-price rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">
+        <span className="tabular-price rounded-sm bg-ink px-3 py-1 text-xs font-semibold text-white">
           {totalQty} pcs
         </span>
       </div>
