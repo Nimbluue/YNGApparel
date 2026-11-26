@@ -3,6 +3,7 @@ import type { ApiSuccessResponse, HealthStatusDto } from '@yng/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CardSkeleton } from '../components/ui/Skeleton';
+import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 import { catalogQueryKeys, getCatalogConfig, getCatalogModels } from '../services/catalogService';
 import { BRAND_LOGO_MAIN_URL } from '../utils/brandAssets';
@@ -11,13 +12,14 @@ import { buildWaLink } from '../utils/whatsapp';
 
 interface HealthState {
   status: 'loading' | 'ok' | 'offline';
-  message: string;
+  message: string | null;
 }
 
 export default function Home() {
+  const { pick } = useLanguage();
   const [health, setHealth] = useState<HealthState>({
     status: 'loading',
-    message: 'Memeriksa koneksi API...',
+    message: null,
   });
 
   const configQuery = useQuery({
@@ -41,12 +43,12 @@ export default function Home() {
         if (!active) return;
         setHealth({
           status: 'ok',
-          message: res.data.message || 'API backend aktif.',
+          message: res.data.message || null,
         });
       })
       .catch((err: unknown) => {
         if (!active) return;
-        const message = err instanceof Error ? err.message : 'API backend belum terhubung.';
+        const message = err instanceof Error ? err.message : null;
         setHealth({
           status: 'offline',
           message,
@@ -66,9 +68,20 @@ export default function Home() {
   const waHref = config?.adminWhatsapp
     ? buildWaLink(
         config.adminWhatsapp,
-        'Halo admin YNG Apparel, saya ingin konsultasi pesanan custom.'
+        pick(
+          'Halo admin YNG Apparel, saya ingin konsultasi pesanan custom.',
+          'Hello YNG Apparel admin, I would like to consult about a custom order.'
+        )
       )
     : null;
+
+  const resolvedHealthMessage =
+    health.message ??
+    (health.status === 'loading'
+      ? pick('Memeriksa koneksi API...', 'Checking API connection...')
+      : health.status === 'ok'
+        ? pick('API backend aktif.', 'Backend API is online.')
+        : pick('API backend belum terhubung.', 'Backend API is not connected.'));
 
   return (
     <div className="space-y-12 pb-6 sm:space-y-16">
@@ -88,28 +101,33 @@ export default function Home() {
                 aria-hidden="true"
               />
               {health.status === 'ok'
-                ? 'Studio Online'
+                ? pick('Studio Online', 'Studio Online')
                 : health.status === 'loading'
-                  ? 'Menghubungkan…'
-                  : 'Mode Pratinjau'}
+                  ? pick('Menghubungkan…', 'Connecting…')
+                  : pick('Mode Pratinjau', 'Preview Mode')}
             </span>
           </div>
 
           <h1 className="text-balance font-display text-4xl font-semibold leading-[1.12] tracking-[-0.02em] text-ink sm:text-5xl lg:text-6xl">
-            Pakaian Custom &amp; Sablon dengan Standar Studio.
+            {pick(
+              'Pakaian Custom & Sablon dengan Standar Studio.',
+              'Custom Apparel & Printing with Studio Precision.'
+            )}
           </h1>
 
           <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-            Rancang kaos, polo, hoodie, hingga jaket custom langsung di Custom Lab. Pilih bahan dan
-            warna, atur matriks ukuran, dan pantau harga resmi secara transparan.
+            {pick(
+              'Rancang kaos, polo, hoodie, hingga jaket custom langsung di Custom Lab. Pilih bahan dan warna, atur matriks ukuran, dan pantau harga resmi secara transparan.',
+              'Design custom tees, polos, hoodies, and jackets directly in Custom Lab. Select fabrics and colors, set your size matrix, and get transparent server-verified pricing.'
+            )}
           </p>
 
           <div className="flex flex-col gap-3.5 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
             <Link to="/custom-lab" className="btn-primary w-full sm:w-auto">
-              Mulai Custom Lab
+              {pick('Mulai Custom Lab', 'Start Custom Lab')}
             </Link>
             <Link to="/track" className="btn-secondary w-full sm:w-auto">
-              Lacak Pesanan
+              {pick('Lacak Pesanan', 'Track Order')}
             </Link>
             {waHref ? (
               <a
@@ -118,7 +136,7 @@ export default function Home() {
                 rel="noopener noreferrer"
                 className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-line bg-surface px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:border-ink hover:bg-white sm:w-auto"
               >
-                Tanya via WhatsApp
+                {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
               </a>
             ) : null}
           </div>
@@ -129,7 +147,7 @@ export default function Home() {
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-20 sm:w-20">
               <img
                 src={BRAND_LOGO_MAIN_URL}
-                alt="Identitas Brand YNG Apparel"
+                alt="YNG Apparel Studio"
                 className="h-full w-full scale-110 object-cover object-center"
               />
             </div>
@@ -137,7 +155,9 @@ export default function Home() {
               <p className="font-display text-base font-semibold text-ink sm:text-lg">
                 YNG Apparel Studio
               </p>
-              <p className="text-xs text-muted">Batam · Custom &amp; Retail Garment</p>
+              <p className="text-xs text-muted">
+                {pick('Batam · Custom & Retail Garment', 'Batam · Custom & Studio Garments')}
+              </p>
               <span className="mt-2 inline-flex rounded-full border border-line bg-white px-3 py-0.5 text-xs font-medium text-ink">
                 @yng.apparel.official
               </span>
@@ -146,41 +166,48 @@ export default function Home() {
 
           <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
             <div>
-              <dt className="eyebrow">Skema Pembayaran</dt>
+              <dt className="eyebrow">{pick('Skema Pembayaran', 'Payment Scheme')}</dt>
               <dd className="mt-1 font-semibold text-ink">
                 {config ? (
                   <>
-                    DP <span className="tabular-price">{config.dpPercent}%</span> (min.{' '}
+                    {pick('DP', 'Deposit')}{' '}
+                    <span className="tabular-price">{config.dpPercent}%</span> (min.{' '}
                     <span className="tabular-price">{config.dpMinQty} pcs</span>)
                   </>
                 ) : (
-                  'DP / Pelunasan'
+                  pick('DP / Pelunasan', 'Deposit / Full Payment')
                 )}
               </dd>
             </div>
             <div>
-              <dt className="eyebrow">Estimasi Pengerjaan</dt>
+              <dt className="eyebrow">{pick('Estimasi Pengerjaan', 'Production Lead Time')}</dt>
               <dd className="mt-1 font-semibold text-ink">
-                {config?.productionEstimateText ?? '7-14 hari kerja'}
+                {config?.productionEstimateText ?? pick('7-14 hari kerja', '7-14 business days')}
               </dd>
             </div>
             <div>
-              <dt className="eyebrow">Teknik Produksi</dt>
-              <dd className="mt-1 font-medium text-ink">Sablon &amp; Heat-Press Presisi</dd>
+              <dt className="eyebrow">{pick('Teknik Produksi', 'Production Technique')}</dt>
+              <dd className="mt-1 font-medium text-ink">
+                {pick('Sablon & Heat-Press Presisi', 'Precision Screen Print & Heat-Press')}
+              </dd>
             </div>
             <div>
-              <dt className="eyebrow">Pengiriman</dt>
-              <dd className="mt-1 font-medium text-ink">Seluruh Indonesia &amp; Pickup</dd>
+              <dt className="eyebrow">{pick('Pengiriman', 'Fulfillment')}</dt>
+              <dd className="mt-1 font-medium text-ink">
+                {pick('Seluruh Indonesia & Pickup', 'Nationwide Delivery & Workshop Pickup')}
+              </dd>
             </div>
           </dl>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <p className="font-editorial text-lg italic text-muted">Satuan maupun produksi tim</p>
+            <p className="font-editorial text-lg italic text-muted">
+              {pick('Satuan maupun produksi tim', 'Single pieces or team runs')}
+            </p>
             <Link
               to="/custom-lab"
               className="inline-flex min-h-touch items-center font-display text-xs font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
             >
-              Buka Konfigurator →
+              {pick('Buka Konfigurator →', 'Open Configurator →')}
             </Link>
           </div>
         </aside>
@@ -190,17 +217,17 @@ export default function Home() {
         <section aria-labelledby="home-catalog-heading" className="space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="eyebrow">Katalog Aktif</p>
+              <p className="eyebrow">{pick('Katalog Aktif', 'Active Catalog')}</p>
               <h2
                 id="home-catalog-heading"
                 className="mt-1 font-display text-2xl font-semibold text-ink sm:text-3xl"
               >
-                Pilih Siluet Pakaian
+                {pick('Pilih Siluet Pakaian', 'Choose Garment Silhouette')}
               </h2>
             </div>
 
             <Link to="/custom-lab" className="btn-secondary px-5 py-2 text-xs">
-              Lihat Semua di Custom Lab
+              {pick('Lihat Semua di Custom Lab', 'View All in Custom Lab')}
             </Link>
           </div>
 
@@ -230,7 +257,9 @@ export default function Home() {
                         <span className="font-display text-base font-semibold text-ink">
                           {model.name}
                         </span>
-                        <span className="text-xs text-muted">Foto katalog segera hadir</span>
+                        <span className="text-xs text-muted">
+                          {pick('Foto katalog segera hadir', 'Catalog photo coming soon')}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -245,7 +274,7 @@ export default function Home() {
                           <span className="tabular-price font-medium text-ink">
                             {model.fabricIds.length}
                           </span>{' '}
-                          bahan
+                          {pick('bahan', 'fabrics')}
                         </span>
                       </div>
                       {model.description ? (
@@ -257,10 +286,11 @@ export default function Home() {
 
                     <div className="flex items-center justify-between border-t border-line pt-3">
                       <span className="text-sm font-semibold text-ink">
-                        Mulai <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
+                        {pick('Mulai', 'From')}{' '}
+                        <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
                       </span>
                       <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">
-                        Rancang →
+                        {pick('Rancang →', 'Design →')}
                       </span>
                     </div>
                   </div>
@@ -271,41 +301,55 @@ export default function Home() {
         </section>
       ) : null}
 
-      <section aria-label="Alur layanan YNG Apparel" className="grid gap-5 md:grid-cols-3 xl:gap-6">
+      <section
+        aria-label={pick('Alur layanan YNG Apparel', 'YNG Apparel workflow')}
+        className="grid gap-5 md:grid-cols-3 xl:gap-6"
+      >
         <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
           <p className="text-xs font-medium text-muted">
-            <span className="tabular-price font-semibold text-ink">01</span> · Konfigurasi
+            <span className="tabular-price font-semibold text-ink">01</span> ·{' '}
+            {pick('Konfigurasi', 'Configure')}
           </p>
           <h2 className="mt-2 font-display text-xl font-semibold text-ink">
-            Rancang di Custom Lab
+            {pick('Rancang di Custom Lab', 'Design in Custom Lab')}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Pilih model, bahan yang kompatibel, warna preset atau custom, matriks ukuran, dan titik
-            sablon dengan kalkulasi harga real-time.
+            {pick(
+              'Pilih model, bahan yang kompatibel, warna preset atau custom, matriks ukuran, dan titik sablon dengan kalkulasi harga real-time.',
+              'Pick your garment model, compatible fabric, preset or custom color, size matrix, and print spots with real-time pricing.'
+            )}
           </p>
         </article>
 
         <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
           <p className="text-xs font-medium text-muted">
-            <span className="tabular-price font-semibold text-ink">02</span> · Produksi
+            <span className="tabular-price font-semibold text-ink">02</span> ·{' '}
+            {pick('Produksi', 'Production')}
           </p>
           <h2 className="mt-2 font-display text-xl font-semibold text-ink">
-            Transparan &amp; Terpantau
+            {pick('Transparan & Terpantau', 'Transparent & Trackable')}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Pantau setiap tahap produksi mulai dari cek desain, cetak sablon, pressing &amp; QC,
-            hingga nomor resi pengiriman.
+            {pick(
+              'Pantau setiap tahap produksi mulai dari cek desain, cetak sablon, pressing & QC, hingga nomor resi pengiriman.',
+              'Track every production step from design check, screen printing, pressing & QC, up to shipping tracking numbers.'
+            )}
           </p>
         </article>
 
         <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
           <p className="text-xs font-medium text-muted">
-            <span className="tabular-price font-semibold text-ink">03</span> · Kualitas
+            <span className="tabular-price font-semibold text-ink">03</span> ·{' '}
+            {pick('Kualitas', 'Craftsmanship')}
           </p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-ink">Dikerjakan di Batam</h2>
+          <h2 className="mt-2 font-display text-xl font-semibold text-ink">
+            {pick('Dikerjakan di Batam', 'Crafted in Batam')}
+          </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Mendukung pesanan satuan maupun produksi komunitas/tim ke seluruh Indonesia dengan
-            konsultasi langsung via WhatsApp.
+            {pick(
+              'Mendukung pesanan satuan maupun produksi komunitas/tim ke seluruh Indonesia dengan konsultasi langsung via WhatsApp.',
+              'Supporting single pieces and community/brand runs shipped across Indonesia with direct WhatsApp consultation.'
+            )}
           </p>
         </article>
       </section>
@@ -314,19 +358,22 @@ export default function Home() {
         <div>
           <p className="text-xs font-medium text-neutral-400">Workshop Batam</p>
           <p className="mt-1.5 font-display text-xl font-semibold leading-snug sm:text-2xl">
-            Siap wujudkan apparel custom untuk tim atau brand Anda?
+            {pick(
+              'Siap wujudkan apparel custom untuk tim atau brand Anda?',
+              'Ready to bring custom apparel for your team or brand to life?'
+            )}
           </p>
         </div>
         <Link
           to="/custom-lab"
           className="inline-flex min-h-touch shrink-0 items-center justify-center rounded-full bg-white px-6 py-2.5 font-display text-sm font-semibold text-ink transition-colors hover:bg-neutral-200"
         >
-          Simulasi Harga Sekarang
+          {pick('Simulasi Harga Sekarang', 'Estimate Price Now')}
         </Link>
       </section>
 
       <p className="text-xs text-muted" aria-live="polite">
-        Status server: {health.message}
+        {pick('Status server:', 'Server status:')} {resolvedHealthMessage}
       </p>
     </div>
   );

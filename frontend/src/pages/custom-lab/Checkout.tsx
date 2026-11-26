@@ -2,8 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   FULFILLMENT_TYPE,
   PAYMENT_SCHEME,
-  PRINT_POSITION_LABELS,
-  getPaymentSchemeLabel,
   type CreateOrderRequestDto,
   type FulfillmentType,
   type PaymentScheme,
@@ -17,6 +15,7 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/toastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useCartStore } from '../../lib/store';
 import { listAddresses } from '../../services/accountService';
 import { ApiClientError } from '../../services/api';
@@ -32,6 +31,10 @@ import {
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { generateIdempotencyKey } from '../../utils/idempotency';
+import {
+  getLocalizedPaymentSchemeLabel,
+  getLocalizedPrintPositionLabel,
+} from '../../utils/localizedLabels';
 import { formatWhatsApp, normalizeWhatsApp } from '../../utils/phone';
 
 interface ShippingAddressFormState {
@@ -55,6 +58,7 @@ const EMPTY_SHIPPING_FORM: ShippingAddressFormState = {
 };
 
 export default function Checkout() {
+  const { locale, t, pick } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -218,7 +222,10 @@ export default function Checkout() {
       ]);
       uncheckAll();
       clearCheckoutSelection();
-      toast(`Pesanan ${order.orderCode} berhasil dibuat.`, 'ok');
+      toast(
+        pick(`Pesanan ${order.orderCode} berhasil dibuat.`, `Order ${order.orderCode} created.`),
+        'ok'
+      );
       navigate(`/pesanan/${order.transactionUuid}`, {
         replace: true,
         state: { justCreated: true },
@@ -227,7 +234,10 @@ export default function Checkout() {
     onError: (err) => {
       const parsed = extractApiError(
         err,
-        'Gagal membuat pesanan. Silakan periksa kembali data Anda.'
+        pick(
+          'Gagal membuat pesanan. Silakan periksa kembali data Anda.',
+          'Failed to create order. Please review your details.'
+        )
       );
       const detailMsg =
         parsed.details.length > 0
@@ -246,13 +256,21 @@ export default function Checkout() {
     setFormError(null);
 
     if (selectedItems.length === 0) {
-      setFormError('Tidak ada item keranjang yang dipilih untuk checkout.');
+      setFormError(
+        pick(
+          'Tidak ada item keranjang yang dipilih untuk checkout.',
+          'No bag items selected for checkout.'
+        )
+      );
       return;
     }
 
     if (checkoutSummary.hasUnavailable) {
       setFormError(
-        'Sebagian item yang dipilih sudah tidak tersedia. Kembali ke keranjang untuk memperbarui atau menghapusnya.'
+        pick(
+          'Sebagian item yang dipilih sudah tidak tersedia. Kembali ke keranjang untuk memperbarui atau menghapusnya.',
+          'Some selected items are no longer available. Return to your bag to update or remove them.'
+        )
       );
       return;
     }
@@ -267,7 +285,12 @@ export default function Checkout() {
     if (fulfillmentType === FULFILLMENT_TYPE.SHIP) {
       if (addressMode === 'saved' && addresses.length > 0) {
         if (!selectedAddressUuid) {
-          setFormError('Pilih alamat pengiriman tersimpan terlebih dahulu.');
+          setFormError(
+            pick(
+              'Pilih alamat pengiriman tersimpan terlebih dahulu.',
+              'Please select a saved shipping address first.'
+            )
+          );
           return;
         }
         createOrderMutation.mutate({
@@ -291,23 +314,42 @@ export default function Checkout() {
       const fullAddress = shippingForm.fullAddress.trim();
 
       if (recipientName.length < 2) {
-        setFormError('Nama penerima minimal 2 karakter.');
+        setFormError(
+          pick('Nama penerima minimal 2 karakter.', 'Recipient name must be at least 2 characters.')
+        );
         return;
       }
       if (!normalizedWa) {
-        setFormError('Format WhatsApp penerima tidak valid. Gunakan awalan 08 atau 62.');
+        setFormError(
+          pick(
+            'Format WhatsApp penerima tidak valid. Gunakan awalan 08 atau 62.',
+            'Invalid recipient WhatsApp format. Use 08 or 62 prefix.'
+          )
+        );
         return;
       }
       if (provinceName.length < 2 || cityName.length < 2 || districtName.length < 2) {
-        setFormError('Provinsi, kota/kabupaten, dan kecamatan wajib diisi lengkap.');
+        setFormError(
+          pick(
+            'Provinsi, kota/kabupaten, dan kecamatan wajib diisi lengkap.',
+            'Province, city, and district are required.'
+          )
+        );
         return;
       }
       if (!/^[0-9]{5}$/.test(postalCode)) {
-        setFormError('Kode pos harus terdiri dari 5 digit angka.');
+        setFormError(
+          pick('Kode pos harus terdiri dari 5 digit angka.', 'Postal code must be 5 digits.')
+        );
         return;
       }
       if (fullAddress.length < 5) {
-        setFormError('Alamat lengkap minimal 5 karakter.');
+        setFormError(
+          pick(
+            'Alamat lengkap minimal 5 karakter.',
+            'Full street address must be at least 5 characters.'
+          )
+        );
         return;
       }
 
@@ -334,11 +376,21 @@ export default function Checkout() {
     const trimmedPickupName = pickupName.trim();
     const normalizedPickupWa = normalizeWhatsApp(pickupWhatsapp);
     if (trimmedPickupName.length < 2) {
-      setFormError('Nama pengambil pesanan minimal 2 karakter.');
+      setFormError(
+        pick(
+          'Nama pengambil pesanan minimal 2 karakter.',
+          'Pickup contact name must be at least 2 characters.'
+        )
+      );
       return;
     }
     if (!normalizedPickupWa) {
-      setFormError('Format nomor WhatsApp pengambil pesanan tidak valid.');
+      setFormError(
+        pick(
+          'Format nomor WhatsApp pengambil pesanan tidak valid.',
+          'Invalid pickup WhatsApp number format.'
+        )
+      );
       return;
     }
 
@@ -375,11 +427,16 @@ export default function Checkout() {
   }
 
   if (cartQuery.error) {
-    const parsed = extractApiError(cartQuery.error, 'Gagal memuat data checkout dari keranjang.');
+    const parsed = extractApiError(
+      cartQuery.error,
+      pick('Gagal memuat data checkout dari keranjang.', 'Failed to load checkout data from bag.')
+    );
     return (
       <div className="mx-auto max-w-2xl py-6">
         <ErrorState
-          title="Halaman checkout belum dapat dimuat"
+          eyebrow={t('common.errorEyebrow')}
+          retryLabel={t('common.retry')}
+          title={pick('Halaman checkout belum dapat dimuat', 'Checkout page could not be loaded')}
           message={parsed.message}
           retry={() => void cartQuery.refetch()}
         />
@@ -391,15 +448,18 @@ export default function Checkout() {
     return (
       <div className="mx-auto max-w-2xl py-8">
         <EmptyState
-          title="Belum ada item keranjang dipilih"
-          description="Pilih minimal satu konfigurasi Custom Lab di keranjang sebelum melanjutkan ke tahap checkout."
+          title={pick('Belum ada item keranjang dipilih', 'No bag items selected')}
+          description={pick(
+            'Pilih minimal satu konfigurasi Custom Lab di keranjang sebelum melanjutkan ke tahap checkout.',
+            'Select at least one Custom Lab configuration in your bag before proceeding to checkout.'
+          )}
           action={
             <div className="flex flex-wrap justify-center gap-3">
               <Link to="/keranjang" className="btn-primary">
-                Kembali ke Keranjang
+                {pick('Kembali ke Keranjang', 'Back to Bag')}
               </Link>
               <Link to="/custom-lab" className="btn-secondary">
-                Buka Custom Lab
+                {pick('Buka Custom Lab', 'Open Custom Lab')}
               </Link>
             </div>
           }
@@ -412,17 +472,19 @@ export default function Checkout() {
     <div className="w-full space-y-6 pb-10">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
-          <p className="eyebrow">YNG Studio · Checkout Pesanan</p>
+          <p className="eyebrow">YNG Studio · {pick('Checkout Pesanan', 'Order Checkout')}</p>
           <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl">
-            Konfirmasi Pengiriman &amp; Pembayaran
+            {pick('Konfirmasi Pengiriman & Pembayaran', 'Confirm Delivery & Payment')}
           </h1>
           <p className="mt-1.5 text-sm text-muted">
-            Harga final dan syarat DP dihitung ulang dan dikunci otomatis oleh server saat pesanan
-            dibuat.
+            {pick(
+              'Harga final dan syarat DP dihitung ulang dan dikunci otomatis oleh server saat pesanan dibuat.',
+              'Final pricing and deposit eligibility are recalculated and locked by the server when placing the order.'
+            )}
           </p>
         </div>
         <Link to="/keranjang" className="btn-secondary">
-          Kembali ke Keranjang
+          {pick('Kembali ke Keranjang', 'Back to Bag')}
         </Link>
       </header>
 
@@ -431,11 +493,22 @@ export default function Checkout() {
           role="alert"
           className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
         >
-          Sebagian item yang dipilih sudah tidak tersedia karena pembaruan katalog. Kembali ke{' '}
-          <Link to="/keranjang" className="font-semibold underline">
-            Keranjang
-          </Link>{' '}
-          untuk memperbarui atau menghapus item terkait.
+          {pick(
+            <>
+              Sebagian item yang dipilih sudah tidak tersedia karena pembaruan katalog. Kembali ke{' '}
+              <Link to="/keranjang" className="font-semibold underline">
+                Keranjang
+              </Link>{' '}
+              untuk memperbarui atau menghapus item terkait.
+            </>,
+            <>
+              Some selected items are unavailable due to catalog updates. Return to your{' '}
+              <Link to="/keranjang" className="font-semibold underline">
+                Bag
+              </Link>{' '}
+              to update or remove them.
+            </>
+          )}
         </div>
       ) : null}
 
@@ -457,9 +530,11 @@ export default function Checkout() {
           {/* 01. Metode Pengiriman / Pengambilan */}
           <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">01 · Pengiriman / Pengambilan</p>
+              <p className="eyebrow">
+                {pick('01 · Pengiriman / Pengambilan', '01 · Delivery / Pickup')}
+              </p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                Pilih Metode Penerimaan Pesanan
+                {pick('Pilih Metode Penerimaan Pesanan', 'Choose Fulfillment Method')}
               </h2>
             </div>
 
@@ -473,13 +548,18 @@ export default function Checkout() {
                     : 'border-line bg-surface text-ink hover:border-ink'
                 }`}
               >
-                <span className="font-display text-sm font-semibold">Kirim ke Alamat</span>
+                <span className="font-display text-sm font-semibold">
+                  {pick('Kirim ke Alamat', 'Ship to Address')}
+                </span>
                 <span
                   className={`mt-1 text-xs ${
                     fulfillmentType === FULFILLMENT_TYPE.SHIP ? 'text-neutral-300' : 'text-muted'
                   }`}
                 >
-                  Dikirim via kurir dari Batam. Ongkir diinput admin setelah QC selesai.
+                  {pick(
+                    'Dikirim via kurir dari Batam. Ongkir diinput admin setelah QC selesai.',
+                    'Shipped via courier from Batam. Shipping fee is added by admin after QC.'
+                  )}
                 </span>
               </button>
 
@@ -492,13 +572,18 @@ export default function Checkout() {
                     : 'border-line bg-surface text-ink hover:border-ink'
                 }`}
               >
-                <span className="font-display text-sm font-semibold">Ambil di Workshop</span>
+                <span className="font-display text-sm font-semibold">
+                  {pick('Ambil di Workshop', 'Workshop Pickup')}
+                </span>
                 <span
                   className={`mt-1 text-xs ${
                     fulfillmentType === FULFILLMENT_TYPE.PICKUP ? 'text-neutral-300' : 'text-muted'
                   }`}
                 >
-                  Ambil langsung di studio YNG Apparel Batam tanpa biaya ongkos kirim.
+                  {pick(
+                    'Ambil langsung di studio YNG Apparel Batam tanpa biaya ongkos kirim.',
+                    'Pick up directly at YNG Apparel Batam studio with zero shipping fee.'
+                  )}
                 </span>
               </button>
             </div>
@@ -516,7 +601,7 @@ export default function Checkout() {
                           : 'border-line bg-white text-ink hover:border-ink'
                       }`}
                     >
-                      Pilih Alamat Tersimpan ({addresses.length})
+                      {pick('Pilih Alamat Tersimpan', 'Saved Addresses')} ({addresses.length})
                     </button>
                     <button
                       type="button"
@@ -527,7 +612,7 @@ export default function Checkout() {
                           : 'border-line bg-white text-ink hover:border-ink'
                       }`}
                     >
-                      + Pakai Alamat Baru
+                      {pick('+ Pakai Alamat Baru', '+ Use New Address')}
                     </button>
                   </div>
                 ) : null}
@@ -552,7 +637,9 @@ export default function Checkout() {
                               <span className="font-display text-sm font-semibold text-ink">
                                 {addr.label}
                               </span>
-                              {addr.isDefault ? <Badge variant="info">Utama</Badge> : null}
+                              {addr.isDefault ? (
+                                <Badge variant="info">{pick('Utama', 'Default')}</Badge>
+                              ) : null}
                             </div>
                             <span className="tabular-price text-xs text-muted">
                               {formatWhatsApp(addr.recipientWhatsapp)}
@@ -562,7 +649,7 @@ export default function Checkout() {
                             {addr.recipientName}
                           </p>
                           <p className="mt-1 text-xs leading-relaxed text-muted">
-                            {addr.fullAddress}, Kec. {addr.districtName}, {addr.cityName},{' '}
+                            {addr.fullAddress}, {addr.districtName}, {addr.cityName},{' '}
                             {addr.provinceName}{' '}
                             <span className="tabular-price">{addr.postalCode}</span>
                           </p>
@@ -570,11 +657,23 @@ export default function Checkout() {
                       );
                     })}
                     <p className="text-xs text-muted">
-                      Alamat disalin sebagai snapshot pesanan ini. Kelola buku alamat permanen di{' '}
-                      <Link to="/akun" className="font-semibold text-ink underline">
-                        Akun Saya
-                      </Link>
-                      .
+                      {pick(
+                        <>
+                          Alamat disalin sebagai snapshot pesanan ini. Kelola buku alamat permanen
+                          di{' '}
+                          <Link to="/akun" className="font-semibold text-ink underline">
+                            Akun Saya
+                          </Link>
+                          .
+                        </>,
+                        <>
+                          Address is copied as a snapshot for this order. Manage saved addresses in{' '}
+                          <Link to="/akun" className="font-semibold text-ink underline">
+                            My Account
+                          </Link>
+                          .
+                        </>
+                      )}
                     </p>
                   </div>
                 ) : (
@@ -584,7 +683,7 @@ export default function Checkout() {
                         htmlFor="checkout-recipient-name"
                         className="block text-xs font-semibold text-ink"
                       >
-                        Nama Penerima
+                        {pick('Nama Penerima', 'Recipient Name')}
                       </label>
                       <input
                         id="checkout-recipient-name"
@@ -595,7 +694,7 @@ export default function Checkout() {
                         onChange={(e) =>
                           setShippingForm((prev) => ({ ...prev, recipientName: e.target.value }))
                         }
-                        placeholder="Nama lengkap penerima"
+                        placeholder={pick('Nama lengkap penerima', 'Recipient full name')}
                         className="input-sharp mt-1.5"
                       />
                     </div>
@@ -605,7 +704,7 @@ export default function Checkout() {
                         htmlFor="checkout-recipient-wa"
                         className="block text-xs font-semibold text-ink"
                       >
-                        WhatsApp Penerima
+                        {pick('WhatsApp Penerima', 'Recipient WhatsApp')}
                       </label>
                       <input
                         id="checkout-recipient-wa"
@@ -629,7 +728,7 @@ export default function Checkout() {
                         htmlFor="checkout-province"
                         className="block text-xs font-semibold text-ink"
                       >
-                        Provinsi
+                        {pick('Provinsi', 'Province')}
                       </label>
                       <input
                         id="checkout-province"
@@ -650,7 +749,7 @@ export default function Checkout() {
                         htmlFor="checkout-city"
                         className="block text-xs font-semibold text-ink"
                       >
-                        Kota / Kabupaten
+                        {pick('Kota / Kabupaten', 'City / Regency')}
                       </label>
                       <input
                         id="checkout-city"
@@ -671,7 +770,7 @@ export default function Checkout() {
                         htmlFor="checkout-district"
                         className="block text-xs font-semibold text-ink"
                       >
-                        Kecamatan
+                        {pick('Kecamatan', 'District')}
                       </label>
                       <input
                         id="checkout-district"
@@ -692,7 +791,7 @@ export default function Checkout() {
                         htmlFor="checkout-postal"
                         className="block text-xs font-semibold text-ink"
                       >
-                        Kode Pos
+                        {pick('Kode Pos', 'Postal Code')}
                       </label>
                       <input
                         id="checkout-postal"
@@ -717,7 +816,7 @@ export default function Checkout() {
                         htmlFor="checkout-full-address"
                         className="block text-xs font-semibold text-ink"
                       >
-                        Alamat Lengkap
+                        {pick('Alamat Lengkap', 'Full Address')}
                       </label>
                       <textarea
                         id="checkout-full-address"
@@ -728,7 +827,10 @@ export default function Checkout() {
                         onChange={(e) =>
                           setShippingForm((prev) => ({ ...prev, fullAddress: e.target.value }))
                         }
-                        placeholder="Nama jalan, nomor rumah/ruko, RT/RW, patokan"
+                        placeholder={pick(
+                          'Nama jalan, nomor rumah/ruko, RT/RW, patokan',
+                          'Street name, house/unit number, landmarks'
+                        )}
                         className="input-sharp mt-1.5 min-h-[88px] resize-y py-2"
                       />
                     </div>
@@ -738,10 +840,20 @@ export default function Checkout() {
             ) : (
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-line bg-surface p-4 text-xs leading-relaxed text-muted">
-                  <p className="font-semibold text-ink">Pengambilan Langsung di Studio Batam</p>
+                  <p className="font-semibold text-ink">
+                    {pick('Pengambilan Langsung di Studio Batam', 'Direct Pickup at Batam Studio')}
+                  </p>
                   <p className="mt-1">
-                    Anda akan mendapat notifikasi status <strong>Siap Diambil</strong> pada halaman
-                    detail pesanan setelah proses pressing &amp; QC selesai.
+                    {pick(
+                      <>
+                        Anda akan mendapat notifikasi status <strong>Siap Diambil</strong> pada
+                        halaman detail pesanan setelah proses pressing &amp; QC selesai.
+                      </>,
+                      <>
+                        Your order status will update to <strong>Ready for Pickup</strong> on the
+                        order detail page once pressing &amp; QC are completed.
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -751,7 +863,7 @@ export default function Checkout() {
                       htmlFor="checkout-pickup-name"
                       className="block text-xs font-semibold text-ink"
                     >
-                      Nama Pengambil
+                      {pick('Nama Pengambil', 'Pickup Contact Name')}
                     </label>
                     <input
                       id="checkout-pickup-name"
@@ -760,7 +872,7 @@ export default function Checkout() {
                       maxLength={150}
                       value={pickupName}
                       onChange={(e) => setPickupName(e.target.value)}
-                      placeholder="Nama yang akan mengambil"
+                      placeholder={pick('Nama yang akan mengambil', 'Name of person picking up')}
                       className="input-sharp mt-1.5"
                     />
                   </div>
@@ -769,7 +881,7 @@ export default function Checkout() {
                       htmlFor="checkout-pickup-wa"
                       className="block text-xs font-semibold text-ink"
                     >
-                      WhatsApp Pengambil
+                      {pick('WhatsApp Pengambil', 'Pickup WhatsApp')}
                     </label>
                     <input
                       id="checkout-pickup-wa"
@@ -790,9 +902,9 @@ export default function Checkout() {
           {/* 02. Skema Pembayaran (Dynamic DP Gatekeeper) */}
           <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">02 · Skema Pembayaran</p>
+              <p className="eyebrow">{pick('02 · Skema Pembayaran', '02 · Payment Scheme')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                Pilih Pembayaran Lunas atau DP{' '}
+                {pick('Pilih Pembayaran Lunas atau DP', 'Choose Full Payment or Deposit')}{' '}
                 <span className="tabular-price">{checkoutSummary.dpPercent}%</span>
               </h2>
             </div>
@@ -809,7 +921,9 @@ export default function Checkout() {
               >
                 <div className="w-full">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-display text-sm font-semibold">Lunas (100%)</span>
+                    <span className="font-display text-sm font-semibold">
+                      {pick('Lunas (100%)', 'Full Payment (100%)')}
+                    </span>
                     <span className="tabular-price text-sm font-bold">
                       {formatRupiah(checkoutSummary.subtotalAmount)}
                     </span>
@@ -819,7 +933,10 @@ export default function Checkout() {
                       paymentScheme === PAYMENT_SCHEME.FULL ? 'text-neutral-300' : 'text-muted'
                     }`}
                   >
-                    Bayar penuh biaya produksi di awal. Ongkir (jika kirim) ditagihkan setelah QC.
+                    {pick(
+                      'Bayar penuh biaya produksi di awal. Ongkir (jika kirim) ditagihkan setelah QC.',
+                      'Pay 100% production cost upfront. Shipping (if delivered) is billed after QC.'
+                    )}
                   </p>
                 </div>
               </button>
@@ -843,7 +960,11 @@ export default function Checkout() {
                 <div className="w-full">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-display text-sm font-semibold">
-                      {getPaymentSchemeLabel(PAYMENT_SCHEME.DP, checkoutSummary.dpPercent)}
+                      {getLocalizedPaymentSchemeLabel(
+                        PAYMENT_SCHEME.DP,
+                        checkoutSummary.dpPercent,
+                        locale
+                      )}
                     </span>
                     <span className="tabular-price text-sm font-bold">
                       {formatRupiah(checkoutSummary.dpAmount)}
@@ -855,23 +976,38 @@ export default function Checkout() {
                         paymentScheme === PAYMENT_SCHEME.DP ? 'text-neutral-300' : 'text-muted'
                       }`}
                     >
-                      Sisa pelunasan{' '}
+                      {pick('Sisa pelunasan', 'Remaining balance')}{' '}
                       <span className="tabular-price font-semibold">
                         {formatRupiah(checkoutSummary.settlementAmount)}
                       </span>{' '}
-                      dibayar setelah pressing &amp; QC.
+                      {pick('dibayar setelah pressing & QC.', 'paid after pressing & QC.')}
                     </p>
                   ) : (
                     <p className="mt-1.5 text-xs text-muted">
-                      Minimal{' '}
-                      <span className="tabular-price font-semibold text-ink">
-                        {checkoutSummary.dpMinQty} pcs
-                      </span>{' '}
-                      pada item terpilih (kurang{' '}
-                      <span className="tabular-price font-semibold text-ink">
-                        {checkoutSummary.missingForDp} pcs
-                      </span>
-                      ).
+                      {pick(
+                        <>
+                          Minimal{' '}
+                          <span className="tabular-price font-semibold text-ink">
+                            {checkoutSummary.dpMinQty} pcs
+                          </span>{' '}
+                          pada item terpilih (kurang{' '}
+                          <span className="tabular-price font-semibold text-ink">
+                            {checkoutSummary.missingForDp} pcs
+                          </span>
+                          ).
+                        </>,
+                        <>
+                          Minimum{' '}
+                          <span className="tabular-price font-semibold text-ink">
+                            {checkoutSummary.dpMinQty} pcs
+                          </span>{' '}
+                          on selected items (add{' '}
+                          <span className="tabular-price font-semibold text-ink">
+                            {checkoutSummary.missingForDp} pcs
+                          </span>
+                          ).
+                        </>
+                      )}
                     </p>
                   )}
                 </div>
@@ -883,9 +1019,10 @@ export default function Checkout() {
           <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">03 · Rincian Item</p>
+                <p className="eyebrow">{pick('03 · Rincian Item', '03 · Item Details')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                  Item yang Akan Diproduksi ({selectedItems.length})
+                  {pick('Item yang Akan Diproduksi', 'Items for Production')} (
+                  {selectedItems.length})
                 </h2>
               </div>
               <span className="tabular-price text-xs font-semibold text-muted">
@@ -899,7 +1036,9 @@ export default function Checkout() {
                 const colorName =
                   pricing?.colorName ??
                   item.config.colorName ??
-                  (item.config.isCustomColor ? 'Warna Custom' : 'Preset warna');
+                  (item.config.isCustomColor
+                    ? pick('Warna Custom', 'Custom Color')
+                    : pick('Preset warna', 'Preset color'));
                 const colorHex = pricing?.colorHex ?? item.config.colorHex;
 
                 return (
@@ -914,15 +1053,17 @@ export default function Checkout() {
                             {pricing?.modelName ?? `Item #${idx + 1}`}
                           </h3>
                           {item.config.isCustomColor ? (
-                            <Badge variant="warn">Warna Custom · WA</Badge>
+                            <Badge variant="warn">
+                              {pick('Warna Custom · WA', 'Custom Color · WA')}
+                            </Badge>
                           ) : null}
                         </div>
                         <p className="mt-1 text-xs text-muted">
-                          Bahan:{' '}
+                          {pick('Bahan:', 'Fabric:')}{' '}
                           <span className="font-medium text-ink">
                             {pricing?.fabricName ?? `#${item.fabricId}`}
                           </span>{' '}
-                          · Warna:{' '}
+                          · {pick('Warna:', 'Color:')}{' '}
                           <span className="inline-flex items-center gap-1.5 font-medium text-ink">
                             {colorHex ? (
                               <span
@@ -971,14 +1112,17 @@ export default function Checkout() {
                               className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted"
                             >
                               <span>
-                                Sablon {PRINT_POSITION_LABELS[spot.printPosition]}
+                                {pick('Sablon', 'Print')}{' '}
+                                {getLocalizedPrintPositionLabel(spot.printPosition, locale)}
                                 {matched ? ` · ${matched.printSizeName}` : ''}
                               </span>
                               {spot.needsDesignHelp ? (
-                                <span className="font-medium text-ink">Bantuan Desain Gratis</span>
+                                <span className="font-medium text-ink">
+                                  {pick('Bantuan Desain Gratis', 'Free Design Help')}
+                                </span>
                               ) : (
                                 <span className="truncate font-mono text-[11px] text-ink">
-                                  {spot.fileName ?? 'File terunggah'}
+                                  {spot.fileName ?? pick('File terunggah', 'File uploaded')}
                                 </span>
                               )}
                             </li>
@@ -986,12 +1130,16 @@ export default function Checkout() {
                         })}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-xs text-muted">Polos (tanpa sablon)</p>
+                      <p className="mt-2 text-xs text-muted">
+                        {pick('Polos (tanpa sablon)', 'Plain (no prints)')}
+                      </p>
                     )}
 
                     {item.config.productionNotes ? (
                       <p className="mt-2 rounded-lg border border-line bg-white px-3 py-2 text-xs text-muted">
-                        <span className="font-semibold text-ink">Catatan: </span>
+                        <span className="font-semibold text-ink">
+                          {pick('Catatan: ', 'Notes: ')}
+                        </span>
                         {item.config.productionNotes}
                       </p>
                     ) : null}
@@ -1003,50 +1151,54 @@ export default function Checkout() {
         </div>
 
         {/* Kolom Kanan: Ringkasan Tagihan Sticky */}
-        <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-5">
+        <aside className="w-full min-w-0 lg:sticky lg:top-28 lg:col-span-5">
           <div className="w-full space-y-5 rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">Ringkasan Tagihan</p>
+              <p className="eyebrow">{pick('Ringkasan Tagihan', 'Invoice Summary')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                Total Produksi Terkunci
+                {pick('Total Produksi Terkunci', 'Locked Production Total')}
               </h2>
             </div>
 
             <dl className="space-y-2.5 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted">Item tercentang</dt>
+                <dt className="text-muted">{pick('Item tercentang', 'Selected items')}</dt>
                 <dd className="tabular-price font-semibold text-ink">
-                  {selectedItems.length} item · {checkoutSummary.totalQty} pcs
+                  {selectedItems.length} {pick('item', 'items')} · {checkoutSummary.totalQty} pcs
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted">Metode terima</dt>
+                <dt className="text-muted">{pick('Metode terima', 'Fulfillment')}</dt>
                 <dd className="font-medium text-ink">
                   {fulfillmentType === FULFILLMENT_TYPE.SHIP
-                    ? 'Kirim ke Alamat'
-                    : 'Ambil di Workshop'}
+                    ? pick('Kirim ke Alamat', 'Ship to Address')
+                    : pick('Ambil di Workshop', 'Workshop Pickup')}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted">Subtotal produksi</dt>
+                <dt className="text-muted">{pick('Subtotal produksi', 'Production subtotal')}</dt>
                 <dd className="tabular-price font-semibold text-ink">
                   {formatRupiah(checkoutSummary.subtotalAmount)}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted">Ongkos kirim</dt>
+                <dt className="text-muted">{pick('Ongkos kirim', 'Shipping fee')}</dt>
                 <dd className="text-xs font-medium text-muted">
                   {fulfillmentType === FULFILLMENT_TYPE.PICKUP
-                    ? 'Rp 0 (Ambil di tempat)'
-                    : 'Diinput admin setelah QC'}
+                    ? pick('Rp 0 (Ambil di tempat)', 'Rp 0 (Workshop pickup)')
+                    : pick('Diinput admin setelah QC', 'Added by admin after QC')}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
                 <dt className="font-semibold text-ink">
-                  Tagihan awal (
+                  {pick('Tagihan awal', 'Initial bill')} (
                   {paymentScheme === PAYMENT_SCHEME.DP && checkoutSummary.dpEligible
-                    ? getPaymentSchemeLabel(PAYMENT_SCHEME.DP, checkoutSummary.dpPercent)
-                    : 'Lunas'}
+                    ? getLocalizedPaymentSchemeLabel(
+                        PAYMENT_SCHEME.DP,
+                        checkoutSummary.dpPercent,
+                        locale
+                      )
+                    : getLocalizedPaymentSchemeLabel(PAYMENT_SCHEME.FULL, null, locale)}
                   )
                 </dt>
                 <dd className="tabular-price text-xl font-bold text-ink">
@@ -1055,7 +1207,7 @@ export default function Checkout() {
               </div>
               {paymentScheme === PAYMENT_SCHEME.DP && checkoutSummary.dpEligible ? (
                 <div className="flex items-center justify-between gap-2 text-xs text-muted">
-                  <dt>Sisa pelunasan setelah QC</dt>
+                  <dt>{pick('Sisa pelunasan setelah QC', 'Remaining balance after QC')}</dt>
                   <dd className="tabular-price font-semibold text-ink">
                     {formatRupiah(checkoutSummary.settlementAmount)}
                   </dd>
@@ -1064,14 +1216,18 @@ export default function Checkout() {
             </dl>
 
             <div className="rounded-2xl border border-line bg-surface p-4 text-xs leading-relaxed text-muted">
-              <p className="font-semibold text-ink">Langkah setelah Buat Pesanan:</p>
+              <p className="font-semibold text-ink">
+                {pick('Langkah setelah Buat Pesanan:', 'Next step after placing order:')}
+              </p>
               <p className="mt-1">
-                Anda akan diarahkan ke halaman detail pesanan untuk melihat rekening bank/QRIS resmi
-                studio dan mengunggah bukti pembayaran awal.
+                {pick(
+                  'Anda akan diarahkan ke halaman detail pesanan untuk melihat rekening bank/QRIS resmi studio dan mengunggah bukti pembayaran awal.',
+                  'You will be taken to the order detail page to view studio bank/QRIS accounts and upload your initial payment proof.'
+                )}
               </p>
               {configQuery.data?.productionEstimateText ? (
                 <p className="mt-2">
-                  Estimasi produksi:{' '}
+                  {pick('Estimasi produksi:', 'Production lead time:')}{' '}
                   <strong className="text-ink">{configQuery.data.productionEstimateText}</strong>
                 </p>
               ) : null}
@@ -1082,7 +1238,9 @@ export default function Checkout() {
               disabled={createOrderMutation.isPending || checkoutSummary.hasUnavailable}
               className="btn-primary w-full"
             >
-              {createOrderMutation.isPending ? 'Memproses Pesanan...' : 'Buat Pesanan Sekarang'}
+              {createOrderMutation.isPending
+                ? pick('Memproses Pesanan...', 'Placing Order...')
+                : pick('Buat Pesanan Sekarang', 'Place Order Now')}
             </button>
           </div>
         </aside>

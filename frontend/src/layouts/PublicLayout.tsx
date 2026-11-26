@@ -1,8 +1,11 @@
 import { MotionConfig } from 'framer-motion';
 import { Link, Outlet } from 'react-router-dom';
 import { SiteHeader } from '../components/layout/SiteHeader';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function PublicLayout() {
+  const { t } = useLanguage();
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="flex min-h-screen flex-col bg-white text-ink">
@@ -21,11 +24,9 @@ export default function PublicLayout() {
               <span className="font-display text-[11px] font-light tracking-[0.32em] text-muted">
                 APPAREL
               </span>
-              <span className="ml-2 text-xs text-muted">· Batam, Indonesia</span>
+              <span className="ml-2 text-xs text-muted">· {t('footer.location')}</span>
             </Link>
-            <p className="text-xs text-muted">
-              Custom pakaian satuan &amp; produksi tim · @yng.apparel.official
-            </p>
+            <p className="text-xs text-muted">{t('footer.tagline')}</p>
           </div>
         </footer>
       </div>

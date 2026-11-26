@@ -3,11 +3,7 @@ import {
   FULFILLMENT_TYPE,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
-  PRINT_POSITION_LABELS,
   PRODUCTION_STATUS,
-  getFulfillmentLabel,
-  getPaymentSchemeLabel,
-  getProductionStatusLabel,
   type FulfillmentType,
   type OrderPaymentDto,
   type PaymentMethod,
@@ -21,12 +17,8 @@ import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
 import { ProductionStepper } from '../../components/ui/Stepper';
 import { useToast } from '../../components/ui/toastContext';
+import { useLanguage, type Locale } from '../../context/LanguageContext';
 import { catalogQueryKeys, getCatalogConfig } from '../../services/catalogService';
-import {
-  formatOrderShippingCostLabel,
-  formatWibDate,
-  formatWibDateTime,
-} from '../../services/orderService';
 import {
   getTrackOrderByUuid,
   trackerQueryKeys,
@@ -34,20 +26,39 @@ import {
 } from '../../services/trackerService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
+import {
+  formatLocalizedShippingCostLabel,
+  formatLocalizedWibDate,
+  formatLocalizedWibDateTime,
+  getLocalizedFulfillmentLabel,
+  getLocalizedPaymentSchemeLabel,
+  getLocalizedPaymentStageLabel,
+  getLocalizedPrintPositionLabel,
+  getLocalizedProductionStatusLabel,
+} from '../../utils/localizedLabels';
 import { buildWaLink } from '../../utils/whatsapp';
 
 const PROOF_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PROOF_MAX_BYTES = 5 * 1024 * 1024;
 
-function resolveHistoryStageLabel(rawStatus: string, fulfillmentType: FulfillmentType): string {
+function resolveHistoryStageLabel(
+  rawStatus: string,
+  fulfillmentType: FulfillmentType,
+  locale: Locale
+): string {
   if (Object.values(PRODUCTION_STATUS).includes(rawStatus as ProductionStatus)) {
-    return getProductionStatusLabel(rawStatus as ProductionStatus, fulfillmentType);
+    return getLocalizedProductionStatusLabel(
+      rawStatus as ProductionStatus,
+      fulfillmentType,
+      locale
+    );
   }
   return rawStatus;
 }
 
 export default function TrackDetail() {
   const { uuid = '' } = useParams<{ uuid: string }>();
+  const { locale, t, pick } = useLanguage();
   const location = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -157,10 +168,19 @@ export default function TrackDetail() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      toast('Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.', 'ok');
+      toast(
+        pick(
+          'Bukti pembayaran berhasil diunggah. Menunggu verifikasi admin.',
+          'Payment proof uploaded. Awaiting admin verification.'
+        ),
+        'ok'
+      );
     },
     onError: (err) => {
-      const parsed = extractApiError(err, 'Gagal mengunggah bukti pembayaran.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal mengunggah bukti pembayaran.', 'Failed to upload payment proof.')
+      );
       setUploadError(parsed.message);
       toast(parsed.message, 'err');
     },
@@ -169,9 +189,15 @@ export default function TrackDetail() {
   async function copyToClipboard(text: string, label: string) {
     try {
       await navigator.clipboard.writeText(text);
-      toast(`${label} berhasil disalin.`, 'ok');
+      toast(pick(`${label} berhasil disalin.`, `${label} copied.`), 'ok');
     } catch {
-      toast(`Tidak dapat menyalin otomatis. Salin manual: ${text}`, 'warn');
+      toast(
+        pick(
+          `Tidak dapat menyalin otomatis. Salin manual: ${text}`,
+          `Could not copy automatically. Copy manually: ${text}`
+        ),
+        'warn'
+      );
     }
   }
 
@@ -184,12 +210,17 @@ export default function TrackDetail() {
       return;
     }
     if (!PROOF_ALLOWED_TYPES.has(file.type)) {
-      setUploadError('Format file harus berupa JPG, PNG, atau WebP.');
+      setUploadError(
+        pick(
+          'Format file harus berupa JPG, PNG, atau WebP.',
+          'File format must be JPG, PNG, or WebP.'
+        )
+      );
       event.target.value = '';
       return;
     }
     if (file.size > PROOF_MAX_BYTES) {
-      setUploadError('Ukuran file maksimal 5 MB.');
+      setUploadError(pick('Ukuran file maksimal 5 MB.', 'Maximum file size is 5 MB.'));
       event.target.value = '';
       return;
     }
@@ -210,11 +241,18 @@ export default function TrackDetail() {
     event.preventDefault();
     setUploadError(null);
     if (!order || !selectedPaymentUuid) {
-      setUploadError('Pilih tahap tagihan pembayaran terlebih dahulu.');
+      setUploadError(
+        pick('Pilih tahap tagihan pembayaran terlebih dahulu.', 'Select a payment stage first.')
+      );
       return;
     }
     if (!selectedFile) {
-      setUploadError('Pilih gambar bukti transfer/QRIS sebelum mengunggah.');
+      setUploadError(
+        pick(
+          'Pilih gambar bukti transfer/QRIS sebelum mengunggah.',
+          'Select a transfer/QRIS proof image before uploading.'
+        )
+      );
       return;
     }
     uploadMutation.mutate({
@@ -250,17 +288,22 @@ export default function TrackDetail() {
   }
 
   if (orderQuery.error || !order) {
-    const parsed = extractApiError(orderQuery.error, 'Tautan tracker pesanan tidak ditemukan.');
+    const parsed = extractApiError(
+      orderQuery.error,
+      pick('Tautan tracker pesanan tidak ditemukan.', 'Order tracker link not found.')
+    );
     return (
       <div className="mx-auto max-w-2xl py-6">
         <ErrorState
-          title="Pesanan tidak ditemukan"
+          eyebrow={t('common.errorEyebrow')}
+          retryLabel={t('common.retry')}
+          title={pick('Pesanan tidak ditemukan', 'Order not found')}
           message={parsed.message}
           retry={() => void orderQuery.refetch()}
         />
         <div className="mt-4 text-center">
           <Link to="/track" className="btn-secondary">
-            Cari dengan Kode Pesanan Lain
+            {pick('Cari dengan Kode Pesanan Lain', 'Search Another Order Code')}
           </Link>
         </div>
       </div>
@@ -269,7 +312,15 @@ export default function TrackDetail() {
 
   const magicLinkUrl = `${window.location.origin}/track/${order.transactionUuid}`;
   const adminWhatsapp = configQuery.data?.adminWhatsapp ?? '';
-  const waInquiryText = `Halo YNG Apparel, saya ingin menanyakan progres pesanan ${order.orderCode} (status: ${getProductionStatusLabel(order.productionStatus, order.fulfillmentType)}).`;
+  const statusLabel = getLocalizedProductionStatusLabel(
+    order.productionStatus,
+    order.fulfillmentType,
+    locale
+  );
+  const waInquiryText = pick(
+    `Halo YNG Apparel, saya ingin menanyakan progres pesanan ${order.orderCode} (status: ${statusLabel}).`,
+    `Hello YNG Apparel, I would like to ask about order ${order.orderCode} (status: ${statusLabel}).`
+  );
   const waInquiryHref = adminWhatsapp ? buildWaLink(adminWhatsapp, waInquiryText) : null;
 
   const bankAccounts = order.paymentAccounts.filter(
@@ -289,16 +340,18 @@ export default function TrackDetail() {
             to="/track"
             className="inline-flex min-h-touch items-center text-xs font-semibold text-muted transition-colors hover:text-ink"
           >
-            ← Lacak Pesanan Lain
+            {pick('← Lacak Pesanan Lain', '← Track Another Order')}
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => void copyToClipboard(magicLinkUrl, 'Magic link tracker')}
+              onClick={() =>
+                void copyToClipboard(magicLinkUrl, pick('Magic link tracker', 'Tracker magic link'))
+              }
               className="btn-secondary px-4 text-xs"
             >
-              Salin Magic Link
+              {pick('Salin Magic Link', 'Copy Magic Link')}
             </button>
             {waInquiryHref ? (
               <a
@@ -307,7 +360,7 @@ export default function TrackDetail() {
                 rel="noopener noreferrer"
                 className="btn-primary px-4 text-xs"
               >
-                Tanya via WhatsApp
+                {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
               </a>
             ) : null}
           </div>
@@ -315,23 +368,27 @@ export default function TrackDetail() {
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
-            <p className="eyebrow">YNG Studio · Live Tracker Publik</p>
+            <p className="eyebrow">
+              YNG Studio · {pick('Live Tracker Publik', 'Public Live Tracker')}
+            </p>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="font-mono text-2xl font-bold tracking-tight text-ink sm:text-3xl">
                 {order.orderCode}
               </h1>
               <button
                 type="button"
-                onClick={() => void copyToClipboard(order.orderCode, 'Kode pesanan')}
+                onClick={() =>
+                  void copyToClipboard(order.orderCode, pick('Kode pesanan', 'Order code'))
+                }
                 className="inline-flex min-h-touch items-center rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink"
               >
-                Salin Kode
+                {pick('Salin Kode', 'Copy Code')}
               </button>
             </div>
             <p className="tabular-price text-xs text-muted">
-              Dibuat {formatWibDateTime(order.createdAt)} ·{' '}
-              {getFulfillmentLabel(order.fulfillmentType)} ·{' '}
-              {getPaymentSchemeLabel(order.paymentScheme, order.dpPercentSnapshot)}
+              {pick('Dibuat', 'Created')} {formatLocalizedWibDateTime(order.createdAt, locale)} ·{' '}
+              {getLocalizedFulfillmentLabel(order.fulfillmentType, locale)} ·{' '}
+              {getLocalizedPaymentSchemeLabel(order.paymentScheme, order.dpPercentSnapshot, locale)}
             </p>
           </div>
 
@@ -339,31 +396,35 @@ export default function TrackDetail() {
             <ProductionBadge
               status={order.productionStatus}
               fulfillmentType={order.fulfillmentType}
+              locale={locale}
             />
-            <DesignBadge status={order.designStatus} />
+            <DesignBadge status={order.designStatus} locale={locale} />
           </div>
         </div>
 
         {/* Kartu Data Pemesan Tersamarkan */}
         <div className="grid w-full grid-cols-1 gap-3 rounded-2xl border border-line bg-surface p-4 text-xs sm:grid-cols-3">
           <div className="min-w-0">
-            <p className="text-muted">Pemesan</p>
+            <p className="text-muted">{pick('Pemesan', 'Customer')}</p>
             <p className="mt-0.5 truncate font-semibold text-ink">{order.customerNameMasked}</p>
           </div>
           <div className="min-w-0">
-            <p className="text-muted">WhatsApp Terdaftar</p>
+            <p className="text-muted">{pick('WhatsApp Terdaftar', 'Registered WhatsApp')}</p>
             <p className="tabular-price mt-0.5 font-semibold text-ink">
               {order.customerWhatsappMasked}
             </p>
           </div>
           <div className="min-w-0">
             <p className="text-muted">
-              {order.fulfillmentType === FULFILLMENT_TYPE.SHIP ? 'Kota Tujuan' : 'Pengambilan'}
+              {order.fulfillmentType === FULFILLMENT_TYPE.SHIP
+                ? pick('Kota Tujuan', 'Destination')
+                : pick('Pengambilan', 'Pickup')}
             </p>
             <p className="mt-0.5 truncate font-semibold text-ink">
               {order.fulfillmentType === FULFILLMENT_TYPE.PICKUP
-                ? 'Workshop YNG Apparel, Batam'
-                : (order.addressSummaryMasked ?? 'Kota tujuan belum dilengkapi')}
+                ? pick('Workshop YNG Apparel, Batam', 'YNG Apparel Workshop, Batam')
+                : (order.addressSummaryMasked ??
+                  pick('Kota tujuan belum dilengkapi', 'Destination city not set'))}
             </p>
           </div>
         </div>
@@ -374,8 +435,12 @@ export default function TrackDetail() {
           role="alert"
           className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
         >
-          <p className="font-semibold">Pesanan Dibatalkan</p>
-          {order.cancelledReason ? <p className="mt-1">Alasan: {order.cancelledReason}</p> : null}
+          <p className="font-semibold">{pick('Pesanan Dibatalkan', 'Order Cancelled')}</p>
+          {order.cancelledReason ? (
+            <p className="mt-1">
+              {pick('Alasan:', 'Reason:')} {order.cancelledReason}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -383,15 +448,17 @@ export default function TrackDetail() {
       <section className="w-full rounded-3xl border border-line bg-white p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
           <div>
-            <p className="eyebrow">Progres Produksi</p>
+            <p className="eyebrow">{pick('Progres Produksi', 'Production Progress')}</p>
             <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-              5 Tahap Pengerjaan Pesanan
+              {pick('5 Tahap Pengerjaan Pesanan', '5 Production Stages')}
             </h2>
           </div>
           {order.estimatedFinishDate ? (
             <span className="tabular-price text-xs font-medium text-muted">
-              Estimasi selesai:{' '}
-              <strong className="text-ink">{formatWibDate(order.estimatedFinishDate)}</strong>
+              {pick('Estimasi selesai:', 'Estimated completion:')}{' '}
+              <strong className="text-ink">
+                {formatLocalizedWibDate(order.estimatedFinishDate, locale)}
+              </strong>
             </span>
           ) : null}
         </div>
@@ -400,6 +467,7 @@ export default function TrackDetail() {
           currentStatus={order.productionStatus}
           fulfillmentType={order.fulfillmentType}
           stages={order.stages}
+          locale={locale}
         />
       </section>
 
@@ -412,18 +480,22 @@ export default function TrackDetail() {
               <div>
                 <p className="eyebrow">Quality Control</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                  Galeri Foto QC ({order.qcPhotos.length})
+                  {pick('Galeri Foto QC', 'QC Photo Gallery')} ({order.qcPhotos.length})
                 </h2>
               </div>
               {order.qcPhotos.length > 0 ? (
-                <span className="text-xs text-muted">Klik foto untuk memperbesar</span>
+                <span className="text-xs text-muted">
+                  {pick('Klik foto untuk memperbesar', 'Click photo to enlarge')}
+                </span>
               ) : null}
             </div>
 
             {order.qcPhotos.length === 0 ? (
               <p className="mt-4 rounded-2xl border border-line bg-surface px-4 py-4 text-xs leading-relaxed text-muted">
-                Foto hasil Quality Control belum diunggah. Foto akan muncul di sini setelah tahap
-                Pressing &amp; QC dikerjakan oleh tim workshop.
+                {pick(
+                  'Foto hasil Quality Control belum diunggah. Foto akan muncul di sini setelah tahap Pressing & QC dikerjakan oleh tim workshop.',
+                  'Quality Control photos have not been uploaded yet. Photos will appear here once Pressing & QC is completed at our workshop.'
+                )}
               </p>
             ) : (
               <div className="mt-4 grid w-full grid-cols-2 gap-3 sm:grid-cols-3">
@@ -436,7 +508,7 @@ export default function TrackDetail() {
                   >
                     <img
                       src={photo.photoUrl}
-                      alt={`Foto QC #${idx + 1}`}
+                      alt={pick(`Foto QC #${idx + 1}`, `QC Photo #${idx + 1}`)}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <span className="tabular-price absolute bottom-2 left-2 rounded-full bg-ink/80 px-2.5 py-0.5 text-[11px] font-medium text-white">
@@ -452,92 +524,111 @@ export default function TrackDetail() {
           <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">Pembayaran Bertahap</p>
+                <p className="eyebrow">{pick('Pembayaran Bertahap', 'Staged Payments')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                  Tagihan &amp; Bukti Pembayaran
+                  {pick('Tagihan & Bukti Pembayaran', 'Invoices & Payment Proofs')}
                 </h2>
               </div>
               {order.paymentDueAt && order.productionStatus === PRODUCTION_STATUS.NEW_ORDER ? (
                 <span className="tabular-price text-xs font-medium text-status-warn">
-                  Batas bayar: {formatWibDateTime(order.paymentDueAt)}
+                  {pick('Batas bayar:', 'Payment due:')}{' '}
+                  {formatLocalizedWibDateTime(order.paymentDueAt, locale)}
                 </span>
               ) : null}
             </div>
 
             <div className="mt-4 space-y-3">
-              {order.payments.map((payment) => (
-                <div
-                  key={payment.paymentUuid}
-                  className="rounded-2xl border border-line bg-surface p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-display text-sm font-semibold text-ink">
-                          {payment.paymentStageLabel}
-                        </span>
-                        <PaymentBadge
-                          status={payment.status}
-                          proofImagePath={payment.hasProof ? 'uploaded' : null}
-                        />
+              {order.payments.map((payment) => {
+                const stageLabel = getLocalizedPaymentStageLabel(
+                  payment.paymentStage,
+                  order.dpPercentSnapshot,
+                  order.shippingCost,
+                  locale
+                );
+                return (
+                  <div
+                    key={payment.paymentUuid}
+                    className="rounded-2xl border border-line bg-surface p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-display text-sm font-semibold text-ink">
+                            {stageLabel}
+                          </span>
+                          <PaymentBadge
+                            status={payment.status}
+                            proofImagePath={payment.hasProof ? 'uploaded' : null}
+                            locale={locale}
+                          />
+                        </div>
+                        {payment.proofUploadedAt ? (
+                          <p className="tabular-price text-xs text-muted">
+                            {pick('Bukti diunggah:', 'Proof uploaded:')}{' '}
+                            {formatLocalizedWibDateTime(payment.proofUploadedAt, locale)}
+                          </p>
+                        ) : null}
+                        {payment.verifiedAt ? (
+                          <p className="tabular-price text-xs text-status-ok">
+                            {pick('Terverifikasi:', 'Verified:')}{' '}
+                            {formatLocalizedWibDateTime(payment.verifiedAt, locale)}
+                          </p>
+                        ) : null}
                       </div>
-                      {payment.proofUploadedAt ? (
-                        <p className="tabular-price text-xs text-muted">
-                          Bukti diunggah: {formatWibDateTime(payment.proofUploadedAt)}
-                        </p>
-                      ) : null}
-                      {payment.verifiedAt ? (
-                        <p className="tabular-price text-xs text-status-ok">
-                          Terverifikasi: {formatWibDateTime(payment.verifiedAt)}
-                        </p>
-                      ) : null}
+
+                      <p className="tabular-price text-base font-bold text-ink">
+                        {formatRupiah(payment.amount)}
+                      </p>
                     </div>
 
-                    <p className="tabular-price text-base font-bold text-ink">
-                      {formatRupiah(payment.amount)}
-                    </p>
+                    {payment.status === PAYMENT_STATUS.REJECTED && payment.rejectionReason ? (
+                      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-status-err">
+                        <strong>{pick('Alasan Penolakan:', 'Rejection Reason:')}</strong>{' '}
+                        {payment.rejectionReason}.{' '}
+                        {pick(
+                          'Silakan unggah ulang bukti transfer di form bawah.',
+                          'Please re-upload your payment proof below.'
+                        )}
+                      </div>
+                    ) : null}
+
+                    {payment.proofImageUrl ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <a
+                          href={payment.proofImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group inline-block overflow-hidden rounded-xl border border-line bg-white"
+                        >
+                          <img
+                            src={payment.proofImageUrl}
+                            alt={`${pick('Bukti', 'Proof')} ${stageLabel}`}
+                            className="h-20 w-20 object-cover transition-transform group-hover:scale-105"
+                          />
+                        </a>
+                        <a
+                          href={payment.proofImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-semibold text-ink underline"
+                        >
+                          {pick('Lihat bukti pembayaran', 'View payment proof')}
+                        </a>
+                      </div>
+                    ) : null}
                   </div>
-
-                  {payment.status === PAYMENT_STATUS.REJECTED && payment.rejectionReason ? (
-                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-status-err">
-                      <strong>Alasan Penolakan:</strong> {payment.rejectionReason}. Silakan unggah
-                      ulang bukti transfer di form bawah.
-                    </div>
-                  ) : null}
-
-                  {payment.proofImageUrl ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <a
-                        href={payment.proofImageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group inline-block overflow-hidden rounded-xl border border-line bg-white"
-                      >
-                        <img
-                          src={payment.proofImageUrl}
-                          alt={`Bukti ${payment.paymentStageLabel}`}
-                          className="h-20 w-20 object-cover transition-transform group-hover:scale-105"
-                        />
-                      </a>
-                      <a
-                        href={payment.proofImageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-semibold text-ink underline"
-                      >
-                        Lihat bukti pembayaran
-                      </a>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Rekening Bank & QRIS Aktif bila ada tagihan berjalan */}
             {order.paymentAccounts.length > 0 ? (
               <div className="mt-6 space-y-3 border-t border-line pt-5">
                 <p className="text-xs font-semibold text-ink">
-                  Rekening Transfer &amp; QRIS Resmi YNG Apparel
+                  {pick(
+                    'Rekening Transfer & QRIS Resmi YNG Apparel',
+                    'Official YNG Apparel Bank & QRIS'
+                  )}
                 </p>
                 <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
                   {bankAccounts.map((acc) => (
@@ -547,12 +638,14 @@ export default function TrackDetail() {
                     >
                       <div className="space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-                          Transfer Bank · {acc.providerName}
+                          {pick('Transfer Bank', 'Bank Transfer')} · {acc.providerName}
                         </span>
                         <p className="tabular-price text-base font-bold text-ink">
                           {acc.accountNumber ?? '—'}
                         </p>
-                        <p className="text-xs text-muted">a.n. {acc.accountHolder}</p>
+                        <p className="text-xs text-muted">
+                          {pick('a.n.', 'Acc. Name:')} {acc.accountHolder}
+                        </p>
                         {acc.instructions ? (
                           <p className="pt-1 text-xs leading-relaxed text-muted">
                             {acc.instructions}
@@ -566,12 +659,15 @@ export default function TrackDetail() {
                           onClick={() =>
                             void copyToClipboard(
                               acc.accountNumber ?? '',
-                              `No. rekening ${acc.providerName}`
+                              pick(
+                                `No. rekening ${acc.providerName}`,
+                                `${acc.providerName} account`
+                              )
                             )
                           }
                           className="btn-secondary w-full px-3 text-xs"
                         >
-                          Salin No. Rekening
+                          {pick('Salin No. Rekening', 'Copy Account Number')}
                         </button>
                       ) : null}
                     </div>
@@ -586,7 +682,9 @@ export default function TrackDetail() {
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                           QRIS · {acc.providerName}
                         </span>
-                        <p className="text-xs font-medium text-ink">a.n. {acc.accountHolder}</p>
+                        <p className="text-xs font-medium text-ink">
+                          {pick('a.n.', 'Acc. Name:')} {acc.accountHolder}
+                        </p>
                         {acc.instructions ? (
                           <p className="text-xs leading-relaxed text-muted">{acc.instructions}</p>
                         ) : null}
@@ -605,7 +703,7 @@ export default function TrackDetail() {
                             className="h-36 w-36 object-contain"
                           />
                           <span className="mt-2 text-xs font-semibold text-ink underline">
-                            Perbesar QRIS
+                            {pick('Perbesar QRIS', 'Enlarge QRIS')}
                           </span>
                         </a>
                       ) : null}
@@ -622,10 +720,14 @@ export default function TrackDetail() {
                 className="mt-6 space-y-4 border-t border-line pt-5"
               >
                 <div>
-                  <p className="text-sm font-semibold text-ink">Unggah Bukti Pembayaran</p>
+                  <p className="text-sm font-semibold text-ink">
+                    {pick('Unggah Bukti Pembayaran', 'Upload Payment Proof')}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted">
-                    Format JPG, PNG, atau WebP maksimal 5 MB untuk DP awal, pelunasan, maupun ongkos
-                    kirim.
+                    {pick(
+                      'Format JPG, PNG, atau WebP maksimal 5 MB untuk DP awal, pelunasan, maupun ongkos kirim.',
+                      'JPG, PNG, or WebP format up to 5 MB for deposit, balance settlement, or shipping fees.'
+                    )}
                   </p>
                 </div>
 
@@ -644,7 +746,7 @@ export default function TrackDetail() {
                       htmlFor="tracker-payment-stage"
                       className="block text-xs font-semibold text-ink"
                     >
-                      Pilih Tahap Tagihan
+                      {pick('Pilih Tahap Tagihan', 'Select Payment Stage')}
                     </label>
                     <select
                       id="tracker-payment-stage"
@@ -654,7 +756,13 @@ export default function TrackDetail() {
                     >
                       {unverifiedPayments.map((p) => (
                         <option key={p.paymentUuid} value={p.paymentUuid}>
-                          {p.paymentStageLabel} — {formatRupiah(p.amount)}
+                          {getLocalizedPaymentStageLabel(
+                            p.paymentStage,
+                            order.dpPercentSnapshot,
+                            order.shippingCost,
+                            locale
+                          )}{' '}
+                          — {formatRupiah(p.amount)}
                         </option>
                       ))}
                     </select>
@@ -671,7 +779,7 @@ export default function TrackDetail() {
                         : 'border-line bg-surface text-ink hover:border-ink'
                     }`}
                   >
-                    Transfer Bank
+                    {pick('Transfer Bank', 'Bank Transfer')}
                   </button>
                   <button
                     type="button"
@@ -692,7 +800,7 @@ export default function TrackDetail() {
                       htmlFor="tracker-payment-account"
                       className="block text-xs font-semibold text-ink"
                     >
-                      Rekening / QRIS Tujuan
+                      {pick('Rekening / QRIS Tujuan', 'Destination Account / QRIS')}
                     </label>
                     <select
                       id="tracker-payment-account"
@@ -718,7 +826,7 @@ export default function TrackDetail() {
                     htmlFor="tracker-proof-file"
                     className="block text-xs font-semibold text-ink"
                   >
-                    Foto / Tangkapan Layar Bukti Transfer
+                    {pick('Foto / Tangkapan Layar Bukti Transfer', 'Payment Transfer Screenshot')}
                   </label>
                   <input
                     ref={fileInputRef}
@@ -735,7 +843,7 @@ export default function TrackDetail() {
                     <div className="flex min-w-0 items-center gap-3">
                       <img
                         src={previewUrl}
-                        alt="Pratinjau bukti pembayaran"
+                        alt={pick('Pratinjau bukti pembayaran', 'Payment proof preview')}
                         className="h-16 w-16 shrink-0 rounded-xl border border-line bg-white object-cover"
                       />
                       <div className="min-w-0">
@@ -753,7 +861,7 @@ export default function TrackDetail() {
                       onClick={handleClearFile}
                       className="btn-secondary px-3 py-1.5 text-xs"
                     >
-                      Ganti File
+                      {pick('Ganti File', 'Change File')}
                     </button>
                   </div>
                 ) : null}
@@ -763,7 +871,9 @@ export default function TrackDetail() {
                   disabled={uploadMutation.isPending || !selectedFile}
                   className="btn-primary w-full"
                 >
-                  {uploadMutation.isPending ? 'Mengunggah Bukti...' : 'Kirim Bukti Pembayaran'}
+                  {uploadMutation.isPending
+                    ? pick('Mengunggah Bukti...', 'Uploading Proof...')
+                    : pick('Kirim Bukti Pembayaran', 'Submit Payment Proof')}
                 </button>
               </form>
             ) : null}
@@ -773,9 +883,11 @@ export default function TrackDetail() {
           <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">Spesifikasi Produksi</p>
+                <p className="eyebrow">
+                  {pick('Spesifikasi Produksi', 'Production Specifications')}
+                </p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                  Rincian Item &amp; Sablon ({order.items.length})
+                  {pick('Rincian Item & Sablon', 'Items & Print Breakdown')} ({order.items.length})
                 </h2>
               </div>
               <span className="tabular-price text-xs font-semibold text-muted">
@@ -785,7 +897,8 @@ export default function TrackDetail() {
 
             {order.designReviewNotes ? (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-status-warn">
-                <strong>Catatan Desain:</strong> {order.designReviewNotes}
+                <strong>{pick('Catatan Desain:', 'Design Notes:')}</strong>{' '}
+                {order.designReviewNotes}
               </div>
             ) : null}
 
@@ -801,11 +914,14 @@ export default function TrackDetail() {
                         <h3 className="font-display text-base font-semibold text-ink">
                           {item.modelName}
                         </h3>
-                        {item.isCustomColor ? <Badge variant="warn">Warna Custom</Badge> : null}
+                        {item.isCustomColor ? (
+                          <Badge variant="warn">{pick('Warna Custom', 'Custom Color')}</Badge>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs text-muted">
-                        Bahan: <span className="font-medium text-ink">{item.fabricName}</span> ·
-                        Warna:{' '}
+                        {pick('Bahan:', 'Fabric:')}{' '}
+                        <span className="font-medium text-ink">{item.fabricName}</span> ·{' '}
+                        {pick('Warna:', 'Color:')}{' '}
                         <span className="inline-flex items-center gap-1.5 font-medium text-ink">
                           {item.colorHex ? (
                             <span
@@ -848,25 +964,28 @@ export default function TrackDetail() {
                         >
                           <span>
                             <strong className="text-ink">
-                              {PRINT_POSITION_LABELS[print.printPosition]}
+                              {getLocalizedPrintPositionLabel(print.printPosition, locale)}
                             </strong>{' '}
                             <span className="text-muted">({print.printSizeCode})</span>
                           </span>
                           <span className="truncate font-mono text-[11px] text-ink">
                             {print.hasDesignFile
-                              ? (print.designFileName ?? 'File desain terpasang')
-                              : 'Bantuan Desain Gratis'}
+                              ? (print.designFileName ??
+                                pick('File desain terpasang', 'Design file attached'))
+                              : pick('Bantuan Desain Gratis', 'Free Design Help')}
                           </span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-2.5 text-xs text-muted">Polos (tanpa sablon)</p>
+                    <p className="mt-2.5 text-xs text-muted">
+                      {pick('Polos (tanpa sablon)', 'Plain (no prints)')}
+                    </p>
                   )}
 
                   {item.productionNotes ? (
                     <p className="mt-2.5 rounded-xl border border-line bg-white px-3 py-2 text-xs text-muted">
-                      <span className="font-semibold text-ink">Catatan: </span>
+                      <span className="font-semibold text-ink">{pick('Catatan: ', 'Notes: ')}</span>
                       {item.productionNotes}
                     </p>
                   ) : null}
@@ -881,31 +1000,36 @@ export default function TrackDetail() {
           {/* Ringkasan Tagihan */}
           <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">Ringkasan Biaya</p>
+              <p className="eyebrow">{pick('Ringkasan Biaya', 'Cost Summary')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                Tagihan &amp; Sisa Pembayaran
+                {pick('Tagihan & Sisa Pembayaran', 'Invoices & Remaining Balance')}
               </h2>
             </div>
 
             <dl className="mt-4 space-y-2.5 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted">Subtotal ({order.totalQty} pcs)</dt>
+                <dt className="text-muted">
+                  {pick('Subtotal', 'Subtotal')} ({order.totalQty} pcs)
+                </dt>
                 <dd className="tabular-price font-semibold text-ink">
                   {formatRupiah(order.subtotalAmount)}
                 </dd>
               </div>
               {order.discountAmount > 0 ? (
                 <div className="flex items-center justify-between gap-2 text-status-ok">
-                  <dt>Diskon{order.discountNote ? ` (${order.discountNote})` : ''}</dt>
+                  <dt>
+                    {pick('Diskon', 'Discount')}
+                    {order.discountNote ? ` (${order.discountNote})` : ''}
+                  </dt>
                   <dd className="tabular-price font-semibold">
                     -{formatRupiah(order.discountAmount)}
                   </dd>
                 </div>
               ) : null}
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted">Ongkos kirim</dt>
+                <dt className="text-muted">{pick('Ongkos kirim', 'Shipping fee')}</dt>
                 <dd className="tabular-price font-semibold text-ink">
-                  {formatOrderShippingCostLabel(order)}
+                  {formatLocalizedShippingCostLabel(order, locale)}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
@@ -915,7 +1039,9 @@ export default function TrackDetail() {
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
-                <dt className="font-semibold text-ink">Sisa Tagihan</dt>
+                <dt className="font-semibold text-ink">
+                  {pick('Sisa Tagihan', 'Remaining Balance')}
+                </dt>
                 <dd className="tabular-price text-lg font-bold text-ink">
                   {formatRupiah(order.remainingBalance)}
                 </dd>
@@ -928,13 +1054,13 @@ export default function TrackDetail() {
             <div className="border-b border-line pb-4">
               <p className="eyebrow">
                 {order.fulfillmentType === FULFILLMENT_TYPE.SHIP
-                  ? 'Pengiriman & Resi'
-                  : 'Pengambilan di Workshop'}
+                  ? pick('Pengiriman & Resi', 'Shipping & Tracking')
+                  : pick('Pengambilan di Workshop', 'Workshop Pickup')}
               </p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 {order.fulfillmentType === FULFILLMENT_TYPE.SHIP
-                  ? 'Kurir & Pelacakan Eksternal'
-                  : 'Status Pengambilan'}
+                  ? pick('Kurir & Pelacakan Eksternal', 'Courier & External Tracking')
+                  : pick('Status Pengambilan', 'Pickup Status')}
               </h2>
             </div>
 
@@ -942,9 +1068,10 @@ export default function TrackDetail() {
               {order.fulfillmentType === FULFILLMENT_TYPE.SHIP ? (
                 <>
                   <p className="text-xs text-muted">
-                    Tujuan:{' '}
+                    {pick('Tujuan:', 'Destination:')}{' '}
                     <span className="font-semibold text-ink">
-                      {order.addressSummaryMasked ?? 'Kota tujuan belum diisi'}
+                      {order.addressSummaryMasked ??
+                        pick('Kota tujuan belum diisi', 'Destination city not set')}
                     </span>
                   </p>
 
@@ -952,15 +1079,20 @@ export default function TrackDetail() {
                     <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-xs text-muted">Kurir &amp; Layanan</p>
+                          <p className="text-xs text-muted">
+                            {pick('Kurir & Layanan', 'Courier & Service')}
+                          </p>
                           <p className="text-sm font-semibold text-ink">
-                            {order.courierInfo?.name ?? order.shippingCourier ?? 'Kurir'}
+                            {order.courierInfo?.name ??
+                              order.shippingCourier ??
+                              pick('Kurir', 'Courier')}
                             {order.shippingService ? ` · ${order.shippingService}` : ''}
                           </p>
                         </div>
                         {order.shippedAt ? (
                           <span className="tabular-price text-xs text-muted">
-                            Dikirim {formatWibDate(order.shippedAt)}
+                            {pick('Dikirim', 'Shipped')}{' '}
+                            {formatLocalizedWibDate(order.shippedAt, locale)}
                           </span>
                         ) : null}
                       </div>
@@ -968,7 +1100,9 @@ export default function TrackDetail() {
                       {order.trackingReceiptNumber ? (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2">
                           <div className="min-w-0">
-                            <p className="text-[11px] text-muted">Nomor Resi</p>
+                            <p className="text-[11px] text-muted">
+                              {pick('Nomor Resi', 'Tracking Number')}
+                            </p>
                             <p className="truncate font-mono text-sm font-bold text-ink">
                               {order.trackingReceiptNumber}
                             </p>
@@ -976,11 +1110,14 @@ export default function TrackDetail() {
                           <button
                             type="button"
                             onClick={() =>
-                              void copyToClipboard(order.trackingReceiptNumber ?? '', 'Nomor resi')
+                              void copyToClipboard(
+                                order.trackingReceiptNumber ?? '',
+                                pick('Nomor resi', 'Tracking number')
+                              )
                             }
                             className="btn-secondary px-3 py-1.5 text-xs"
                           >
-                            Salin Resi
+                            {pick('Salin Resi', 'Copy Tracking')}
                           </button>
                         </div>
                       ) : null}
@@ -992,28 +1129,41 @@ export default function TrackDetail() {
                           rel="noopener noreferrer"
                           className="btn-primary w-full text-xs"
                         >
-                          Lacak Resi di {order.courierInfo?.name ?? 'Situs Kurir'} ↗
+                          {pick(
+                            `Lacak Resi di ${order.courierInfo?.name ?? 'Situs Kurir'} ↗`,
+                            `Track Package on ${order.courierInfo?.name ?? 'Courier Site'} ↗`
+                          )}
                         </a>
                       ) : order.trackingReceiptNumber ? (
                         <p className="text-xs text-muted">
-                          Kurir ini tidak memiliki halaman cek resi statis. Gunakan nomor resi di
-                          atas pada aplikasi kurir terkait.
+                          {pick(
+                            'Kurir ini tidak memiliki halaman cek resi statis. Gunakan nomor resi di atas pada aplikasi kurir terkait.',
+                            'This courier has no static web tracking link. Use the tracking number above in the courier app.'
+                          )}
                         </p>
                       ) : null}
                     </div>
                   ) : (
                     <p className="rounded-2xl border border-line bg-surface p-3.5 text-xs text-muted">
-                      Nomor resi dan kurir akan tampil di sini setelah pesanan masuk tahap
-                      pengiriman.
+                      {pick(
+                        'Nomor resi dan kurir akan tampil di sini setelah pesanan masuk tahap pengiriman.',
+                        'Courier and tracking number will appear here once the order enters the shipping stage.'
+                      )}
                     </p>
                   )}
                 </>
               ) : (
                 <div className="rounded-2xl border border-line bg-surface p-3.5 text-xs text-muted">
-                  <p>Ambil langsung di studio YNG Apparel, Batam.</p>
+                  <p>
+                    {pick(
+                      'Ambil langsung di studio YNG Apparel, Batam.',
+                      'Pick up directly at YNG Apparel studio, Batam.'
+                    )}
+                  </p>
                   {order.shippedAt ? (
                     <p className="mt-1 font-semibold text-status-ok">
-                      Siap diambil sejak {formatWibDateTime(order.shippedAt)}.
+                      {pick('Siap diambil sejak', 'Ready for pickup since')}{' '}
+                      {formatLocalizedWibDateTime(order.shippedAt, locale)}.
                     </p>
                   ) : null}
                 </div>
@@ -1025,9 +1175,9 @@ export default function TrackDetail() {
           {order.statusHistory.length > 0 ? (
             <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
               <div className="border-b border-line pb-4">
-                <p className="eyebrow">Linimasa</p>
+                <p className="eyebrow">{pick('Linimasa', 'Timeline')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                  Riwayat Status Produksi
+                  {pick('Riwayat Status Produksi', 'Production Status History')}
                 </h2>
               </div>
 
@@ -1039,10 +1189,10 @@ export default function TrackDetail() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-ink">
-                        {resolveHistoryStageLabel(entry.toStatus, order.fulfillmentType)}
+                        {resolveHistoryStageLabel(entry.toStatus, order.fulfillmentType, locale)}
                       </span>
                       <span className="tabular-price text-[11px] text-muted">
-                        {formatWibDateTime(entry.createdAt)}
+                        {formatLocalizedWibDateTime(entry.createdAt, locale)}
                       </span>
                     </div>
                     {entry.notes ? <p className="mt-1 text-muted">{entry.notes}</p> : null}
@@ -1058,10 +1208,17 @@ export default function TrackDetail() {
       <Modal
         open={activeLightboxPhoto !== null}
         onClose={() => setLightboxIndex(null)}
-        title={lightboxIndex !== null ? `Foto Quality Control #${lightboxIndex + 1}` : 'Foto QC'}
+        title={
+          lightboxIndex !== null
+            ? pick(
+                `Foto Quality Control #${lightboxIndex + 1}`,
+                `Quality Control Photo #${lightboxIndex + 1}`
+              )
+            : pick('Foto QC', 'QC Photo')
+        }
         description={
           activeLightboxPhoto
-            ? `Diunggah ${formatWibDateTime(activeLightboxPhoto.createdAt)}`
+            ? `${pick('Diunggah', 'Uploaded')} ${formatLocalizedWibDateTime(activeLightboxPhoto.createdAt, locale)}`
             : undefined
         }
         size="lg"
@@ -1071,7 +1228,10 @@ export default function TrackDetail() {
             <div className="overflow-hidden rounded-2xl border border-line bg-surface">
               <img
                 src={activeLightboxPhoto.photoUrl}
-                alt={`Foto QC #${(lightboxIndex ?? 0) + 1}`}
+                alt={pick(
+                  `Foto QC #${(lightboxIndex ?? 0) + 1}`,
+                  `QC Photo #${(lightboxIndex ?? 0) + 1}`
+                )}
                 className="max-h-[65vh] w-full object-contain"
               />
             </div>
@@ -1091,7 +1251,7 @@ export default function TrackDetail() {
                       }
                       className="btn-secondary px-4 py-2 text-xs"
                     >
-                      ← Sebelumnya
+                      {pick('← Sebelumnya', '← Previous')}
                     </button>
                     <button
                       type="button"
@@ -1102,7 +1262,7 @@ export default function TrackDetail() {
                       }
                       className="btn-secondary px-4 py-2 text-xs"
                     >
-                      Berikutnya →
+                      {pick('Berikutnya →', 'Next →')}
                     </button>
                   </>
                 ) : null}
@@ -1114,7 +1274,7 @@ export default function TrackDetail() {
                 rel="noopener noreferrer"
                 className="btn-primary px-4 py-2 text-xs"
               >
-                Buka Ukuran Penuh ↗
+                {pick('Buka Ukuran Penuh ↗', 'Open Full Size ↗')}
               </a>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import type { PublicSizeDto } from '@yng/shared';
+import { useLanguage } from '../../context/LanguageContext';
 import { formatRupiah } from '../../utils/formatRupiah';
 
 interface SizeMatrixProps {
@@ -8,12 +9,13 @@ interface SizeMatrixProps {
 }
 
 export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixProps) {
+  const { pick } = useLanguage();
   const totalQty = sizes.reduce((sum, size) => sum + Math.max(0, quantities[size.id] ?? 0), 0);
 
   if (sizes.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
-        Daftar ukuran belum tersedia di katalog.
+        {pick('Daftar ukuran belum tersedia di katalog.', 'Size matrix is not available yet.')}
       </p>
     );
   }
@@ -36,7 +38,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                   {size.extraCharge > 0 ? (
                     <span className="tabular-price">+{formatRupiah(size.extraCharge)}</span>
                   ) : (
-                    'Harga standar'
+                    pick('Harga standar', 'Standard rate')
                   )}
                 </p>
               </div>
@@ -46,7 +48,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                   type="button"
                   onClick={() => onChangeQuantity(size.id, Math.max(0, qty - 1))}
                   disabled={qty === 0}
-                  aria-label={`Kurangi ukuran ${size.code}`}
+                  aria-label={pick(`Kurangi ukuran ${size.code}`, `Decrease size ${size.code}`)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-strong bg-white text-lg font-medium text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   −
@@ -58,7 +60,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                   max={100000}
                   step={1}
                   inputMode="numeric"
-                  aria-label={`Jumlah ukuran ${size.code}`}
+                  aria-label={pick(`Jumlah ukuran ${size.code}`, `Quantity for size ${size.code}`)}
                   value={qty}
                   onChange={(event) => {
                     const parsed = Number.parseInt(event.target.value, 10);
@@ -72,7 +74,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
                 <button
                   type="button"
                   onClick={() => onChangeQuantity(size.id, Math.min(100000, qty + 1))}
-                  aria-label={`Tambah ukuran ${size.code}`}
+                  aria-label={pick(`Tambah ukuran ${size.code}`, `Increase size ${size.code}`)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-strong bg-white text-lg font-medium text-ink transition-colors hover:border-ink hover:bg-surface"
                 >
                   +
@@ -84,7 +86,9 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
       </div>
 
       <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
-        <span className="text-sm font-medium text-muted">Total kuantitas sementara</span>
+        <span className="text-sm font-medium text-muted">
+          {pick('Total kuantitas sementara', 'Current total quantity')}
+        </span>
         <span className="tabular-price rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">
           {totalQty} pcs
         </span>

@@ -21,6 +21,8 @@ export interface SearchOverlayProps {
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
+type SearchFilterTab = 'all' | 'models' | 'fabrics';
+
 function normalizeSearchText(value: string): string {
   return value
     .normalize('NFD')
@@ -35,11 +37,12 @@ interface SearchMatchItem {
 }
 
 /**
- * Overlay pencarian katalog real-time (model, kategori/slug, bahan) dengan chip populer & riwayat baru dilihat.
+ * Floating Command Palette pencarian katalog (`Ctrl+K` / `⌘K`) dengan tab filter Semua / Model / Bahan.
  */
 export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayProps) {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<SearchFilterTab>('all');
   const [recentModels, setRecentModels] = useState<RecentlyViewedModel[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef(false);
@@ -71,6 +74,7 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
     if (wasOpenRef.current) {
       wasOpenRef.current = false;
       setQuery('');
+      setActiveTab('all');
       returnFocusRef?.current?.focus();
     }
     return undefined;
@@ -87,6 +91,18 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
     return map;
   }, [fabrics]);
 
+  const firstModelForFabric = useMemo(() => {
+    const map = new Map<number, PublicGarmentModelDto>();
+    for (const model of models) {
+      for (const fabricId of model.fabricIds) {
+        if (!map.has(fabricId)) {
+          map.set(fabricId, model);
+        }
+      }
+    }
+    return map;
+  }, [models]);
+
   const popularChips = useMemo(() => {
     const sortedModels = [...models].sort((a, b) => a.sortOrder - b.sortOrder);
     const modelNames = sortedModels.slice(0, 6).map((m) => m.name);
@@ -96,7 +112,7 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
 
   const normalizedQuery = normalizeSearchText(query);
 
-  const searchResults = useMemo<SearchMatchItem[]>(() => {
+  const matchedModels = useMemo<SearchMatchItem[]>(() => {
     if (!normalizedQuery) return [];
 
     const matched: SearchMatchItem[] = [];
@@ -120,6 +136,18 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
     return matched;
   }, [models, fabricById, normalizedQuery]);
 
+  const matchedFabrics = useMemo<PublicFabricDto[]>(() => {
+    if (!normalizedQuery) return [];
+    return fabrics.filter(
+      (fabric) =>
+        normalizeSearchText(fabric.name).includes(normalizedQuery) ||
+        normalizeSearchText(fabric.code).includes(normalizedQuery)
+    );
+  }, [fabrics, normalizedQuery]);
+
+  const visibleModelCount = activeTab === 'fabrics' ? 0 : matchedModels.length;
+  const visibleFabricCount = activeTab === 'models' ? 0 : matchedFabrics.length;
+  const totalVisibleResults = visibleModelCount + visibleFabricCount;
   const displayedRecent = useMemo(() => recentModels.slice(0, 4), [recentModels]);
 
   return (
@@ -131,7 +159,7 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.18 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/40 backdrop-blur-xs"
           />
@@ -140,16 +168,16 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
             role="dialog"
             aria-modal="true"
             aria-label={t('tooltip.search')}
-            initial={{ opacity: 0, y: -24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -24 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-x-0 top-0 z-10 max-h-[85vh] overflow-y-auto border-b border-line bg-white"
+            initial={{ opacity: 0, y: -16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-x-3 top-14 z-10 mx-auto flex max-h-[calc(100vh-4.5rem)] w-auto max-w-2xl flex-col overflow-hidden rounded-sm border border-neutral-200 bg-white shadow-2xl sm:inset-x-4 md:top-24 md:max-h-[calc(100vh-8rem)]"
           >
-            <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 xl:px-12">
-              <div className="flex items-center gap-3 border-b border-ink pb-2">
+            <div className="shrink-0 border-b border-line px-4 pt-3.5 pb-2.5 sm:px-5">
+              <div className="flex items-center gap-3">
                 <Search
-                  size={20}
+                  size={18}
                   strokeWidth={1.5}
                   aria-hidden="true"
                   className="shrink-0 text-ink"
@@ -161,9 +189,9 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={t('search.placeholder')}
                   aria-label={t('tooltip.search')}
-                  className="w-full min-w-0 border-0 bg-transparent py-1 font-display text-xl text-ink placeholder:text-neutral-400 focus:outline-none sm:text-3xl"
+                  className="w-full min-w-0 border-0 bg-transparent py-1 font-display text-base text-ink placeholder:text-neutral-400 focus:outline-none sm:text-lg"
                 />
-                <span className="hidden shrink-0 rounded-sm border border-line px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-muted sm:inline-flex">
+                <span className="hidden shrink-0 rounded-sm border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-muted sm:inline-flex">
                   {t('search.escHint')}
                 </span>
                 <button
@@ -172,21 +200,69 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
                   aria-label={t('search.close')}
                   className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-sm text-ink transition-colors hover:bg-surface"
                 >
-                  <X size={20} strokeWidth={1.5} aria-hidden="true" />
+                  <X size={18} strokeWidth={1.5} aria-hidden="true" />
                 </button>
               </div>
 
-              <div className="mt-6">
-                {normalizedQuery ? (
-                  <div>
-                    <p className="mb-4 text-xs font-medium uppercase tracking-[0.14em] text-muted tabular-nums">
-                      {t('search.results', { count: searchResults.length })}
+              {normalizedQuery ? (
+                <div
+                  role="tablist"
+                  aria-label={t('tooltip.search')}
+                  className="mt-2.5 flex items-center gap-1.5 border-t border-line/70 pt-2.5"
+                >
+                  {(
+                    [
+                      { key: 'all', label: t('search.tabAll') },
+                      { key: 'models', label: t('search.tabModels') },
+                      { key: 'fabrics', label: t('search.tabFabrics') },
+                    ] as const
+                  ).map((tab) => {
+                    const isActive = activeTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`inline-flex min-h-[36px] items-center rounded-sm px-3 text-xs font-semibold uppercase tracking-[0.12em] transition-colors ${
+                          isActive ? 'bg-ink text-white' : 'bg-surface text-muted hover:text-ink'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+              {normalizedQuery ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted tabular-nums">
+                      {t('search.results', { count: totalVisibleResults })}
                     </p>
-                    {searchResults.length === 0 ? (
-                      <p className="py-8 text-sm text-muted">{t('search.noResults')}</p>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-                        {searchResults.map(({ model, matchedFabricName }) => (
+                  </div>
+
+                  {totalVisibleResults === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted">
+                      {activeTab === 'fabrics'
+                        ? t('search.noFabrics')
+                        : activeTab === 'models'
+                          ? t('search.noModels')
+                          : t('search.noResults')}
+                    </p>
+                  ) : null}
+
+                  {visibleModelCount > 0 ? (
+                    <section className="space-y-3">
+                      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+                        {t('search.modelsHeading', { count: matchedModels.length })}
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3">
+                        {matchedModels.map(({ model, matchedFabricName }) => (
                           <Link
                             key={model.id}
                             to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
@@ -201,12 +277,12 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
                                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                                 />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center font-display text-2xl font-bold uppercase tracking-[0.14em] text-muted">
+                                <div className="flex h-full w-full items-center justify-center font-display text-xl font-bold uppercase tracking-[0.14em] text-muted">
                                   {model.name.slice(0, 2)}
                                 </div>
                               )}
                             </div>
-                            <p className="mt-2.5 truncate text-sm font-medium text-ink group-hover:underline">
+                            <p className="mt-2 truncate text-sm font-medium text-ink group-hover:underline">
                               {model.name}
                             </p>
                             <p className="mt-0.5 font-mono text-xs text-muted tabular-nums">
@@ -220,70 +296,115 @@ export function SearchOverlay({ open, onClose, returnFocusRef }: SearchOverlayPr
                           </Link>
                         ))}
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-8">
-                    {popularChips.length > 0 ? (
-                      <div>
-                        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-                          {t('search.popular')}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {popularChips.map((chip) => (
-                            <button
-                              key={chip}
-                              type="button"
-                              onClick={() => setQuery(chip)}
-                              className="inline-flex h-9 min-h-[36px] items-center rounded-sm border border-line bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink hover:bg-surface"
-                            >
-                              {chip}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
+                    </section>
+                  ) : null}
 
-                    {displayedRecent.length > 0 ? (
-                      <div>
-                        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-                          {t('search.recent')}
-                        </p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
-                          {displayedRecent.map((item) => (
-                            <Link
-                              key={item.slug}
-                              to={`/custom-lab?model=${encodeURIComponent(item.slug)}`}
-                              onClick={onClose}
-                              className="group block"
-                            >
-                              <div className="aspect-[3/4] w-full overflow-hidden border border-line bg-surface">
-                                {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.name}
-                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center font-display text-2xl font-bold uppercase tracking-[0.14em] text-muted">
-                                    {item.name.slice(0, 2)}
-                                  </div>
-                                )}
-                              </div>
-                              <p className="mt-2 truncate text-sm font-medium text-ink group-hover:underline">
-                                {item.name}
-                              </p>
-                              <p className="mt-0.5 font-mono text-xs text-muted tabular-nums">
-                                {t('search.startingFrom', { price: formatRupiah(item.basePrice) })}
-                              </p>
-                            </Link>
-                          ))}
-                        </div>
+                  {visibleFabricCount > 0 ? (
+                    <section className="space-y-3">
+                      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+                        {t('search.fabricsHeading', { count: matchedFabrics.length })}
+                      </p>
+                      <ul className="divide-y divide-line border border-line bg-white">
+                        {matchedFabrics.map((fabric) => {
+                          const linkedModel = firstModelForFabric.get(fabric.id);
+                          const targetUrl = linkedModel
+                            ? `/custom-lab?model=${encodeURIComponent(linkedModel.slug)}`
+                            : '/custom-lab';
+
+                          return (
+                            <li key={fabric.id}>
+                              <Link
+                                to={targetUrl}
+                                onClick={onClose}
+                                className="flex min-h-touch items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-surface"
+                              >
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-ink">
+                                    {fabric.name}
+                                  </p>
+                                  <p className="mt-0.5 font-mono text-[11px] text-muted tabular-nums">
+                                    {fabric.code}
+                                    {fabric.gsmWeight
+                                      ? ` · ${t('search.fabricGsm', { gsm: fabric.gsmWeight })}`
+                                      : ''}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 font-mono text-xs font-medium text-ink tabular-nums">
+                                  {fabric.additionalPrice > 0
+                                    ? t('search.fabricExtra', {
+                                        price: formatRupiah(fabric.additionalPrice),
+                                      })
+                                    : t('search.fabricFree')}
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="space-y-7">
+                  {popularChips.length > 0 ? (
+                    <div>
+                      <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+                        {t('search.popular')}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {popularChips.map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => setQuery(chip)}
+                            className="inline-flex h-9 min-h-[36px] items-center rounded-sm border border-line bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink hover:bg-surface"
+                          >
+                            {chip}
+                          </button>
+                        ))}
                       </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ) : null}
+
+                  {displayedRecent.length > 0 ? (
+                    <div>
+                      <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+                        {t('search.recent')}
+                      </p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4">
+                        {displayedRecent.map((item) => (
+                          <Link
+                            key={item.slug}
+                            to={`/custom-lab?model=${encodeURIComponent(item.slug)}`}
+                            onClick={onClose}
+                            className="group block"
+                          >
+                            <div className="aspect-[3/4] w-full overflow-hidden border border-line bg-surface">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center font-display text-xl font-bold uppercase tracking-[0.14em] text-muted">
+                                  {item.name.slice(0, 2)}
+                                </div>
+                              )}
+                            </div>
+                            <p className="mt-2 truncate text-sm font-medium text-ink group-hover:underline">
+                              {item.name}
+                            </p>
+                            <p className="mt-0.5 font-mono text-xs text-muted tabular-nums">
+                              {t('search.startingFrom', { price: formatRupiah(item.basePrice) })}
+                            </p>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </motion.div>
         </div>

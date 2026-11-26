@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   createAddress,
   deactivateAccount,
@@ -51,6 +52,7 @@ interface SectionFeedback {
 
 export default function Account() {
   const { user, setUser } = useAuth();
+  const { pick } = useLanguage();
   const navigate = useNavigate();
 
   // 01. Profil
@@ -96,12 +98,15 @@ export default function Account() {
       const list = await listAddresses();
       setAddresses(list);
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal memuat daftar alamat tersimpan.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal memuat daftar alamat tersimpan.', 'Failed to load saved addresses.')
+      );
       setAddressFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setLoadingAddresses(false);
     }
-  }, []);
+  }, [pick]);
 
   useEffect(() => {
     void loadAddresses();
@@ -138,14 +143,23 @@ export default function Account() {
     const trimmedWa = whatsapp.trim();
 
     if (trimmedName.length < 2) {
-      setProfileFeedback({ variant: 'error', message: 'Nama lengkap minimal 2 karakter.' });
+      setProfileFeedback({
+        variant: 'error',
+        message: pick(
+          'Nama lengkap minimal 2 karakter.',
+          'Full name must be at least 2 characters.'
+        ),
+      });
       return;
     }
 
     if (user.role === USER_ROLE.USER && !trimmedWa) {
       setProfileFeedback({
         variant: 'error',
-        message: 'Nomor WhatsApp wajib diisi untuk akun pelanggan.',
+        message: pick(
+          'Nomor WhatsApp wajib diisi untuk akun pelanggan.',
+          'WhatsApp number is required for customer accounts.'
+        ),
       });
       return;
     }
@@ -159,10 +173,13 @@ export default function Account() {
       setUser(updated);
       setProfileFeedback({
         variant: 'success',
-        message: 'Profil akun berhasil diperbarui.',
+        message: pick('Profil akun berhasil diperbarui.', 'Account profile updated.'),
       });
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal memperbarui profil.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal memperbarui profil.', 'Failed to update profile.')
+      );
       setProfileFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setSavingProfile(false);
@@ -176,7 +193,10 @@ export default function Account() {
     if (editingAddressUuid === null && addresses.length >= MAX_SAVED_ADDRESSES) {
       setAddressFeedback({
         variant: 'error',
-        message: `Maksimal ${MAX_SAVED_ADDRESSES} alamat tersimpan per akun.`,
+        message: pick(
+          `Maksimal ${MAX_SAVED_ADDRESSES} alamat tersimpan per akun.`,
+          `Maximum ${MAX_SAVED_ADDRESSES} saved addresses per account.`
+        ),
       });
       return;
     }
@@ -194,33 +214,60 @@ export default function Account() {
     };
 
     if (!payload.label) {
-      setAddressFeedback({ variant: 'error', message: 'Label alamat wajib diisi.' });
+      setAddressFeedback({
+        variant: 'error',
+        message: pick('Label alamat wajib diisi.', 'Address label is required.'),
+      });
       return;
     }
     if (payload.recipientName.length < 2) {
-      setAddressFeedback({ variant: 'error', message: 'Nama penerima minimal 2 karakter.' });
+      setAddressFeedback({
+        variant: 'error',
+        message: pick(
+          'Nama penerima minimal 2 karakter.',
+          'Recipient name must be at least 2 characters.'
+        ),
+      });
       return;
     }
     if (!payload.recipientWhatsapp) {
-      setAddressFeedback({ variant: 'error', message: 'Nomor WhatsApp penerima wajib diisi.' });
+      setAddressFeedback({
+        variant: 'error',
+        message: pick(
+          'Nomor WhatsApp penerima wajib diisi.',
+          'Recipient WhatsApp number is required.'
+        ),
+      });
       return;
     }
     if (!payload.provinceName || !payload.cityName || !payload.districtName) {
       setAddressFeedback({
         variant: 'error',
-        message: 'Provinsi, kota/kabupaten, dan kecamatan wajib diisi.',
+        message: pick(
+          'Provinsi, kota/kabupaten, dan kecamatan wajib diisi.',
+          'Province, city, and district are required.'
+        ),
       });
       return;
     }
     if (!/^[0-9]{5}$/.test(payload.postalCode)) {
       setAddressFeedback({
         variant: 'error',
-        message: 'Kode pos harus terdiri dari 5 digit angka.',
+        message: pick(
+          'Kode pos harus terdiri dari 5 digit angka.',
+          'Postal code must be 5 digits.'
+        ),
       });
       return;
     }
     if (payload.fullAddress.length < 5) {
-      setAddressFeedback({ variant: 'error', message: 'Alamat lengkap minimal 5 karakter.' });
+      setAddressFeedback({
+        variant: 'error',
+        message: pick(
+          'Alamat lengkap minimal 5 karakter.',
+          'Full address must be at least 5 characters.'
+        ),
+      });
       return;
     }
 
@@ -230,19 +277,28 @@ export default function Account() {
         await updateAddress(editingAddressUuid, payload);
         setAddressFeedback({
           variant: 'success',
-          message: `Alamat "${payload.label}" berhasil diperbarui.`,
+          message: pick(
+            `Alamat "${payload.label}" berhasil diperbarui.`,
+            `Address "${payload.label}" updated.`
+          ),
         });
       } else {
         await createAddress(payload);
         setAddressFeedback({
           variant: 'success',
-          message: `Alamat "${payload.label}" berhasil disimpan.`,
+          message: pick(
+            `Alamat "${payload.label}" berhasil disimpan.`,
+            `Address "${payload.label}" saved.`
+          ),
         });
       }
       resetAddressForm();
       await loadAddresses();
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal menyimpan alamat.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal menyimpan alamat.', 'Failed to save address.')
+      );
       setAddressFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setSavingAddress(false);
@@ -256,11 +312,17 @@ export default function Account() {
       await updateAddress(addr.addressUuid, { isDefault: true });
       setAddressFeedback({
         variant: 'success',
-        message: `"${addr.label}" ditetapkan sebagai alamat utama.`,
+        message: pick(
+          `"${addr.label}" ditetapkan sebagai alamat utama.`,
+          `"${addr.label}" set as default address.`
+        ),
       });
       await loadAddresses();
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal menetapkan alamat utama.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal menetapkan alamat utama.', 'Failed to set default address.')
+      );
       setAddressFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setBusyAddressUuid(null);
@@ -278,11 +340,17 @@ export default function Account() {
       }
       setAddressFeedback({
         variant: 'success',
-        message: `Alamat "${addr.label}" berhasil dihapus.`,
+        message: pick(
+          `Alamat "${addr.label}" berhasil dihapus.`,
+          `Address "${addr.label}" deleted.`
+        ),
       });
       await loadAddresses();
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal menghapus alamat.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal menghapus alamat.', 'Failed to delete address.')
+      );
       setAddressFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setBusyAddressUuid(null);
@@ -294,14 +362,20 @@ export default function Account() {
     setPasswordFeedback(null);
 
     if (!currentPassword) {
-      setPasswordFeedback({ variant: 'error', message: 'Password saat ini wajib diisi.' });
+      setPasswordFeedback({
+        variant: 'error',
+        message: pick('Password saat ini wajib diisi.', 'Current password is required.'),
+      });
       return;
     }
 
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setPasswordFeedback({
         variant: 'error',
-        message: `Password baru minimal ${MIN_PASSWORD_LENGTH} karakter.`,
+        message: pick(
+          `Password baru minimal ${MIN_PASSWORD_LENGTH} karakter.`,
+          `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+        ),
       });
       return;
     }
@@ -312,7 +386,10 @@ export default function Account() {
     ) {
       setPasswordFeedback({
         variant: 'error',
-        message: `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8.`,
+        message: pick(
+          `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8.`,
+          `Password cannot exceed ${MAX_PASSWORD_BYTES} UTF-8 bytes.`
+        ),
       });
       return;
     }
@@ -320,7 +397,10 @@ export default function Account() {
     if (newPassword !== confirmNewPassword) {
       setPasswordFeedback({
         variant: 'error',
-        message: 'Konfirmasi password baru tidak cocok.',
+        message: pick(
+          'Konfirmasi password baru tidak cocok.',
+          'New password confirmation does not match.'
+        ),
       });
       return;
     }
@@ -337,11 +417,16 @@ export default function Account() {
       setConfirmNewPassword('');
       setPasswordFeedback({
         variant: 'success',
-        message:
+        message: pick(
           'Password berhasil diperbarui. Sesi aktif saat ini tetap masuk, sedangkan sesi di perangkat lain telah dicabut.',
+          'Password updated. Your current session stays active while other sessions have been signed out.'
+        ),
       });
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal memperbarui password.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal memperbarui password.', 'Failed to update password.')
+      );
       setPasswordFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setSavingPassword(false);
@@ -355,7 +440,10 @@ export default function Account() {
     if (!deactivateAgreed) {
       setDeactivateFeedback({
         variant: 'error',
-        message: 'Centang konfirmasi persetujuan sebelum menonaktifkan akun.',
+        message: pick(
+          'Centang konfirmasi persetujuan sebelum menonaktifkan akun.',
+          'Check the confirmation box before deactivating your account.'
+        ),
       });
       return;
     }
@@ -363,7 +451,10 @@ export default function Account() {
     if (!deactivatePassword) {
       setDeactivateFeedback({
         variant: 'error',
-        message: 'Masukkan password saat ini untuk konfirmasi.',
+        message: pick(
+          'Masukkan password saat ini untuk konfirmasi.',
+          'Enter your current password to confirm.'
+        ),
       });
       return;
     }
@@ -371,7 +462,10 @@ export default function Account() {
     if (textEncoder.encode(deactivatePassword).length > MAX_PASSWORD_BYTES) {
       setDeactivateFeedback({
         variant: 'error',
-        message: `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8.`,
+        message: pick(
+          `Password maksimal ${MAX_PASSWORD_BYTES} byte UTF-8.`,
+          `Password cannot exceed ${MAX_PASSWORD_BYTES} UTF-8 bytes.`
+        ),
       });
       return;
     }
@@ -383,11 +477,17 @@ export default function Account() {
       navigate('/login', {
         replace: true,
         state: {
-          statusMessage: 'Akun Anda telah dinonaktifkan. Semua sesi telah berakhir.',
+          statusMessage: pick(
+            'Akun Anda telah dinonaktifkan. Semua sesi telah berakhir.',
+            'Your account has been deactivated. All sessions have ended.'
+          ),
         },
       });
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal menonaktifkan akun.');
+      const parsed = extractApiError(
+        err,
+        pick('Gagal menonaktifkan akun.', 'Failed to deactivate account.')
+      );
       setDeactivateFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setDeactivating(false);
@@ -401,18 +501,20 @@ export default function Account() {
     <div className="account-page space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <div>
-          <p className="eyebrow">Ruang Pelanggan</p>
+          <p className="eyebrow">{pick('Ruang Pelanggan', 'Customer Account')}</p>
           <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
-            Profil Saya
+            {pick('Profil Saya', 'My Profile')}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-            Kelola data profil, alamat pengiriman tersimpan untuk checkout cepat, password, dan
-            keamanan akun Anda.
+            {pick(
+              'Kelola data profil, alamat pengiriman tersimpan untuk checkout cepat, password, dan keamanan akun Anda.',
+              'Manage your profile details, saved shipping addresses for faster checkout, password, and account security.'
+            )}
           </p>
         </div>
         {user ? (
           <span className="inline-flex rounded-full bg-ink px-3.5 py-1.5 text-xs font-semibold text-white">
-            {user.role === USER_ROLE.ADMIN ? 'Admin' : 'Pelanggan'}
+            {user.role === USER_ROLE.ADMIN ? 'Admin' : pick('Pelanggan', 'Customer')}
           </span>
         ) : null}
       </header>
@@ -420,7 +522,7 @@ export default function Account() {
       {/* 01 / Profil Akun */}
       <section className="card-sharp p-5 sm:p-6">
         <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-ink">
-          Informasi Profil
+          {pick('Informasi Profil', 'Profile Information')}
         </h2>
 
         {profileFeedback ? (
@@ -455,7 +557,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="acc-fullname" className="block text-sm font-medium text-ink">
-                Nama Lengkap
+                {pick('Nama Lengkap', 'Full Name')}
               </label>
               <input
                 id="acc-fullname"
@@ -469,7 +571,8 @@ export default function Account() {
 
             <div>
               <label htmlFor="acc-whatsapp" className="block text-sm font-medium text-ink">
-                Nomor WhatsApp {user?.role === USER_ROLE.ADMIN ? '(Opsional)' : ''}
+                {pick('Nomor WhatsApp', 'WhatsApp Number')}{' '}
+                {user?.role === USER_ROLE.ADMIN ? pick('(Opsional)', '(Optional)') : ''}
               </label>
               <input
                 id="acc-whatsapp"
@@ -484,7 +587,9 @@ export default function Account() {
           </div>
 
           <button type="submit" className="btn-primary w-full sm:w-auto" disabled={savingProfile}>
-            {savingProfile ? 'Menyimpan...' : 'Simpan Profil'}
+            {savingProfile
+              ? pick('Menyimpan...', 'Saving...')
+              : pick('Simpan Profil', 'Save Profile')}
           </button>
         </form>
       </section>
@@ -494,20 +599,22 @@ export default function Account() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <div>
             <h2 className="font-display text-lg font-semibold text-ink">
-              Alamat Tersimpan (
+              {pick('Alamat Tersimpan', 'Saved Addresses')} (
               <span className="tabular-price">
                 {addresses.length}/{MAX_SAVED_ADDRESSES}
               </span>
               )
             </h2>
             <p className="text-xs text-muted">
-              Maksimal {MAX_SAVED_ADDRESSES} alamat tersimpan. Alamat yang dipilih saat checkout
-              akan disalin ke pesanan.
+              {pick(
+                `Maksimal ${MAX_SAVED_ADDRESSES} alamat tersimpan. Alamat yang dipilih saat checkout akan disalin ke pesanan.`,
+                `Up to ${MAX_SAVED_ADDRESSES} saved addresses. Selected address is copied to the order during checkout.`
+              )}
             </p>
           </div>
           {editingAddressUuid !== null ? (
             <button type="button" onClick={resetAddressForm} className="btn-secondary px-4 py-2">
-              Batal Edit
+              {pick('Batal Edit', 'Cancel Edit')}
             </button>
           ) : null}
         </div>
@@ -529,13 +636,15 @@ export default function Account() {
           noValidate
         >
           <p className="text-sm font-semibold text-ink">
-            {editingAddressUuid !== null ? 'Edit Alamat Tersimpan' : 'Tambah Alamat Baru'}
+            {editingAddressUuid !== null
+              ? pick('Edit Alamat Tersimpan', 'Edit Saved Address')
+              : pick('Tambah Alamat Baru', 'Add New Address')}
           </p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="addr-label" className="block text-sm font-medium text-ink">
-                Label Alamat
+                {pick('Label Alamat', 'Address Label')}
               </label>
               <input
                 id="addr-label"
@@ -544,7 +653,7 @@ export default function Account() {
                 onChange={(event) =>
                   setAddressForm((prev) => ({ ...prev, label: event.target.value }))
                 }
-                placeholder="Rumah / Kantor"
+                placeholder={pick('Rumah / Kantor', 'Home / Office')}
                 className="input-sharp mt-1.5"
                 disabled={savingAddress || isAddressLimitReached}
               />
@@ -552,7 +661,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="addr-recipient" className="block text-sm font-medium text-ink">
-                Nama Penerima
+                {pick('Nama Penerima', 'Recipient Name')}
               </label>
               <input
                 id="addr-recipient"
@@ -569,7 +678,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="addr-wa" className="block text-sm font-medium text-ink">
-                WhatsApp Penerima
+                {pick('WhatsApp Penerima', 'Recipient WhatsApp')}
               </label>
               <input
                 id="addr-wa"
@@ -588,7 +697,7 @@ export default function Account() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label htmlFor="addr-province" className="block text-sm font-medium text-ink">
-                Provinsi
+                {pick('Provinsi', 'Province')}
               </label>
               <input
                 id="addr-province"
@@ -605,7 +714,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="addr-city" className="block text-sm font-medium text-ink">
-                Kota / Kabupaten
+                {pick('Kota / Kabupaten', 'City / Regency')}
               </label>
               <input
                 id="addr-city"
@@ -622,7 +731,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="addr-district" className="block text-sm font-medium text-ink">
-                Kecamatan
+                {pick('Kecamatan', 'District')}
               </label>
               <input
                 id="addr-district"
@@ -639,7 +748,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="addr-postal" className="block text-sm font-medium text-ink">
-                Kode Pos
+                {pick('Kode Pos', 'Postal Code')}
               </label>
               <input
                 id="addr-postal"
@@ -659,7 +768,7 @@ export default function Account() {
 
           <div>
             <label htmlFor="addr-full" className="block text-sm font-medium text-ink">
-              Alamat Lengkap
+              {pick('Alamat Lengkap', 'Full Address')}
             </label>
             <textarea
               id="addr-full"
@@ -668,7 +777,10 @@ export default function Account() {
               onChange={(event) =>
                 setAddressForm((prev) => ({ ...prev, fullAddress: event.target.value }))
               }
-              placeholder="Nama jalan, nomor rumah, RT/RW, patokan"
+              placeholder={pick(
+                'Nama jalan, nomor rumah, RT/RW, patokan',
+                'Street name, house/unit number, landmarks'
+              )}
               className="input-sharp mt-1.5"
               disabled={savingAddress || isAddressLimitReached}
             />
@@ -684,13 +796,15 @@ export default function Account() {
               className="h-4 w-4 accent-ink"
               disabled={savingAddress || isAddressLimitReached}
             />
-            <span>Jadikan sebagai alamat utama</span>
+            <span>{pick('Jadikan sebagai alamat utama', 'Set as default address')}</span>
           </label>
 
           {isAddressLimitReached ? (
             <p className="text-xs text-status-warn">
-              Batas {MAX_SAVED_ADDRESSES} alamat tersimpan telah tercapai. Edit atau hapus salah
-              satu alamat di bawah untuk menambah alamat baru.
+              {pick(
+                `Batas ${MAX_SAVED_ADDRESSES} alamat tersimpan telah tercapai. Edit atau hapus salah satu alamat di bawah untuk menambah alamat baru.`,
+                `Limit of ${MAX_SAVED_ADDRESSES} saved addresses reached. Edit or delete an existing address below to add a new one.`
+              )}
             </p>
           ) : null}
 
@@ -701,21 +815,25 @@ export default function Account() {
               disabled={savingAddress || isAddressLimitReached}
             >
               {savingAddress
-                ? 'Menyimpan...'
+                ? pick('Menyimpan...', 'Saving...')
                 : editingAddressUuid !== null
-                  ? 'Simpan Perubahan Alamat'
-                  : 'Simpan Alamat Baru'}
+                  ? pick('Simpan Perubahan Alamat', 'Save Address Changes')
+                  : pick('Simpan Alamat Baru', 'Save New Address')}
             </button>
           </div>
         </form>
 
         <div className="mt-6 space-y-3">
           {loadingAddresses ? (
-            <p className="text-sm text-muted">Memuat alamat tersimpan...</p>
+            <p className="text-sm text-muted">
+              {pick('Memuat alamat tersimpan...', 'Loading saved addresses...')}
+            </p>
           ) : addresses.length === 0 ? (
             <p className="text-sm text-muted">
-              Belum ada alamat tersimpan. Tambahkan alamat pengiriman di atas agar checkout lebih
-              cepat.
+              {pick(
+                'Belum ada alamat tersimpan. Tambahkan alamat pengiriman di atas agar checkout lebih cepat.',
+                'No saved addresses yet. Add a shipping address above for faster checkout.'
+              )}
             </p>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
@@ -736,7 +854,7 @@ export default function Account() {
                         </h3>
                         {addr.isDefault ? (
                           <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
-                            Utama
+                            {pick('Utama', 'Default')}
                           </span>
                         ) : null}
                       </div>
@@ -756,7 +874,7 @@ export default function Account() {
                       {isConfirmingDelete ? (
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-medium text-status-err">
-                            Hapus alamat ini?
+                            {pick('Hapus alamat ini?', 'Delete this address?')}
                           </span>
                           <button
                             type="button"
@@ -764,7 +882,9 @@ export default function Account() {
                             disabled={isBusy}
                             className="inline-flex min-h-touch flex-1 items-center justify-center rounded-full border border-status-err bg-status-err px-3 py-2 font-display text-xs font-semibold text-white disabled:opacity-40"
                           >
-                            {isBusy ? 'Menghapus...' : 'Ya, Hapus'}
+                            {isBusy
+                              ? pick('Menghapus...', 'Deleting...')
+                              : pick('Ya, Hapus', 'Yes, Delete')}
                           </button>
                           <button
                             type="button"
@@ -772,7 +892,7 @@ export default function Account() {
                             disabled={isBusy}
                             className="btn-secondary flex-1 px-3 py-2"
                           >
-                            Batal
+                            {pick('Batal', 'Cancel')}
                           </button>
                         </div>
                       ) : (
@@ -784,7 +904,7 @@ export default function Account() {
                               disabled={isBusy}
                               className="btn-secondary flex-1 px-3 py-2 sm:flex-none"
                             >
-                              {isBusy ? '...' : 'Jadikan Utama'}
+                              {isBusy ? '...' : pick('Jadikan Utama', 'Set Default')}
                             </button>
                           ) : null}
                           <button
@@ -793,7 +913,7 @@ export default function Account() {
                             disabled={isBusy}
                             className="btn-secondary flex-1 px-3 py-2 sm:flex-none"
                           >
-                            Edit
+                            {pick('Edit', 'Edit')}
                           </button>
                           <button
                             type="button"
@@ -801,7 +921,7 @@ export default function Account() {
                             disabled={isBusy}
                             className="inline-flex min-h-touch flex-1 items-center justify-center rounded-full border border-status-err px-3 py-2 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white disabled:opacity-40 sm:flex-none"
                           >
-                            Hapus
+                            {pick('Hapus', 'Delete')}
                           </button>
                         </div>
                       )}
@@ -816,11 +936,13 @@ export default function Account() {
 
       <section className="card-sharp p-5 sm:p-6">
         <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-ink">
-          Keamanan &amp; Password
+          {pick('Keamanan & Password', 'Security & Password')}
         </h2>
         <p className="mt-2 text-xs text-muted">
-          Mengganti password akan langsung mencabut seluruh sesi login di browser/perangkat lain dan
-          menerbitkan sesi baru untuk browser ini.
+          {pick(
+            'Mengganti password akan langsung mencabut seluruh sesi login di browser/perangkat lain dan menerbitkan sesi baru untuk browser ini.',
+            'Changing your password immediately signs out all sessions on other browsers/devices and issues a fresh session for this browser.'
+          )}
         </p>
 
         {passwordFeedback ? (
@@ -842,7 +964,7 @@ export default function Account() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="pw-current" className="block text-sm font-medium text-ink">
-                Password Saat Ini
+                {pick('Password Saat Ini', 'Current Password')}
               </label>
               <input
                 id="pw-current"
@@ -857,7 +979,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="pw-new" className="block text-sm font-medium text-ink">
-                Password Baru
+                {pick('Password Baru', 'New Password')}
               </label>
               <input
                 id="pw-new"
@@ -865,7 +987,7 @@ export default function Account() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
-                placeholder="Min 8 karakter (maks 72 byte)"
+                placeholder={pick('Min 8 karakter (maks 72 byte)', 'Min 8 chars (max 72 bytes)')}
                 className="input-sharp mt-1.5"
                 disabled={savingPassword}
               />
@@ -873,7 +995,7 @@ export default function Account() {
 
             <div>
               <label htmlFor="pw-confirm" className="block text-sm font-medium text-ink">
-                Konfirmasi Password Baru
+                {pick('Konfirmasi Password Baru', 'Confirm New Password')}
               </label>
               <input
                 id="pw-confirm"
@@ -888,27 +1010,38 @@ export default function Account() {
           </div>
 
           <button type="submit" className="btn-primary w-full sm:w-auto" disabled={savingPassword}>
-            {savingPassword ? 'Memperbarui...' : 'Perbarui Password'}
+            {savingPassword
+              ? pick('Memperbarui...', 'Updating...')
+              : pick('Perbarui Password', 'Update Password')}
           </button>
         </form>
       </section>
 
       <section className="rounded-2xl border border-red-200 bg-white p-5 sm:p-6">
         <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-status-err">
-          Nonaktifkan Akun
+          {pick('Nonaktifkan Akun', 'Deactivate Account')}
         </h2>
 
         {user?.role === USER_ROLE.ADMIN ? (
           <p className="mt-3 text-sm text-neutral-600">
-            Akun <strong>ADMIN</strong> tidak dapat dinonaktifkan dari halaman ini untuk mencegah
-            terkuncinya akses operasional dashboard.
+            {pick(
+              <>
+                Akun <strong>ADMIN</strong> tidak dapat dinonaktifkan dari halaman ini untuk
+                mencegah terkuncinya akses operasional dashboard.
+              </>,
+              <>
+                <strong>ADMIN</strong> accounts cannot be deactivated from this page to prevent
+                locking out operational studio access.
+              </>
+            )}
           </p>
         ) : (
           <div className="mt-3 space-y-4">
             <p className="text-sm text-neutral-600">
-              Menonaktifkan akun akan menghentikan akses login Anda dan mengakhiri semua sesi aktif.
-              Riwayat pesanan yang sudah tercatat tetap disimpan untuk keperluan garansi/arsip dan
-              masih dapat dipantau melalui Live Tracker menggunakan kode order.
+              {pick(
+                'Menonaktifkan akun akan menghentikan akses login Anda dan mengakhiri semua sesi aktif. Riwayat pesanan yang sudah tercatat tetap disimpan untuk keperluan garansi/arsip dan masih dapat dipantau melalui Live Tracker menggunakan kode order.',
+                'Deactivating your account stops login access and ends all active sessions. Recorded order history stays archived and remains trackable via Live Tracker using your order code.'
+              )}
             </p>
 
             {deactivateFeedback ? (
@@ -929,7 +1062,7 @@ export default function Account() {
                 }}
                 className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-status-err px-5 py-2.5 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white sm:w-auto"
               >
-                Nonaktifkan Akun Saya
+                {pick('Nonaktifkan Akun Saya', 'Deactivate My Account')}
               </button>
             ) : (
               <form
@@ -946,8 +1079,10 @@ export default function Account() {
                     disabled={deactivating}
                   />
                   <span>
-                    Saya mengerti akun ini akan dinonaktifkan dan saya akan langsung dikeluarkan
-                    dari semua sesi.
+                    {pick(
+                      'Saya mengerti akun ini akan dinonaktifkan dan saya akan langsung dikeluarkan dari semua sesi.',
+                      'I understand this account will be deactivated and I will be signed out of all sessions immediately.'
+                    )}
                   </span>
                 </label>
 
@@ -956,7 +1091,7 @@ export default function Account() {
                     htmlFor="deactivate-password"
                     className="block text-sm font-medium text-ink"
                   >
-                    Konfirmasi Password Saat Ini
+                    {pick('Konfirmasi Password Saat Ini', 'Confirm Current Password')}
                   </label>
                   <input
                     id="deactivate-password"
@@ -964,7 +1099,7 @@ export default function Account() {
                     autoComplete="current-password"
                     value={deactivatePassword}
                     onChange={(event) => setDeactivatePassword(event.target.value)}
-                    placeholder="Masukkan password Anda"
+                    placeholder={pick('Masukkan password Anda', 'Enter your password')}
                     className="input-sharp mt-1.5"
                     disabled={deactivating}
                   />
@@ -976,7 +1111,9 @@ export default function Account() {
                     disabled={deactivating}
                     className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-status-err bg-status-err px-5 py-2.5 font-display text-xs font-semibold text-white disabled:opacity-40 sm:w-auto"
                   >
-                    {deactivating ? 'Memproses...' : 'Konfirmasi Nonaktifkan Akun'}
+                    {deactivating
+                      ? pick('Memproses...', 'Processing...')
+                      : pick('Konfirmasi Nonaktifkan Akun', 'Confirm Account Deactivation')}
                   </button>
                   <button
                     type="button"
@@ -989,7 +1126,7 @@ export default function Account() {
                     disabled={deactivating}
                     className="btn-secondary w-full sm:w-auto"
                   >
-                    Batal
+                    {pick('Batal', 'Cancel')}
                   </button>
                 </div>
               </form>

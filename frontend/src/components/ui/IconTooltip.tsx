@@ -61,7 +61,7 @@ export function IconTooltip({
       {hasBadge ? (
         <span
           aria-hidden="true"
-          className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-sm bg-ink px-1 text-[10px] font-semibold leading-none text-white tabular-nums"
+          className="absolute right-0.5 top-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-sm bg-ink px-1 font-mono text-[10px] font-semibold leading-none text-white tabular-nums ring-2 ring-white"
         >
           {badge > 99 ? '99+' : badge}
         </span>

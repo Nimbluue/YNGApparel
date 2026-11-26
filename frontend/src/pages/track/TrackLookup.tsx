@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
 import { ApiClientError } from '../../services/api';
 import { catalogQueryKeys, getCatalogConfig } from '../../services/catalogService';
 import { lookupTrackOrder, trackerQueryKeys } from '../../services/trackerService';
@@ -10,6 +11,7 @@ import { buildWaLink } from '../../utils/whatsapp';
 const ORDER_CODE_INPUT_REGEX = /^(YNG-)?[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/i;
 
 export default function TrackLookup() {
+  const { pick } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -41,7 +43,10 @@ export default function TrackLookup() {
       setIsRateLimited(rateLimited);
       const parsed = extractApiError(
         err,
-        'Pesanan tidak ditemukan. Periksa kembali kode pesanan dan 4 digit terakhir WhatsApp.'
+        pick(
+          'Pesanan tidak ditemukan. Periksa kembali kode pesanan dan 4 digit terakhir WhatsApp.',
+          'Order not found. Please check your order code and the last 4 digits of WhatsApp.'
+        )
       );
       setFormError(parsed.message);
     },
@@ -57,13 +62,21 @@ export default function TrackLookup() {
 
     if (!ORDER_CODE_INPUT_REGEX.test(trimmedCode)) {
       setFormError(
-        'Masukkan kode pesanan 6 karakter atau format YNG-XXXXXX (tanpa karakter O/0, I/1/L).'
+        pick(
+          'Masukkan kode pesanan 6 karakter atau format YNG-XXXXXX (tanpa karakter O/0, I/1/L).',
+          'Enter a 6-character order code or YNG-XXXXXX format (without O/0, I/1/L).'
+        )
       );
       return;
     }
 
     if (!/^[0-9]{4}$/.test(trimmedWa)) {
-      setFormError('Masukkan tepat 4 digit terakhir nomor WhatsApp pemesan.');
+      setFormError(
+        pick(
+          'Masukkan tepat 4 digit terakhir nomor WhatsApp pemesan.',
+          'Enter the exact last 4 digits of the customer WhatsApp number.'
+        )
+      );
       return;
     }
 
@@ -77,7 +90,10 @@ export default function TrackLookup() {
   const waHelpHref = adminWhatsapp
     ? buildWaLink(
         adminWhatsapp,
-        'Halo YNG Apparel, saya membutuhkan bantuan untuk melacak kode pesanan saya.'
+        pick(
+          'Halo YNG Apparel, saya membutuhkan bantuan untuk melacak kode pesanan saya.',
+          'Hello YNG Apparel, I need help tracking my order code.'
+        )
       )
     : null;
 
@@ -86,21 +102,25 @@ export default function TrackLookup() {
       <header className="space-y-2 border-b border-line pb-5">
         <p className="eyebrow">YNG Studio · Live Tracker</p>
         <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
-          Lacak Progres Produksi &amp; Pengiriman
+          {pick('Lacak Progres Produksi & Pengiriman', 'Track Production & Shipping Progress')}
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-muted">
-          Pantau antrean sablon, foto hasil Quality Control, tagihan pelunasan atau ongkir, serta
-          nomor resi kurir tanpa perlu login. Berlaku untuk order website maupun manual WhatsApp.
+          {pick(
+            'Pantau antrean sablon, foto hasil Quality Control, tagihan pelunasan atau ongkir, serta nomor resi kurir tanpa perlu login. Berlaku untuk order website maupun manual WhatsApp.',
+            'Follow print queues, Quality Control photos, remaining balance or shipping invoices, and courier tracking without logging in. Works for both website and WhatsApp orders.'
+          )}
         </p>
       </header>
 
       <div className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-12">
-        {/* Form Lookup Publik */}
         <section className="w-full min-w-0 rounded-3xl border border-line bg-white p-5 sm:p-7 lg:col-span-7">
           <div className="border-b border-line pb-4">
-            <p className="eyebrow">Cari Pesanan Anda</p>
+            <p className="eyebrow">{pick('Cari Pesanan Anda', 'Find Your Order')}</p>
             <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-              Kode Order &amp; 4 Digit Terakhir WhatsApp
+              {pick(
+                'Kode Order & 4 Digit Terakhir WhatsApp',
+                'Order Code & Last 4 WhatsApp Digits'
+              )}
             </h2>
           </div>
 
@@ -120,7 +140,7 @@ export default function TrackLookup() {
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
               <label htmlFor="track-order-code" className="block text-xs font-semibold text-ink">
-                Kode Pesanan
+                {pick('Kode Pesanan', 'Order Code')}
               </label>
               <input
                 id="track-order-code"
@@ -137,18 +157,26 @@ export default function TrackLookup() {
                     .slice(0, 10);
                   setCode(cleaned);
                 }}
-                placeholder="YNG-K7M2QX atau K7M2QX"
+                placeholder={pick('YNG-K7M2QX atau K7M2QX', 'YNG-K7M2QX or K7M2QX')}
                 className="input-sharp mt-1.5 font-mono uppercase tracking-wider"
               />
               <p className="mt-1.5 text-xs text-muted">
-                Ketik 6 karakter kode atau lengkap dengan awalan{' '}
-                <span className="font-mono">YNG-</span>.
+                {pick(
+                  <>
+                    Ketik 6 karakter kode atau lengkap dengan awalan{' '}
+                    <span className="font-mono">YNG-</span>.
+                  </>,
+                  <>
+                    Type the 6-character code or full format with{' '}
+                    <span className="font-mono">YNG-</span>.
+                  </>
+                )}
               </p>
             </div>
 
             <div>
               <label htmlFor="track-wa-last4" className="block text-xs font-semibold text-ink">
-                4 Digit Terakhir Nomor WhatsApp
+                {pick('4 Digit Terakhir Nomor WhatsApp', 'Last 4 Digits of WhatsApp Number')}
               </label>
               <input
                 id="track-wa-last4"
@@ -166,7 +194,10 @@ export default function TrackLookup() {
                 className="input-sharp tabular-price mt-1.5 font-mono tracking-[0.25em]"
               />
               <p className="mt-1.5 text-xs text-muted">
-                Sesuai nomor WhatsApp penerima yang tercatat pada pesanan.
+                {pick(
+                  'Sesuai nomor WhatsApp penerima yang tercatat pada pesanan.',
+                  'Matches the recipient WhatsApp number recorded on the order.'
+                )}
               </p>
             </div>
 
@@ -175,35 +206,55 @@ export default function TrackLookup() {
               disabled={lookupMutation.isPending}
               className="btn-primary w-full"
             >
-              {lookupMutation.isPending ? 'Mencari Pesanan...' : 'Lacak Pesanan Sekarang'}
+              {lookupMutation.isPending
+                ? pick('Mencari Pesanan...', 'Searching Order...')
+                : pick('Lacak Pesanan Sekarang', 'Track Order Now')}
             </button>
           </form>
         </section>
 
-        {/* Informasi Bantuan Tracker */}
         <aside className="w-full min-w-0 space-y-4 lg:col-span-5">
           <div className="w-full space-y-4 rounded-3xl border border-line bg-surface p-5 sm:p-6">
             <div>
-              <p className="eyebrow">Informasi Pelacakan</p>
+              <p className="eyebrow">{pick('Informasi Pelacakan', 'Tracking Guide')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                Cara Membaca Progres Order
+                {pick('Cara Membaca Progres Order', 'How to Read Order Progress')}
               </h2>
             </div>
 
             <ul className="space-y-2.5 text-xs leading-relaxed text-muted sm:text-sm">
               <li>
-                <strong className="text-ink">1. Kode Pesanan &amp; Magic Link:</strong> Kode order
-                berformat <span className="font-mono text-ink">YNG-XXXXXX</span> diterbitkan saat
-                checkout website atau dikirim admin untuk pesanan WhatsApp.
+                <strong className="text-ink">
+                  {pick('1. Kode Pesanan & Magic Link:', '1. Order Code & Magic Link:')}
+                </strong>{' '}
+                {pick(
+                  <>
+                    Kode order berformat <span className="font-mono text-ink">YNG-XXXXXX</span>{' '}
+                    diterbitkan saat checkout website atau dikirim admin untuk pesanan WhatsApp.
+                  </>,
+                  <>
+                    Order codes formatted as <span className="font-mono text-ink">YNG-XXXXXX</span>{' '}
+                    are issued on checkout or sent by admin for WhatsApp orders.
+                  </>
+                )}
               </li>
               <li>
-                <strong className="text-ink">2. Privasi Terjaga:</strong> Nama, nomor WhatsApp, dan
-                alamat tujuan disamarkan otomatis pada halaman publik.
+                <strong className="text-ink">
+                  {pick('2. Privasi Terjaga:', '2. Privacy Protected:')}
+                </strong>{' '}
+                {pick(
+                  'Nama, nomor WhatsApp, dan alamat tujuan disamarkan otomatis pada halaman publik.',
+                  'Name, WhatsApp number, and shipping address are automatically masked on public view.'
+                )}
               </li>
               <li>
-                <strong className="text-ink">3. Tagihan Lanjutan &amp; Foto QC:</strong> Anda dapat
-                melihat hasil foto Quality Control dan langsung mengunggah bukti pelunasan atau
-                ongkos kirim dari halaman tracker.
+                <strong className="text-ink">
+                  {pick('3. Tagihan Lanjutan & Foto QC:', '3. Follow-up Invoices & QC Photos:')}
+                </strong>{' '}
+                {pick(
+                  'Anda dapat melihat hasil foto Quality Control dan langsung mengunggah bukti pelunasan atau ongkos kirim dari halaman tracker.',
+                  'Inspect Quality Control photos and upload balance or shipping fee proofs directly from the tracker page.'
+                )}
               </li>
             </ul>
 
@@ -215,11 +266,14 @@ export default function TrackLookup() {
                   rel="noopener noreferrer"
                   className="btn-secondary w-full text-xs"
                 >
-                  Lupa Kode Order? Tanya Admin via WhatsApp
+                  {pick(
+                    'Lupa Kode Order? Tanya Admin via WhatsApp',
+                    'Forgot Order Code? Ask Admin on WhatsApp'
+                  )}
                 </a>
               ) : null}
               <Link to="/pesanan" className="btn-secondary w-full text-xs">
-                Sudah Punya Akun? Buka Pesanan Saya
+                {pick('Sudah Punya Akun? Buka Pesanan Saya', 'Have an Account? Open My Orders')}
               </Link>
             </div>
           </div>

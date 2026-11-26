@@ -5,15 +5,18 @@ import {
   DESIGN_STATUS,
   PAYMENT_STATUS,
   PRODUCTION_STATUS,
-  getDesignStatusLabel,
-  getPaymentStatusLabel,
-  getProductionStatusLabel,
   type DesignStatus,
   type FulfillmentType,
   type PaymentStatus,
   type ProductionStatus,
 } from '@yng/shared';
 import type { ReactNode } from 'react';
+import type { Locale } from '../../context/LanguageContext';
+import {
+  getLocalizedDesignStatusLabel,
+  getLocalizedPaymentStatusLabel,
+  getLocalizedProductionStatusLabel,
+} from '../../utils/localizedLabels';
 
 type BadgeVariant = 'neutral' | 'ok' | 'warn' | 'err' | 'info';
 
@@ -69,13 +72,19 @@ const PROD_STATUS_VARIANT: Record<ProductionStatus, BadgeVariant> = {
 interface ProductionBadgeProps {
   status: ProductionStatus;
   fulfillmentType?: FulfillmentType;
+  locale?: Locale;
   className?: string;
 }
 
-export function ProductionBadge({ status, fulfillmentType, className }: ProductionBadgeProps) {
+export function ProductionBadge({
+  status,
+  fulfillmentType,
+  locale = 'id',
+  className,
+}: ProductionBadgeProps) {
   return (
     <Badge variant={PROD_STATUS_VARIANT[status]} dot className={className}>
-      {getProductionStatusLabel(status, fulfillmentType)}
+      {getLocalizedProductionStatusLabel(status, fulfillmentType, locale)}
     </Badge>
   );
 }
@@ -89,13 +98,19 @@ const PAY_STATUS_VARIANT: Record<PaymentStatus, BadgeVariant> = {
 interface PaymentBadgeProps {
   status: PaymentStatus;
   proofImagePath?: string | null;
+  locale?: Locale;
   className?: string;
 }
 
-export function PaymentBadge({ status, proofImagePath, className }: PaymentBadgeProps) {
+export function PaymentBadge({
+  status,
+  proofImagePath,
+  locale = 'id',
+  className,
+}: PaymentBadgeProps) {
   return (
     <Badge variant={PAY_STATUS_VARIANT[status]} dot className={className}>
-      {getPaymentStatusLabel(status, proofImagePath ?? null)}
+      {getLocalizedPaymentStatusLabel(status, proofImagePath ?? null, locale)}
     </Badge>
   );
 }
@@ -108,13 +123,14 @@ const DESIGN_STATUS_VARIANT: Record<DesignStatus, BadgeVariant> = {
 
 interface DesignBadgeProps {
   status: DesignStatus;
+  locale?: Locale;
   className?: string;
 }
 
-export function DesignBadge({ status, className }: DesignBadgeProps) {
+export function DesignBadge({ status, locale = 'id', className }: DesignBadgeProps) {
   return (
     <Badge variant={DESIGN_STATUS_VARIANT[status]} dot className={className}>
-      {getDesignStatusLabel(status)}
+      {getLocalizedDesignStatusLabel(status, locale)}
     </Badge>
   );
 }

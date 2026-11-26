@@ -5,13 +5,14 @@
 import {
   FULFILLMENT_TYPE,
   PRODUCTION_STATUS,
-  getProductionStatusLabel,
   type FulfillmentType,
   type ProductionStatus,
   type TrackerProductionStageDto,
   type TrackerStageKey,
   type TrackerStageState,
 } from '@yng/shared';
+import type { Locale } from '../../context/LanguageContext';
+import { getLocalizedProductionStatusLabel } from '../../utils/localizedLabels';
 
 const ORDERED_STEPS: readonly TrackerStageKey[] = [
   PRODUCTION_STATUS.NEW_ORDER,
@@ -23,7 +24,8 @@ const ORDERED_STEPS: readonly TrackerStageKey[] = [
 
 function buildFallbackStages(
   currentStatus: ProductionStatus,
-  fulfillmentType: FulfillmentType
+  fulfillmentType: FulfillmentType,
+  locale: Locale
 ): TrackerProductionStageDto[] {
   const isCancelled = currentStatus === PRODUCTION_STATUS.CANCELLED;
   const currentIndex =
@@ -46,7 +48,7 @@ function buildFallbackStages(
     return {
       step: idx + 1,
       key: step,
-      label: getProductionStatusLabel(step, fulfillmentType),
+      label: getLocalizedProductionStatusLabel(step, fulfillmentType, locale),
       state,
     };
   });
@@ -79,6 +81,7 @@ interface StepperProps {
   currentStatus: ProductionStatus;
   fulfillmentType?: FulfillmentType;
   stages?: readonly TrackerProductionStageDto[];
+  locale?: Locale;
   className?: string;
 }
 
@@ -86,16 +89,29 @@ export function ProductionStepper({
   currentStatus,
   fulfillmentType = FULFILLMENT_TYPE.SHIP,
   stages,
+  locale = 'id',
   className = '',
 }: StepperProps) {
   const resolvedStages =
-    stages && stages.length > 0 ? stages : buildFallbackStages(currentStatus, fulfillmentType);
+    stages && stages.length > 0
+      ? stages.map((stage) => ({
+          ...stage,
+          label:
+            locale === 'en'
+              ? getLocalizedProductionStatusLabel(
+                  stage.key as ProductionStatus,
+                  fulfillmentType,
+                  'en'
+                )
+              : stage.label,
+        }))
+      : buildFallbackStages(currentStatus, fulfillmentType, locale);
 
   return (
     <div className={`w-full space-y-4 ${className}`}>
       <ol
         className="grid w-full grid-cols-1 gap-3 md:grid-cols-5 md:gap-4"
-        aria-label="Progres 5 tahap produksi"
+        aria-label={locale === 'en' ? '5 production stages progress' : 'Progres 5 tahap produksi'}
       >
         {resolvedStages.map((stage, idx) => {
           const isCompleted = stage.state === 'completed';
@@ -131,7 +147,7 @@ export function ProductionStepper({
 
               <div className="min-w-0 flex-1">
                 <p className="tabular-price text-[11px] font-medium text-muted">
-                  Tahap {stage.step}
+                  {locale === 'en' ? `Stage ${stage.step}` : `Tahap ${stage.step}`}
                 </p>
                 <p
                   className={`mt-0.5 font-display text-xs font-semibold leading-snug sm:text-sm ${
@@ -147,15 +163,19 @@ export function ProductionStepper({
 
                 {isCurrent ? (
                   <p className="mt-1 text-[11px] font-semibold text-status-warn">
-                    ● Tahap saat ini
+                    ● {locale === 'en' ? 'Current stage' : 'Tahap saat ini'}
                   </p>
                 ) : null}
                 {isSkipped ? (
-                  <p className="mt-1 text-[11px] text-muted">Dilewati (tanpa sisa tagihan)</p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    {locale === 'en'
+                      ? 'Skipped (no remaining balance)'
+                      : 'Dilewati (tanpa sisa tagihan)'}
+                  </p>
                 ) : null}
                 {isCancelled ? (
                   <p className="mt-1 text-[11px] font-semibold text-status-err">
-                    Dibatalkan pada tahap ini
+                    {locale === 'en' ? 'Cancelled at this stage' : 'Dibatalkan pada tahap ini'}
                   </p>
                 ) : null}
               </div>
@@ -167,7 +187,11 @@ export function ProductionStepper({
       {currentStatus === PRODUCTION_STATUS.COMPLETED ? (
         <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-status-ok">
           <span aria-hidden="true">✓</span>
-          <span>Pesanan telah selesai seluruh tahap produksi dan diterima.</span>
+          <span>
+            {locale === 'en'
+              ? 'Order completed all production stages and has been delivered.'
+              : 'Pesanan telah selesai seluruh tahap produksi dan diterima.'}
+          </span>
         </div>
       ) : null}
     </div>

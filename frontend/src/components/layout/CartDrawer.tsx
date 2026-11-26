@@ -10,7 +10,11 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useCartStore } from '../../lib/store';
 import { cartQueryKeys, deleteCartItem, getCartItems } from '../../services/cartService';
-import { catalogQueryKeys, getCatalogModels } from '../../services/catalogService';
+import {
+  catalogQueryKeys,
+  getCatalogConfig,
+  getCatalogModels,
+} from '../../services/catalogService';
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { EditorialButton } from '../ui/EditorialButton';
@@ -23,7 +27,7 @@ export interface CartDrawerProps {
 }
 
 /**
- * Laci keranjang geser kanan (`spring`) dengan hapus cepat, ringkasan, dan rekomendasi saat kosong.
+ * Floating "Studio Bag" drawer dengan DP Gatekeeper Progress Bar dan metadata spec-sheet per item.
  */
 export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
   const { isGuest, loading: authLoading } = useAuth();
@@ -45,6 +49,12 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
     queryKey: cartQueryKeys.items,
     queryFn: getCartItems,
     enabled: cartEnabled,
+  });
+
+  const configQuery = useQuery({
+    queryKey: catalogQueryKeys.config,
+    queryFn: getCatalogConfig,
+    enabled: open,
   });
 
   const modelsQuery = useQuery({
@@ -105,6 +115,12 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
     [items]
   );
 
+  const dpMinQty = summary?.dpMinQty ?? configQuery.data?.dpMinQty ?? 12;
+  const dpPercent = summary?.dpPercent ?? configQuery.data?.dpPercent ?? 70;
+  const totalQty = summary?.totalQty ?? 0;
+  const missingForDp = Math.max(0, dpMinQty - totalQty);
+  const dpProgressPct = Math.min(100, Math.round((totalQty / Math.max(1, dpMinQty)) * 100));
+
   function handleCheckout() {
     if (availableUuids.length === 0) return;
     setCheckedItems(availableUuids);
@@ -134,15 +150,18 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 38 }}
-            className="fixed inset-y-0 right-0 z-10 flex w-full max-w-[420px] flex-col border-l border-line bg-white"
+            className="fixed inset-y-0 right-0 z-10 flex w-full max-w-[420px] flex-col border-l border-neutral-200 bg-white md:inset-y-3 md:right-3 md:h-[calc(100vh-1.5rem)] md:rounded-sm md:border md:border-neutral-200 md:shadow-2xl"
           >
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-5">
-              <div className="flex items-baseline gap-2.5">
-                <h2 className="font-display text-sm font-bold uppercase tracking-[0.16em] text-ink">
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-line px-5">
+              <div className="flex items-center gap-2.5">
+                <h2 className="font-display text-xs font-bold uppercase tracking-[0.18em] text-ink">
                   {t('cart.title')}
                 </h2>
+                <span className="rounded-sm border border-line bg-surface px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-ink tabular-nums">
+                  {t('cart.pcsUpper', { count: totalQty })}
+                </span>
                 {!isGuest && summary ? (
-                  <span className="font-mono text-xs text-muted tabular-nums">
+                  <span className="font-mono text-[11px] text-muted tabular-nums">
                     {t('cart.capacity', { count: summary.totalItems, max: summary.maxItems })}
                   </span>
                 ) : null}
@@ -158,6 +177,36 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                 <X size={20} strokeWidth={1.5} aria-hidden="true" />
               </button>
             </div>
+
+            {!isGuest ? (
+              <div className="shrink-0 border-b border-line bg-surface/60 px-5 py-3">
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="font-medium text-ink">
+                    {missingForDp > 0
+                      ? t('cart.dpMissing', { missing: missingForDp, percent: dpPercent })
+                      : t('cart.dpUnlocked', { percent: dpPercent })}
+                  </span>
+                  <span className="shrink-0 font-mono font-semibold text-ink tabular-nums">
+                    {totalQty}/{dpMinQty}
+                  </span>
+                </div>
+                <div
+                  className="mt-2 h-1 w-full overflow-hidden bg-neutral-200"
+                  role="progressbar"
+                  aria-label={t('cart.dpTargetLabel', { percent: dpPercent })}
+                  aria-valuenow={Math.min(totalQty, dpMinQty)}
+                  aria-valuemin={0}
+                  aria-valuemax={dpMinQty}
+                >
+                  <motion.div
+                    className="h-full bg-ink"
+                    initial={false}
+                    animate={{ width: `${dpProgressPct}%` }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex-1 overflow-y-auto px-5 py-5">
               {!isGuest && cartQuery.isLoading ? (
@@ -265,9 +314,10 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                     const catalogModel = modelById.get(item.modelId);
                     const modelName =
                       item.pricing?.modelName ?? catalogModel?.name ?? `Model #${item.modelId}`;
-                    const fabricName = item.pricing?.fabricName;
-                    const colorName = item.pricing?.colorName ?? item.config.colorName;
-                    const detailLine = [fabricName, colorName].filter(Boolean).join(' · ');
+                    const fabricName = item.pricing?.fabricName ?? '';
+                    const colorName = item.pricing?.colorName ?? item.config.colorName ?? '';
+                    const colorHex = item.pricing?.colorHex ?? item.config.colorHex ?? '#d4d4d4';
+                    const spotsCount = item.config.prints.length;
                     const isDeleting =
                       deleteMutation.isPending && deleteMutation.variables === item.cartItemUuid;
 
@@ -301,12 +351,33 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                               >
                                 {modelName}
                               </Link>
-                              {detailLine ? (
-                                <p className="mt-0.5 truncate text-xs text-muted">{detailLine}</p>
-                              ) : null}
-                              <p className="mt-1 font-mono text-xs text-muted tabular-nums">
-                                {t('cart.pcs', { count: item.itemQty })}
-                              </p>
+
+                              {/* Spec-sheet metadata ala studio */}
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-muted">
+                                {colorName ? (
+                                  <span className="inline-flex items-center gap-1.5 text-ink">
+                                    <span
+                                      aria-hidden="true"
+                                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-neutral-300"
+                                      style={{ backgroundColor: colorHex }}
+                                    />
+                                    <span className="truncate">{colorName}</span>
+                                  </span>
+                                ) : null}
+                                {fabricName ? <span>· {fabricName}</span> : null}
+                              </div>
+
+                              <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted tabular-nums">
+                                <span className="rounded-sm border border-line bg-surface px-1.5 py-0.5 text-ink">
+                                  {t('cart.pcsUpper', { count: item.itemQty })}
+                                </span>
+                                <span>
+                                  {spotsCount > 0
+                                    ? t('cart.spotsCount', { count: spotsCount })
+                                    : t('cart.plain')}
+                                </span>
+                              </div>
+
                               {!item.isAvailable ? (
                                 <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-status-err">
                                   {t('cart.unavailable')}

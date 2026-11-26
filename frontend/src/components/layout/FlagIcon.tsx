@@ -5,7 +5,7 @@ export function IdFlag({ className = '' }: { className?: string }) {
       width="18"
       height="12"
       aria-hidden="true"
-      className={`shrink-0 border border-line ${className}`}
+      className={`shrink-0 ring-1 ring-black/10 ${className}`}
     >
       <rect width="18" height="6" y="0" fill="#CE1126" />
       <rect width="18" height="6" y="6" fill="#FFFFFF" />
@@ -20,7 +20,7 @@ export function GbFlag({ className = '' }: { className?: string }) {
       width="18"
       height="12"
       aria-hidden="true"
-      className={`shrink-0 border border-line ${className}`}
+      className={`shrink-0 ring-1 ring-black/10 ${className}`}
     >
       <rect width="18" height="12" fill="#012169" />
       <path d="M0 0 L18 12 M18 0 L0 12" stroke="#FFFFFF" strokeWidth="2.2" />
