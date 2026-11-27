@@ -3,6 +3,7 @@ import { PAYMENT_STATUS, PRODUCTION_STATUS } from '@yng/shared';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
@@ -71,6 +72,15 @@ export default function MyOrders() {
 
   return (
     <div className="w-full space-y-6 pb-8">
+      <EditorialBackBar
+        fallbackTo="/akun"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.account'), to: '/akun' },
+          { label: t('breadcrumb.orders') },
+        ]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
           <p className="eyebrow">YNG Studio · {pick('Pesanan Saya', 'My Orders')}</p>

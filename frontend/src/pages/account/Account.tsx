@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AccountOrdersTab } from '../../components/account/AccountOrdersTab';
 import { AccountWishlistTab } from '../../components/account/AccountWishlistTab';
 import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -523,6 +524,11 @@ export default function Account() {
 
   return (
     <div className="account-page space-y-8">
+      <EditorialBackBar
+        fallbackTo="/"
+        breadcrumbs={[{ label: t('breadcrumb.home'), to: '/' }, { label: t('breadcrumb.account') }]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <div>
           <p className="eyebrow">{pick('Ruang Pelanggan', 'Customer Account')}</p>

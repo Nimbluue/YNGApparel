@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Badge, DesignBadge, PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
@@ -385,17 +386,15 @@ export default function TrackDetail() {
 
   return (
     <div className="w-full space-y-6 pb-10">
-      {/* Header & Identitas Tersamarkan */}
-      <header className="space-y-4 border-b border-line pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <Link
-            to="/track"
-            className="inline-flex min-h-touch items-center text-xs font-semibold text-muted transition-colors hover:text-ink"
-          >
-            {pick('← Lacak Pesanan Lain', '← Track Another Order')}
-          </Link>
-
-          <div className="flex flex-wrap items-center gap-2">
+      <EditorialBackBar
+        fallbackTo="/track"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.track'), to: '/track' },
+          { label: order.orderCode },
+        ]}
+        rightSlot={
+          <>
             <button
               type="button"
               onClick={() =>
@@ -415,9 +414,12 @@ export default function TrackDetail() {
                 {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
               </a>
             ) : null}
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      {/* Header & Identitas Tersamarkan */}
+      <header className="space-y-4 border-b border-line pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="eyebrow">

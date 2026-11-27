@@ -19,7 +19,6 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -134,8 +133,6 @@ export default function ManualOrder() {
   const [noAutoCancel, setNoAutoCancel] = useState(true);
   const [estimatedFinishDate, setEstimatedFinishDate] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
-
-  const [formError, setFormError] = useState<{ message: string; details: string[] } | null>(null);
 
   // Katalog aktif
   const modelsQuery = useQuery({
@@ -367,7 +364,7 @@ export default function ManualOrder() {
         ),
       }));
       const parsed = extractApiError(err, 'Gagal mengunggah file desain.');
-      setFormError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     }
   }
 
@@ -383,20 +380,23 @@ export default function ManualOrder() {
       navigate(`/admin/orders/${created.transactionUuid}`);
     },
     onError: (err: unknown) => {
-      setFormError(extractApiError(err, 'Gagal membuat order manual. Periksa kembali isian Anda.'));
+      const parsed = extractApiError(
+        err,
+        'Gagal membuat order manual. Periksa kembali isian Anda.'
+      );
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setFormError(null);
 
     if (customerName.trim().length < 2) {
-      setFormError({ message: 'Nama pelanggan minimal 2 karakter.', details: [] });
+      toast('Nama pelanggan minimal 2 karakter.', 'err');
       return;
     }
     if (customerWhatsapp.trim().length < 8) {
-      setFormError({ message: 'Nomor WhatsApp pelanggan tidak valid.', details: [] });
+      toast('Nomor WhatsApp pelanggan tidak valid.', 'err');
       return;
     }
 
@@ -406,10 +406,7 @@ export default function ManualOrder() {
       trimmedPostal &&
       !/^[0-9]{5}$/.test(trimmedPostal)
     ) {
-      setFormError({
-        message: 'Kode pos harus 5 digit angka (atau kosongkan sementara).',
-        details: [],
-      });
+      toast('Kode pos harus 5 digit angka (atau kosongkan sementara).', 'err');
       return;
     }
 
@@ -417,24 +414,15 @@ export default function ManualOrder() {
     for (let idx = 0; idx < items.length; idx += 1) {
       const item = items[idx]!;
       if (item.modelId === null || item.fabricId === null) {
-        setFormError({
-          message: `Item #${idx + 1}: Model dan Bahan pakaian wajib dipilih.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Model dan Bahan pakaian wajib dipilih.`, 'err');
         return;
       }
       if (!item.isCustomColor && item.fabricColorId === null) {
-        setFormError({
-          message: `Item #${idx + 1}: Pilih warna preset atau centang Warna Custom.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Pilih warna preset atau centang Warna Custom.`, 'err');
         return;
       }
       if (item.isCustomColor && !item.customColorName.trim()) {
-        setFormError({
-          message: `Item #${idx + 1}: Nama warna custom wajib diisi.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Nama warna custom wajib diisi.`, 'err');
         return;
       }
 
@@ -442,33 +430,29 @@ export default function ManualOrder() {
         .map(([sizeIdStr, qty]) => ({ sizeId: Number(sizeIdStr), qty }))
         .filter((s) => Number.isInteger(s.qty) && s.qty > 0);
       if (sizes.length === 0) {
-        setFormError({
-          message: `Item #${idx + 1}: Minimal 1 ukuran dengan jumlah > 0 harus diisi.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Minimal 1 ukuran dengan jumlah > 0 harus diisi.`, 'err');
         return;
       }
 
       if (item.prints.some((p) => p.uploading)) {
-        setFormError({
-          message: `Item #${idx + 1}: Tunggu hingga unggahan file desain selesai.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Tunggu hingga unggahan file desain selesai.`, 'err');
         return;
       }
 
-      const prints = item.prints.map((p) => {
+      const prints: AdminCreateManualOrderItemDto['prints'] = [];
+      for (const p of item.prints) {
         if (p.printSizeId === null) {
-          throw new Error(`Item #${idx + 1}: Ukuran sablon pada semua titik wajib dipilih.`);
+          toast(`Item #${idx + 1}: Ukuran sablon pada semua titik wajib dipilih.`, 'err');
+          return;
         }
-        return {
+        prints.push({
           printSizeId: p.printSizeId,
           printPosition: p.printPosition,
           fileRef: p.fileRef,
           fileName: p.fileName,
           notes: p.notes.trim() || null,
-        };
-      });
+        });
+      }
 
       builtItems.push({
         modelId: item.modelId,
@@ -485,10 +469,7 @@ export default function ManualOrder() {
     }
 
     if (subtotalAmount > 0 && parsedDiscount > subtotalAmount) {
-      setFormError({
-        message: 'Nominal diskon tidak boleh melebihi subtotal pesanan.',
-        details: [],
-      });
+      toast('Nominal diskon tidak boleh melebihi subtotal pesanan.', 'err');
       return;
     }
 
@@ -581,15 +562,6 @@ export default function ManualOrder() {
           </Link>
         </div>
       </section>
-
-      {formError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={formError.message}
-          details={formError.details}
-          onDismiss={() => setFormError(null)}
-        />
-      ) : null}
 
       <form
         onSubmit={handleSubmit}

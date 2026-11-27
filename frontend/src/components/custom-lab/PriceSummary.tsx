@@ -28,7 +28,6 @@ interface PriceSummaryProps {
   submitCartLabel?: string;
   onAddToCart: () => void;
   onAskWhatsApp: () => void;
-  actionFeedback: string | null;
   layout?: 'sidebar' | 'inline';
 }
 
@@ -50,7 +49,6 @@ export function PriceSummary({
   submitCartLabel,
   onAddToCart,
   onAskWhatsApp,
-  actionFeedback,
   layout = 'sidebar',
 }: PriceSummaryProps) {
   const { locale, pick } = useLanguage();
@@ -330,15 +328,6 @@ export function PriceSummary({
           {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
         </button>
       </div>
-
-      {actionFeedback ? (
-        <p
-          role="status"
-          className="rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs leading-relaxed text-ink"
-        >
-          {actionFeedback}
-        </p>
-      ) : null}
     </div>
   );
 

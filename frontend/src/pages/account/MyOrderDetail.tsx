@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Badge, DesignBadge, PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/toastContext';
@@ -314,6 +315,28 @@ export default function MyOrderDetail() {
 
   return (
     <div className="w-full space-y-6 pb-10">
+      <EditorialBackBar
+        fallbackTo="/pesanan"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.account'), to: '/akun' },
+          { label: t('breadcrumb.orders'), to: '/pesanan' },
+          { label: order.orderCode },
+        ]}
+        rightSlot={
+          waInquiryHref ? (
+            <a
+              href={waInquiryHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary px-4 text-xs"
+            >
+              {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
+            </a>
+          ) : undefined
+        }
+      />
+
       {justCreated ? (
         <div
           role="status"
@@ -335,26 +358,6 @@ export default function MyOrderDetail() {
 
       {/* Header Detail Pesanan */}
       <header className="space-y-4 border-b border-line pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            to="/pesanan"
-            className="inline-flex min-h-touch items-center text-xs font-semibold text-muted transition-colors hover:text-ink"
-          >
-            {pick('← Kembali ke Daftar Pesanan', '← Back to Order History')}
-          </Link>
-
-          {waInquiryHref ? (
-            <a
-              href={waInquiryHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary px-4 text-xs"
-            >
-              {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
-            </a>
-          ) : null}
-        </div>
-
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="eyebrow">YNG Studio · {pick('Detail Pesanan', 'Order Detail')}</p>

@@ -1,10 +1,8 @@
 import type { FabricColorDto, FabricDto } from '@yng/shared';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import {
-  ActiveStatusBadge,
-  AdminFeedbackBanner,
-} from '../../../components/admin/AdminFeedbackBanner';
+import { ActiveStatusBadge } from '../../../components/admin/AdminFeedbackBanner';
 import CatalogImageField from '../../../components/admin/CatalogImageField';
+import { useToast } from '../../../components/ui/toastContext';
 import {
   createFabric,
   createFabricColor,
@@ -72,6 +70,7 @@ function parseNonNegativeInt(raw: string): number | null {
 }
 
 export default function FabricsTab({ includeInactive }: FabricsTabProps) {
+  const { toast } = useToast();
   const [fabrics, setFabrics] = useState<FabricDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -89,12 +88,6 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
   const [submittingColor, setSubmittingColor] = useState(false);
   const [busyColorId, setBusyColorId] = useState<number | null>(null);
 
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
-
   const loadFabrics = useCallback(async () => {
     setLoading(true);
     try {
@@ -102,11 +95,11 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
       setFabrics(data);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat daftar bahan pakaian.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, toast]);
 
   const loadColorsForFabric = useCallback(
     async (fabricId: number) => {
@@ -116,12 +109,12 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
         setColors(list);
       } catch (err: unknown) {
         const parsed = extractApiError(err, 'Gagal memuat preset warna bahan.');
-        setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+        toast(parsed.message, 'err', { details: parsed.details });
       } finally {
         setLoadingColors(false);
       }
     },
-    [includeInactive]
+    [includeInactive, toast]
   );
 
   useEffect(() => {
@@ -140,7 +133,6 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
   }
 
   function startEditFabric(fabric: FabricDto) {
-    setFeedback(null);
     setEditingFabricId(fabric.id);
     setForm({
       code: fabric.code,
@@ -160,7 +152,6 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
   }
 
   function openColorPanel(fabric: FabricDto) {
-    setFeedback(null);
     setActiveColorFabric(fabric);
     setEditingColorId(null);
     setColorForm(INITIAL_COLOR_FORM);
@@ -168,7 +159,6 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
   async function handleFabricSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
 
     const code = form.code.trim().toUpperCase();
     const name = form.name.trim();
@@ -177,33 +167,27 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
     const thicknessLevel = parseNonNegativeInt(form.thicknessLevel);
 
     if (!/^[A-Za-z0-9_-]{2,50}$/.test(code)) {
-      setFeedback({
-        variant: 'error',
-        message: 'Kode bahan harus 2–50 karakter (huruf, angka, _ atau -).',
-      });
+      toast('Kode bahan harus 2–50 karakter (huruf, angka, _ atau -).', 'err');
       return;
     }
 
     if (name.length < 2) {
-      setFeedback({ variant: 'error', message: 'Nama bahan minimal 2 karakter.' });
+      toast('Nama bahan minimal 2 karakter.', 'err');
       return;
     }
 
     if (additionalPrice === null) {
-      setFeedback({
-        variant: 'error',
-        message: 'Tambahan harga harus bilangan bulat rupiah (>= 0).',
-      });
+      toast('Tambahan harga harus bilangan bulat rupiah (>= 0).', 'err');
       return;
     }
 
     if (sortOrder === null) {
-      setFeedback({ variant: 'error', message: 'Urutan harus bilangan bulat (>= 0).' });
+      toast('Urutan harus bilangan bulat (>= 0).', 'err');
       return;
     }
 
     if (thicknessLevel === null || thicknessLevel < 1 || thicknessLevel > 5) {
-      setFeedback({ variant: 'error', message: 'Tingkat ketebalan harus di antara 1 sampai 5.' });
+      toast('Tingkat ketebalan harus di antara 1 sampai 5.', 'err');
       return;
     }
 
@@ -211,7 +195,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
     if (form.gsmWeight.trim() !== '') {
       const parsedGsm = parseNonNegativeInt(form.gsmWeight);
       if (parsedGsm === null || parsedGsm < 50 || parsedGsm > 1000) {
-        setFeedback({ variant: 'error', message: 'Berat GSM harus di antara 50 sampai 1000.' });
+        toast('Berat GSM harus di antara 50 sampai 1000.', 'err');
         return;
       }
       gsmWeight = parsedGsm;
@@ -221,10 +205,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
     if (form.comfortLevel.trim() !== '') {
       const parsedComfort = parseNonNegativeInt(form.comfortLevel);
       if (parsedComfort === null || parsedComfort < 1 || parsedComfort > 5) {
-        setFeedback({
-          variant: 'error',
-          message: 'Tingkat kenyamanan harus di antara 1 sampai 5.',
-        });
+        toast('Tingkat kenyamanan harus di antara 1 sampai 5.', 'err');
         return;
       }
       comfortLevel = parsedComfort;
@@ -247,20 +228,17 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
       if (editingFabricId !== null) {
         const updated = await updateFabric(editingFabricId, payload);
-        setFeedback({
-          variant: 'success',
-          message: `Bahan "${updated.name}" berhasil diperbarui.`,
-        });
+        toast(`Bahan "${updated.name}" berhasil diperbarui.`, 'ok');
       } else {
         const created = await createFabric(payload);
-        setFeedback({ variant: 'success', message: `Bahan "${created.name}" berhasil dibuat.` });
+        toast(`Bahan "${created.name}" berhasil dibuat.`, 'ok');
       }
 
       resetFabricForm();
       await loadFabrics();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data bahan.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -268,22 +246,18 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
   async function handleToggleFabricActive(fabric: FabricDto) {
     setBusyFabricId(fabric.id);
-    setFeedback(null);
     try {
       if (fabric.isActive) {
         await deactivateFabric(fabric.id);
-        setFeedback({ variant: 'success', message: `Bahan "${fabric.name}" dinonaktifkan.` });
+        toast(`Bahan "${fabric.name}" dinonaktifkan.`, 'ok');
       } else {
         await updateFabric(fabric.id, { isActive: true });
-        setFeedback({
-          variant: 'success',
-          message: `Bahan "${fabric.name}" diaktifkan kembali.`,
-        });
+        toast(`Bahan "${fabric.name}" diaktifkan kembali.`, 'ok');
       }
       await loadFabrics();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status bahan.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyFabricId(null);
     }
@@ -292,24 +266,23 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
   async function handleColorSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeColorFabric) return;
-    setFeedback(null);
 
     const colorName = colorForm.colorName.trim();
     const colorHex = colorForm.colorHex.trim().toUpperCase();
     const sortOrder = parseNonNegativeInt(colorForm.sortOrder);
 
     if (!colorName) {
-      setFeedback({ variant: 'error', message: 'Nama warna wajib diisi.' });
+      toast('Nama warna wajib diisi.', 'err');
       return;
     }
 
     if (!/^#[0-9A-F]{6}$/.test(colorHex)) {
-      setFeedback({ variant: 'error', message: 'Kode hex warna harus berformat #RRGGBB.' });
+      toast('Kode hex warna harus berformat #RRGGBB.', 'err');
       return;
     }
 
     if (sortOrder === null) {
-      setFeedback({ variant: 'error', message: 'Urutan warna harus bilangan bulat (>= 0).' });
+      toast('Urutan warna harus bilangan bulat (>= 0).', 'err');
       return;
     }
 
@@ -321,17 +294,17 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
           colorHex,
           sortOrder,
         });
-        setFeedback({ variant: 'success', message: `Warna "${colorName}" diperbarui.` });
+        toast(`Warna "${colorName}" diperbarui.`, 'ok');
       } else {
         await createFabricColor(activeColorFabric.id, { colorName, colorHex, sortOrder });
-        setFeedback({ variant: 'success', message: `Warna "${colorName}" ditambahkan.` });
+        toast(`Warna "${colorName}" ditambahkan.`, 'ok');
       }
       setEditingColorId(null);
       setColorForm(INITIAL_COLOR_FORM);
       await Promise.all([loadColorsForFabric(activeColorFabric.id), loadFabrics()]);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan preset warna.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmittingColor(false);
     }
@@ -340,25 +313,18 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
   async function handleToggleColorActive(color: FabricColorDto) {
     if (!activeColorFabric) return;
     setBusyColorId(color.id);
-    setFeedback(null);
     try {
       if (color.isActive) {
         await deactivateFabricColor(activeColorFabric.id, color.id);
-        setFeedback({
-          variant: 'success',
-          message: `Warna "${color.colorName}" dinonaktifkan.`,
-        });
+        toast(`Warna "${color.colorName}" dinonaktifkan.`, 'ok');
       } else {
         await updateFabricColor(activeColorFabric.id, color.id, { isActive: true });
-        setFeedback({
-          variant: 'success',
-          message: `Warna "${color.colorName}" diaktifkan kembali.`,
-        });
+        toast(`Warna "${color.colorName}" diaktifkan kembali.`, 'ok');
       }
       await Promise.all([loadColorsForFabric(activeColorFabric.id), loadFabrics()]);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status warna.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyColorId(null);
     }
@@ -366,15 +332,6 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
   return (
     <div className="space-y-6">
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
-
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <h2 className="font-display text-base font-semibold text-ink">

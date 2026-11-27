@@ -2,7 +2,6 @@ import { PAYMENT_STATUS, type AdminPaymentListItemDto, type PaymentStatus } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { ImageLightboxModal } from '../../components/admin/ImageLightboxModal';
 import { PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -66,9 +65,6 @@ export default function PaymentsQueue() {
 
   const [activeTab, setActiveTab] = useState<PaymentQueueTabKey>('PENDING_WITH_PROOF');
   const [page, setPage] = useState(1);
-  const [actionError, setActionError] = useState<{ message: string; details: string[] } | null>(
-    null
-  );
 
   const [lightboxItem, setLightboxItem] = useState<AdminPaymentListItemDto | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<AdminPaymentListItemDto | null>(null);
@@ -102,13 +98,13 @@ export default function PaymentsQueue() {
       verifyAdminPayment(payment.paymentUuid, { approve: true }),
     onSuccess: async (updated) => {
       setVerifyTarget(null);
-      setActionError(null);
       toast(`Pembayaran #${updated.orderCode} berhasil diverifikasi.`, 'ok');
       await invalidateAfterPaymentAction(updated.orderTransactionUuid);
     },
     onError: (err) => {
       setVerifyTarget(null);
-      setActionError(extractApiError(err, 'Gagal memverifikasi pembayaran.'));
+      const parsed = extractApiError(err, 'Gagal memverifikasi pembayaran.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -119,14 +115,13 @@ export default function PaymentsQueue() {
       setRejectTarget(null);
       setRejectionReason('');
       setRejectFormError(null);
-      setActionError(null);
       toast(`Bukti pembayaran #${updated.orderCode} telah ditolak.`, 'info');
       await invalidateAfterPaymentAction(updated.orderTransactionUuid);
     },
     onError: (err) => {
       const parsed = extractApiError(err, 'Gagal menolak bukti pembayaran.');
       setRejectFormError(parsed.message);
-      setActionError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -204,15 +199,6 @@ export default function PaymentsQueue() {
           })}
         </div>
       </section>
-
-      {actionError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={actionError.message}
-          details={actionError.details}
-          onDismiss={() => setActionError(null)}
-        />
-      ) : null}
 
       {paymentsQuery.isLoading ? (
         <div className="flex min-h-60 items-center justify-center rounded-sm border border-line bg-white p-10">

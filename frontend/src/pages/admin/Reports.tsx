@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { Badge, ProductionBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -80,9 +79,6 @@ export default function Reports() {
   const [groupBy, setGroupBy] = useState<ReportGroupBy>('day');
   const [activeTab, setActiveTab] = useState<ReportExportType>('sales');
   const [exportingCsv, setExportingCsv] = useState(false);
-  const [exportError, setExportError] = useState<{ message: string; details: string[] } | null>(
-    null
-  );
 
   const dateInvalid =
     !rangeState.allTime &&
@@ -138,12 +134,12 @@ export default function Reports() {
   async function handleExportCsv() {
     if (dateInvalid) return;
     setExportingCsv(true);
-    setExportError(null);
     try {
       const filename = await downloadAdminReportCsv({ type: activeTab, filters });
       toast(`File ${filename} berhasil diunduh.`, 'ok');
     } catch (err: unknown) {
-      setExportError(extractApiError(err, 'Gagal mengekspor laporan ke CSV.'));
+      const parsed = extractApiError(err, 'Gagal mengekspor laporan ke CSV.');
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setExportingCsv(false);
     }
@@ -274,15 +270,6 @@ export default function Reports() {
           ) : null}
         </div>
       </section>
-
-      {exportError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={exportError.message}
-          details={exportError.details}
-          onDismiss={() => setExportError(null)}
-        />
-      ) : null}
 
       {/* Kartu KPI Periode + Snapshot Operasional Live */}
       {dashboardQuery.isLoading ? (

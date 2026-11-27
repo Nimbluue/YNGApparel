@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Clock, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { EditorialButton } from '../../components/ui/EditorialButton';
 import { IconTooltip } from '../../components/ui/IconTooltip';
 import { useLanguage } from '../../context/LanguageContext';
@@ -132,6 +133,11 @@ export default function TrackLookup() {
 
   return (
     <div className="w-full space-y-6 pb-10">
+      <EditorialBackBar
+        fallbackTo="/"
+        breadcrumbs={[{ label: t('breadcrumb.home'), to: '/' }, { label: t('breadcrumb.track') }]}
+      />
+
       <header className="space-y-2 border-b border-line pb-5">
         <p className="eyebrow">YNG Studio · Live Tracker</p>
         <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">

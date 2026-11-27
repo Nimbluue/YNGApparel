@@ -7,6 +7,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CardSkeleton } from '../components/ui/Skeleton';
+import { EditorialBackBar } from '../components/ui/EditorialBackBar';
 import { WishlistHeartButton } from '../components/ui/WishlistHeartButton';
 import { useLanguage } from '../context/LanguageContext';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
@@ -451,8 +452,27 @@ export default function Catalog() {
     );
   }
 
+  const singleSelectedCategory = useMemo(() => {
+    if (selectedCategorySlugs.length !== 1) return null;
+    return categories.find((cat) => cat.slug === selectedCategorySlugs[0]) ?? null;
+  }, [categories, selectedCategorySlugs]);
+
+  const catalogBreadcrumbs = useMemo(
+    () =>
+      singleSelectedCategory
+        ? [
+            { label: t('breadcrumb.home'), to: '/' },
+            { label: t('breadcrumb.catalog'), to: '/katalog' },
+            { label: singleSelectedCategory.name },
+          ]
+        : [{ label: t('breadcrumb.home'), to: '/' }, { label: t('breadcrumb.catalog') }],
+    [singleSelectedCategory, t]
+  );
+
   return (
     <div className="w-full space-y-8 pb-10">
+      <EditorialBackBar fallbackTo="/" breadcrumbs={catalogBreadcrumbs} />
+
       <header className="border-b border-line pb-6">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
           {t('catalog.eyebrow')}

@@ -13,6 +13,7 @@ import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { useToast } from '../../components/ui/toastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -479,6 +480,15 @@ export default function Checkout() {
 
   return (
     <div className="w-full space-y-6 pb-10">
+      <EditorialBackBar
+        fallbackTo="/keranjang"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.cart'), to: '/keranjang' },
+          { label: t('breadcrumb.checkout') },
+        ]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
           <p className="eyebrow">YNG Studio · {pick('Checkout Pesanan', 'Order Checkout')}</p>
@@ -486,9 +496,6 @@ export default function Checkout() {
             {pick('Konfirmasi Pengiriman & Pembayaran', 'Confirm Delivery & Payment')}
           </h1>
         </div>
-        <Link to="/keranjang" className="btn-secondary">
-          {pick('Kembali ke Keranjang', 'Back to Bag')}
-        </Link>
       </header>
 
       {checkoutSummary.hasUnavailable ? (

@@ -32,14 +32,12 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import {
-  ActiveStatusBadge,
-  AdminFeedbackBanner,
-} from '../../../components/admin/AdminFeedbackBanner';
+import { ActiveStatusBadge } from '../../../components/admin/AdminFeedbackBanner';
 import CatalogImageField from '../../../components/admin/CatalogImageField';
 import { Badge } from '../../../components/ui/Badge';
 import { IconTooltip } from '../../../components/ui/IconTooltip';
 import { Modal } from '../../../components/ui/Modal';
+import { useToast } from '../../../components/ui/toastContext';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import {
@@ -171,6 +169,7 @@ function computeSequentialUpdates(
 
 export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: ModelsTabProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [models, setModels] = useState<GarmentModelDto[]>([]);
   const [allFabrics, setAllFabrics] = useState<FabricDto[]>([]);
@@ -193,9 +192,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [form, setForm] = useState<ModelFormState>(INITIAL_FORM);
-  const [drawerError, setDrawerError] = useState<{ message: string; details?: string[] } | null>(
-    null
-  );
 
   // Modal Atur Bahan
   const [linkingModel, setLinkingModel] = useState<GarmentModelDto | null>(null);
@@ -205,12 +201,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
-
   const modelsRef = useRef<GarmentModelDto[]>([]);
   const cardRefs = useRef<Map<number, HTMLElement>>(new Map());
   const prevPositionsRef = useRef<Map<number, CardPosition>>(new Map());
@@ -219,7 +209,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   const closeDrawer = useCallback(() => {
     if (submitting) return;
     setDrawerOpen(false);
-    setDrawerError(null);
   }, [submitting]);
 
   useBodyScrollLock(drawerOpen);
@@ -286,23 +275,23 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
       setCollections(collectionsData);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat bank model pakaian.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, toast]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  async function invalidatePublicCatalog() {
+  const invalidatePublicCatalog = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models }),
       queryClient.invalidateQueries({ queryKey: catalogQueryKeys.categories }),
       queryClient.invalidateQueries({ queryKey: catalogQueryKeys.collections }),
     ]);
-  }
+  }, [queryClient]);
 
   const captureCardPositions = useCallback(() => {
     const snapshot = new Map<number, CardPosition>();
@@ -329,7 +318,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
       modelsRef.current = normalizedModels;
       setModels(normalizedModels);
       setReordering(true);
-      setFeedback(null);
 
       try {
         const updatedList = await Promise.all(
@@ -341,19 +329,16 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
         modelsRef.current = syncedModels;
         setModels(syncedModels);
         await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models });
-        setFeedback({
-          variant: 'success',
-          message: `Urutan tampilan diperbarui (${changedItems.length} model disimpan).`,
-        });
+        toast(`Urutan tampilan diperbarui (${changedItems.length} model disimpan).`, 'ok');
       } catch (err: unknown) {
         const parsed = extractApiError(err, 'Gagal menyimpan urutan model pakaian.');
-        setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+        toast(parsed.message, 'err', { details: parsed.details });
         await loadData();
       } finally {
         setReordering(false);
       }
     },
-    [loadData, queryClient]
+    [loadData, queryClient, toast]
   );
 
   const orderKey = models.map((model) => model.id).join(',');
@@ -618,8 +603,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   }
 
   function openCreateDrawer() {
-    setFeedback(null);
-    setDrawerError(null);
     setEditingId(null);
     setSlugTouched(false);
     setForm({
@@ -632,8 +615,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   }
 
   function startEdit(model: GarmentModelDto) {
-    setFeedback(null);
-    setDrawerError(null);
     setEditingId(model.id);
     setSlugTouched(true);
     setForm({
@@ -651,7 +632,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   }
 
   function openLinkFabrics(model: GarmentModelDto) {
-    setFeedback(null);
     setLinkingModel(model);
     setSelectedFabricIds(model.fabricIds);
   }
@@ -665,19 +645,15 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
   async function handleSaveFabrics() {
     if (!linkingModel) return;
     setSavingFabrics(true);
-    setFeedback(null);
     try {
       const updated = await replaceModelFabrics(linkingModel.id, { fabricIds: selectedFabricIds });
       setModels((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       await invalidatePublicCatalog();
       setLinkingModel(null);
-      setFeedback({
-        variant: 'success',
-        message: `Relasi bahan untuk model "${updated.name}" berhasil disimpan.`,
-      });
+      toast(`Relasi bahan untuk model "${updated.name}" berhasil disimpan.`, 'ok');
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memperbarui relasi bahan model.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSavingFabrics(false);
     }
@@ -685,27 +661,26 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setDrawerError(null);
 
     const name = form.name.trim();
     const slug = form.slug.trim();
     const basePrice = parseNonNegativeInt(form.basePrice);
 
     if (name.length < 2) {
-      setDrawerError({ message: 'Nama model minimal 2 karakter.' });
+      toast('Nama model minimal 2 karakter.', 'err');
       return;
     }
 
     if (slug.length < 2 || slug.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      setDrawerError({
-        message:
-          'Slug minimal 2 karakter dan hanya boleh huruf kecil, angka, serta tanda hubung (-).',
-      });
+      toast(
+        'Slug minimal 2 karakter dan hanya boleh huruf kecil, angka, serta tanda hubung (-).',
+        'err'
+      );
       return;
     }
 
     if (basePrice === null) {
-      setDrawerError({ message: 'Harga dasar harus berupa bilangan bulat rupiah.' });
+      toast('Harga dasar harus berupa bilangan bulat rupiah.', 'err');
       return;
     }
 
@@ -724,10 +699,7 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
 
       if (editingId !== null) {
         const updated = await updateModel(editingId, basePayload);
-        setFeedback({
-          variant: 'success',
-          message: `Model "${updated.name}" berhasil diperbarui.`,
-        });
+        toast(`Model "${updated.name}" berhasil diperbarui.`, 'ok');
       } else {
         const nextSortOrder =
           Math.max(
@@ -739,10 +711,7 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
           ...basePayload,
           sortOrder: nextSortOrder,
         });
-        setFeedback({
-          variant: 'success',
-          message: `Model "${created.name}" berhasil ditambahkan ke Bank Model.`,
-        });
+        toast(`Model "${created.name}" berhasil ditambahkan ke Bank Model.`, 'ok');
       }
 
       setDrawerOpen(false);
@@ -753,7 +722,7 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
       await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data model.');
-      setDrawerError({ message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -761,20 +730,37 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
 
   async function handleToggleActive(model: GarmentModelDto) {
     setBusyId(model.id);
-    setFeedback(null);
     try {
       if (model.isActive) {
         await deactivateModel(model.id);
-        setFeedback({ variant: 'success', message: `Model "${model.name}" dinonaktifkan.` });
+        await loadData();
+        await invalidatePublicCatalog();
+        toast(`Model "${model.name}" dinonaktifkan.`, 'ok', {
+          duration: 6000,
+          action: {
+            label: 'Urungkan',
+            onClick: async () => {
+              try {
+                await updateModel(model.id, { isActive: true });
+                await loadData();
+                await invalidatePublicCatalog();
+                toast(`Model "${model.name}" diaktifkan kembali.`, 'ok');
+              } catch (undoErr: unknown) {
+                const parsedUndo = extractApiError(undoErr, 'Gagal mengaktifkan kembali model.');
+                toast(parsedUndo.message, 'err', { details: parsedUndo.details });
+              }
+            },
+          },
+        });
       } else {
         await updateModel(model.id, { isActive: true });
-        setFeedback({ variant: 'success', message: `Model "${model.name}" diaktifkan kembali.` });
+        await loadData();
+        await invalidatePublicCatalog();
+        toast(`Model "${model.name}" diaktifkan kembali.`, 'ok');
       }
-      await loadData();
-      await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status model.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyId(null);
     }
@@ -788,15 +774,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
 
   return (
     <div className="space-y-5">
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
-
       {/* Toolbar Bank Model */}
       <section className="card-sharp space-y-4 p-4 sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -868,7 +845,7 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
             className="btn-primary inline-flex shrink-0 items-center gap-2 px-4 py-2.5 text-xs"
           >
             <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
-            <span>+ Tambah Model</span>
+            <span>Tambah Model</span>
           </button>
         </div>
 
@@ -1455,15 +1432,6 @@ export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: 
                 noValidate
               >
                 <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
-                  {drawerError ? (
-                    <AdminFeedbackBanner
-                      variant="error"
-                      message={drawerError.message}
-                      details={drawerError.details}
-                      onDismiss={() => setDrawerError(null)}
-                    />
-                  ) : null}
-
                   <div>
                     <label htmlFor="model-name" className="block text-sm font-medium text-ink">
                       Nama Model

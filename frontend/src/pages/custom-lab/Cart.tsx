@@ -3,6 +3,7 @@ import { PAYMENT_SCHEME, type CartItemDto, type UpsertCartItemRequestDto } from 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
@@ -275,6 +276,15 @@ export default function Cart() {
 
   return (
     <div className="w-full space-y-6 pb-8">
+      <EditorialBackBar
+        fallbackTo="/katalog"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.catalog'), to: '/katalog' },
+          { label: t('breadcrumb.cart') },
+        ]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
           <p className="eyebrow">YNG Studio · {pick('Tas Produksi', 'Studio Bag')}</p>

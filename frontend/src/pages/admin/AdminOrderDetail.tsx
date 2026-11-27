@@ -12,7 +12,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { AdminOrderActionPanels } from '../../components/admin/AdminOrderActionPanels';
 import { ImageLightboxModal } from '../../components/admin/ImageLightboxModal';
 import { getOrderNextStepGuide, isImageFileName } from '../../components/admin/adminOrderHelpers';
@@ -53,9 +52,6 @@ export default function AdminOrderDetail() {
   const { toast } = useToast();
   const qcFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [detailError, setDetailError] = useState<{ message: string; details: string[] } | null>(
-    null
-  );
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
   const [downloadingSpk, setDownloadingSpk] = useState(false);
 
@@ -99,13 +95,13 @@ export default function AdminOrderDetail() {
       verifyAdminPayment(payment.paymentUuid, { approve: true }),
     onSuccess: async () => {
       setVerifyTarget(null);
-      setDetailError(null);
       toast('Pembayaran berhasil diverifikasi.', 'ok');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
       setVerifyTarget(null);
-      setDetailError(extractApiError(err, 'Gagal memverifikasi pembayaran.'));
+      const parsed = extractApiError(err, 'Gagal memverifikasi pembayaran.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -116,14 +112,13 @@ export default function AdminOrderDetail() {
       setRejectTarget(null);
       setRejectionReason('');
       setRejectFormError(null);
-      setDetailError(null);
       toast('Bukti pembayaran ditolak.', 'info');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
       const parsed = extractApiError(err, 'Gagal menolak bukti pembayaran.');
       setRejectFormError(parsed.message);
-      setDetailError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -132,13 +127,13 @@ export default function AdminOrderDetail() {
     onSuccess: async (uploaded) => {
       setSelectedQcFiles([]);
       setQcSelectionError(null);
-      setDetailError(null);
       if (qcFileInputRef.current) qcFileInputRef.current.value = '';
       toast(`${uploaded.length} foto QC berhasil diunggah.`, 'ok');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
-      setDetailError(extractApiError(err, 'Gagal mengunggah foto QC.'));
+      const parsed = extractApiError(err, 'Gagal mengunggah foto QC.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -146,13 +141,13 @@ export default function AdminOrderDetail() {
     mutationFn: (photoId: number) => deleteAdminOrderQcPhoto(uuid ?? '', photoId),
     onSuccess: async () => {
       setDeleteQcTargetId(null);
-      setDetailError(null);
       toast('Foto QC berhasil dihapus.', 'info');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
       setDeleteQcTargetId(null);
-      setDetailError(extractApiError(err, 'Gagal menghapus foto QC.'));
+      const parsed = extractApiError(err, 'Gagal menghapus foto QC.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -160,12 +155,12 @@ export default function AdminOrderDetail() {
     mutationFn: (toStatus: ProductionStatus) =>
       transitionAdminOrderStatus(uuid ?? '', { toStatus }),
     onSuccess: async (updated) => {
-      setDetailError(null);
       await handleOrderUpdated(updated);
       toast('Pesanan berhasil dipindahkan ke tahap berikutnya.', 'ok');
     },
     onError: (err) => {
-      setDetailError(extractApiError(err, 'Gagal memindahkan tahap produksi pesanan.'));
+      const parsed = extractApiError(err, 'Gagal memindahkan tahap produksi pesanan.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -175,7 +170,8 @@ export default function AdminOrderDetail() {
       await downloadAdminOrderSpkPdf(order.transactionUuid, order.orderCode);
       toast(`SPK-${order.orderCode}.pdf berhasil diunduh.`, 'ok');
     } catch (err) {
-      setDetailError(extractApiError(err, 'Gagal mengunduh SPK PDF pesanan.'));
+      const parsed = extractApiError(err, 'Gagal mengunduh SPK PDF pesanan.');
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setDownloadingSpk(false);
     }
@@ -394,15 +390,6 @@ export default function AdminOrderDetail() {
           ) : null}
         </div>
       </section>
-
-      {detailError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={detailError.message}
-          details={detailError.details}
-          onDismiss={() => setDetailError(null)}
-        />
-      ) : null}
 
       {/* Grid Utama 12 Kolom */}
       <div className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-12">

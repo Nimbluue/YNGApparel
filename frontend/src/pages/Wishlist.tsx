@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { EditorialBackBar } from '../components/ui/EditorialBackBar';
 import { EmptyState } from '../components/ui/EmptyState';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import { WishlistHeartButton } from '../components/ui/WishlistHeartButton';
@@ -17,6 +18,14 @@ export default function Wishlist() {
 
   return (
     <div className="w-full space-y-8 pb-10">
+      <EditorialBackBar
+        fallbackTo="/katalog"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.wishlist') },
+        ]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <div className="space-y-1.5">
           <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">

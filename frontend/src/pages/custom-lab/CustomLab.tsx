@@ -20,6 +20,7 @@ import {
 } from '../../components/custom-lab/printSpotHelpers';
 import { SizeMatrix } from '../../components/custom-lab/SizeMatrix';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
@@ -49,6 +50,8 @@ import { getLocalizedPrintPositionLabel } from '../../utils/localizedLabels';
 import { estimateCustomLabPricing, resolveActivePaymentScheme } from '../../utils/pricing';
 import { rememberViewedModel } from '../../utils/recentlyViewed';
 import { openWaLink } from '../../utils/whatsapp';
+
+type IncompleteSection = 'fabric' | 'color' | 'size' | 'print';
 
 const DRAFT_STORAGE_KEY = 'yng_custom_lab_draft_v1';
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
@@ -181,7 +184,7 @@ export default function CustomLab() {
     {}
   );
   const [uploadingSpotKey, setUploadingSpotKey] = useState<string | null>(null);
-  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [highlightedSection, setHighlightedSection] = useState<IncompleteSection | null>(null);
   const [catalogModalOpen, setCatalogModalOpen] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(
@@ -191,6 +194,32 @@ export default function CustomLab() {
   const hydratedEditUuidRef = useRef<string | null>(null);
   const quoteRequestIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const fabricSectionRef = useRef<HTMLElement>(null);
+  const colorSectionRef = useRef<HTMLElement>(null);
+  const sizeSectionRef = useRef<HTMLElement>(null);
+  const printSectionRef = useRef<HTMLElement>(null);
+  const highlightTimerRef = useRef<number | null>(null);
+
+  const focusIncompleteSection = useCallback((section: IncompleteSection) => {
+    const refMap: Record<IncompleteSection, HTMLElement | null> = {
+      fabric: fabricSectionRef.current,
+      color: colorSectionRef.current,
+      size: sizeSectionRef.current,
+      print: printSectionRef.current,
+    };
+    const targetEl = refMap[section];
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setHighlightedSection(section);
+    if (highlightTimerRef.current !== null) {
+      window.clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedSection(null);
+      highlightTimerRef.current = null;
+    }, 1800);
+  }, []);
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKeys.models,
@@ -248,7 +277,6 @@ export default function CustomLab() {
     setNotesExpanded(Boolean(targetItem.config.productionNotes?.trim()));
     setServerQuote(null);
     setQuoteError(null);
-    setActionFeedback(null);
     setDraft({
       modelId: targetItem.modelId,
       fabricId: targetItem.fabricId,
@@ -538,11 +566,13 @@ export default function CustomLab() {
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
     };
   }, []);
 
   const handleSelectModel = useCallback((modelId: number) => {
-    setActionFeedback(null);
     setServerQuote(null);
     setQuoteError(null);
     setCatalogModalOpen(false);
@@ -561,7 +591,6 @@ export default function CustomLab() {
   }, []);
 
   const handleSelectFabric = useCallback((fabricId: number) => {
-    setActionFeedback(null);
     setServerQuote(null);
     setQuoteError(null);
     setDraft((prev) => ({
@@ -579,7 +608,6 @@ export default function CustomLab() {
     setServerQuote(null);
     setQuoteError(null);
     setUploadFeedbackBySpotKey({});
-    setActionFeedback(null);
     setDraft({
       ...DEFAULT_DRAFT,
       modelId: models[0]?.id ?? null,
@@ -594,7 +622,6 @@ export default function CustomLab() {
   }, [models, pick, toast]);
 
   const handleAddSpot = useCallback(() => {
-    setActionFeedback(null);
     setDraft((prev) => ({
       ...prev,
       prints: [
@@ -615,7 +642,6 @@ export default function CustomLab() {
 
   const handleUpdateSpot = useCallback(
     (key: string, patch: Partial<Omit<PrintSpotDraft, 'key'>>) => {
-      setActionFeedback(null);
       setDraft((prev) => ({
         ...prev,
         prints: prev.prints.map((spot) => (spot.key === key ? { ...spot, ...patch } : spot)),
@@ -625,7 +651,6 @@ export default function CustomLab() {
   );
 
   const handleRemoveSpot = useCallback((key: string) => {
-    setActionFeedback(null);
     setUploadFeedbackBySpotKey((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -776,7 +801,6 @@ export default function CustomLab() {
       setServerQuote(null);
       setQuoteError(null);
       setUploadFeedbackBySpotKey({});
-      setActionFeedback(null);
       toast(
         editCartItemUuid
           ? pick(
@@ -796,8 +820,7 @@ export default function CustomLab() {
         err,
         pick('Gagal menyimpan item ke keranjang.', 'Failed to save item to bag.')
       );
-      setActionFeedback(parsed.message);
-      toast(parsed.message, 'err');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -816,36 +839,97 @@ export default function CustomLab() {
     }
 
     if (uploadingSpotKey) {
-      const msg = pick(
-        'Tunggu proses unggah file desain selesai terlebih dahulu.',
-        'Please wait for the design file upload to finish.'
+      toast(
+        pick(
+          'Tunggu proses unggah file desain selesai terlebih dahulu.',
+          'Please wait for the design file upload to finish.'
+        ),
+        'warn'
       );
-      setActionFeedback(msg);
-      toast(msg, 'warn');
+      focusIncompleteSection('print');
       return;
     }
 
-    if (!quotePayload || !quotePayload.items[0]) {
-      const msg = pick(
-        'Lengkapi model, bahan, warna, jumlah ukuran (> 0), dan ukuran sablon terlebih dahulu.',
-        'Complete model, fabric, color, size quantities (> 0), and print sizes first.'
+    if (!selectedModel) {
+      toast(
+        pick('Pilih model pakaian terlebih dahulu.', 'Please select a garment model first.'),
+        'warn'
       );
-      setActionFeedback(msg);
-      toast(msg, 'warn');
+      return;
+    }
+
+    if (!selectedFabric) {
+      toast(pick('Pilih jenis bahan terlebih dahulu.', 'Please select a fabric first.'), 'warn');
+      focusIncompleteSection('fabric');
+      return;
+    }
+
+    const customColorHexTrimmed = draft.customColorHex.trim();
+    const isColorMissing = draft.isCustomColor
+      ? draft.customColorName.trim().length < 2 ||
+        (customColorHexTrimmed.length > 0 && !HEX_COLOR_REGEX.test(customColorHexTrimmed))
+      : draft.fabricColorId === null;
+
+    if (isColorMissing) {
+      toast(
+        pick(
+          'Pilih warna pakaian atau isi nama warna custom terlebih dahulu.',
+          'Please select a garment color or enter a valid custom color first.'
+        ),
+        'warn'
+      );
+      focusIncompleteSection('color');
+      return;
+    }
+
+    if (localEstimate.totalQty <= 0) {
+      toast(
+        pick(
+          'Isi minimal 1 pcs pada matriks ukuran terlebih dahulu.',
+          'Enter at least 1 pcs in the size matrix first.'
+        ),
+        'warn'
+      );
+      focusIncompleteSection('size');
       return;
     }
 
     for (let i = 0; i < draft.prints.length; i += 1) {
       const spot = draft.prints[i]!;
-      if (!spot.needsDesignHelp && !spot.fileRef) {
-        const msg = pick(
-          `Desain #${i + 1}: unggah file desain atau centang "Bantu desainkan (Gratis)".`,
-          `Print #${i + 1}: upload a design file or select "Request free design help".`
+      if (spot.printSizeId === null) {
+        toast(
+          pick(
+            `Desain #${i + 1}: pilih ukuran sablon terlebih dahulu.`,
+            `Print #${i + 1}: select a print size first.`
+          ),
+          'warn'
         );
-        setActionFeedback(msg);
-        toast(msg, 'warn');
+        focusIncompleteSection('print');
         return;
       }
+      if (!spot.needsDesignHelp && !spot.fileRef) {
+        toast(
+          pick(
+            `Desain #${i + 1}: unggah file desain atau centang "Bantu desainkan (Gratis)".`,
+            `Print #${i + 1}: upload a design file or select "Request free design help".`
+          ),
+          'warn'
+        );
+        focusIncompleteSection('print');
+        return;
+      }
+    }
+
+    if (!quotePayload || !quotePayload.items[0]) {
+      toast(
+        pick(
+          'Lengkapi konfigurasi bahan, warna, dan ukuran terlebih dahulu.',
+          'Please complete fabric, color, and size configuration first.'
+        ),
+        'warn'
+      );
+      focusIncompleteSection('size');
+      return;
     }
 
     const baseItem = quotePayload.items[0];
@@ -870,9 +954,21 @@ export default function CustomLab() {
       ...(trimmedNotes ? { productionNotes: trimmedNotes } : { productionNotes: null }),
     };
 
-    setActionFeedback(null);
     saveCartMutation.mutate(payload);
-  }, [draft, isGuest, navigate, pick, quotePayload, saveCartMutation, toast, uploadingSpotKey]);
+  }, [
+    draft,
+    focusIncompleteSection,
+    isGuest,
+    localEstimate.totalQty,
+    navigate,
+    pick,
+    quotePayload,
+    saveCartMutation,
+    selectedFabric,
+    selectedModel,
+    toast,
+    uploadingSpotKey,
+  ]);
 
   const handleAskWhatsApp = useCallback(() => {
     const sizeText = sizes
@@ -1003,8 +1099,29 @@ export default function CustomLab() {
   const formattedIndex = String(selectedModelIndex + 1).padStart(2, '0');
   const formattedTotal = String(models.length).padStart(2, '0');
 
+  const labBreadcrumbs = [
+    { label: t('breadcrumb.home'), to: '/' },
+    { label: t('breadcrumb.catalog'), to: '/katalog' },
+    ...(activeCategory
+      ? [
+          {
+            label: activeCategory.name,
+            to: `/katalog?kategori=${encodeURIComponent(activeCategory.slug)}`,
+          },
+        ]
+      : []),
+    { label: selectedModel?.name ?? t('breadcrumb.customLab') },
+  ];
+
   return (
     <div className="pb-28 lg:pb-12">
+      <EditorialBackBar
+        fallbackTo="/katalog"
+        breadcrumbs={labBreadcrumbs}
+        mobileContext={selectedModel?.name ?? t('breadcrumb.customLab')}
+        className="mb-6"
+      />
+
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start xl:gap-12">
         {/* Kolom Kiri PDP: Galeri Model Aktif & Thumbnail Strip (sticky di desktop) */}
         <div className="min-w-0 space-y-4 lg:sticky lg:top-24">
@@ -1158,7 +1275,12 @@ export default function CustomLab() {
 
           {/* Bahan Pakaian */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={fabricSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'fabric'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-fabric-heading"
           >
             <h2 id="step-fabric-heading" className="font-display text-base font-semibold text-ink">
@@ -1257,7 +1379,12 @@ export default function CustomLab() {
 
           {/* Warna */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={colorSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'color'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-color-heading"
           >
             <h2 id="step-color-heading" className="font-display text-base font-semibold text-ink">
@@ -1272,7 +1399,6 @@ export default function CustomLab() {
               customColorHex={draft.customColorHex}
               disabled={!selectedFabric}
               onSelectPresetColor={(colorId) => {
-                setActionFeedback(null);
                 setDraft((prev) => ({
                   ...prev,
                   isCustomColor: false,
@@ -1282,7 +1408,6 @@ export default function CustomLab() {
                 }));
               }}
               onSelectCustomColor={() => {
-                setActionFeedback(null);
                 setDraft((prev) => ({
                   ...prev,
                   isCustomColor: true,
@@ -1290,11 +1415,9 @@ export default function CustomLab() {
                 }));
               }}
               onChangeCustomColorName={(value) => {
-                setActionFeedback(null);
                 setDraft((prev) => ({ ...prev, customColorName: value }));
               }}
               onChangeCustomColorHex={(value) => {
-                setActionFeedback(null);
                 setDraft((prev) => ({ ...prev, customColorHex: value }));
               }}
             />
@@ -1302,7 +1425,12 @@ export default function CustomLab() {
 
           {/* Matriks Ukuran */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={sizeSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'size'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-size-heading"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -1351,7 +1479,6 @@ export default function CustomLab() {
               sizes={sizes}
               quantities={draft.quantities}
               onChangeQuantity={(sizeId, nextQty) => {
-                setActionFeedback(null);
                 setDraft((prev) => {
                   const nextQuantities = { ...prev.quantities };
                   if (nextQty <= 0) {
@@ -1367,7 +1494,12 @@ export default function CustomLab() {
 
           {/* Desain Sablon */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={printSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'print'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-print-heading"
           >
             <h2 id="step-print-heading" className="font-display text-base font-semibold text-ink">
@@ -1414,7 +1546,6 @@ export default function CustomLab() {
                   maxLength={500}
                   value={draft.productionNotes}
                   onChange={(event) => {
-                    setActionFeedback(null);
                     setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
                   }}
                   placeholder={t('notes.productionPlaceholder')}
@@ -1456,7 +1587,6 @@ export default function CustomLab() {
             }
             onAddToCart={handleAddToCart}
             onAskWhatsApp={handleAskWhatsApp}
-            actionFeedback={actionFeedback}
           />
         </div>
       </div>

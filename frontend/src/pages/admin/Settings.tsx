@@ -1,6 +1,6 @@
 import type { AppSettingKey, AppSettingsMapDto, UpdateAppSettingsDto } from '@yng/shared';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
+import { useToast } from '../../components/ui/toastContext';
 import { getSettings, updateSettings } from '../../services/adminMasterService';
 import { extractApiError } from '../../utils/apiError';
 
@@ -59,17 +59,12 @@ function parseStrictInt(raw: string): number | null {
 }
 
 export default function Settings() {
+  const { toast } = useToast();
   const [initialSettings, setInitialSettings] = useState<AppSettingsMapDto | null>(null);
   const [form, setForm] = useState<SettingsFormStrings | null>(null);
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
 
   const applyResponse = useCallback((settings: AppSettingsMapDto, updatedList: string[]) => {
     setInitialSettings(settings);
@@ -101,11 +96,11 @@ export default function Settings() {
       );
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat pengaturan aplikasi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [applyResponse]);
+  }, [applyResponse, toast]);
 
   useEffect(() => {
     void loadSettings();
@@ -118,17 +113,13 @@ export default function Settings() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form || !initialSettings) return;
-    setFeedback(null);
 
     const storeName = form.store_name.trim();
     const adminWa = form.admin_whatsapp.trim();
     const prodEstimate = form.production_estimate_text.trim();
 
     if (!storeName || !adminWa || !prodEstimate) {
-      setFeedback({
-        variant: 'error',
-        message: 'Nama toko, WhatsApp admin, dan teks estimasi produksi tidak boleh kosong.',
-      });
+      toast('Nama toko, WhatsApp admin, dan teks estimasi produksi tidak boleh kosong.', 'err');
       return;
     }
 
@@ -137,10 +128,10 @@ export default function Settings() {
       const rule = NUMERIC_RULES[key];
       const parsed = parseStrictInt(form[key]);
       if (parsed === null || parsed < rule.min || parsed > rule.max) {
-        setFeedback({
-          variant: 'error',
-          message: `${rule.label} harus berupa bilangan bulat antara ${rule.min} sampai ${rule.max}.`,
-        });
+        toast(
+          `${rule.label} harus berupa bilangan bulat antara ${rule.min} sampai ${rule.max}.`,
+          'err'
+        );
         return;
       }
       parsedNumeric[key] = parsed;
@@ -149,10 +140,7 @@ export default function Settings() {
     const dpiOkMin = parsedNumeric.dpi_ok_min ?? initialSettings.dpi_ok_min;
     const dpiWarnMin = parsedNumeric.dpi_warn_min ?? initialSettings.dpi_warn_min;
     if (dpiOkMin <= dpiWarnMin) {
-      setFeedback({
-        variant: 'error',
-        message: 'Nilai Ambang DPI Aman harus lebih besar daripada Ambang DPI Peringatan.',
-      });
+      toast('Nilai Ambang DPI Aman harus lebih besar daripada Ambang DPI Peringatan.', 'err');
       return;
     }
 
@@ -171,10 +159,7 @@ export default function Settings() {
     }
 
     if (Object.keys(patch).length === 0) {
-      setFeedback({
-        variant: 'success',
-        message: 'Tidak ada perubahan pengaturan yang perlu disimpan.',
-      });
+      toast('Tidak ada perubahan pengaturan yang perlu disimpan.', 'info');
       return;
     }
 
@@ -185,13 +170,10 @@ export default function Settings() {
         updated.settings,
         updated.items.map((item) => item.updatedAt)
       );
-      setFeedback({
-        variant: 'success',
-        message: 'Pengaturan toko berhasil disimpan.',
-      });
+      toast('Pengaturan toko berhasil disimpan.', 'ok');
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan pengaturan aplikasi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -218,15 +200,6 @@ export default function Settings() {
           ) : null}
         </div>
       </section>
-
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
 
       {loading || !form ? (
         <div className="card-sharp p-6 text-center text-sm text-muted">
@@ -462,7 +435,6 @@ export default function Settings() {
               type="button"
               onClick={() => {
                 if (initialSettings) {
-                  setFeedback(null);
                   setForm(mapToFormStrings(initialSettings));
                 }
               }}

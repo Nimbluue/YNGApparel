@@ -7,13 +7,11 @@ import {
 } from '@yng/shared';
 import { ArrowDown, ArrowUp, Pencil, Power, Wand2 } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import {
-  ActiveStatusBadge,
-  AdminFeedbackBanner,
-} from '../../../components/admin/AdminFeedbackBanner';
+import { ActiveStatusBadge } from '../../../components/admin/AdminFeedbackBanner';
 import CatalogImageField from '../../../components/admin/CatalogImageField';
 import { Badge } from '../../../components/ui/Badge';
 import { IconTooltip } from '../../../components/ui/IconTooltip';
+import { useToast } from '../../../components/ui/toastContext';
 import {
   createCategory,
   createCollection,
@@ -109,6 +107,7 @@ export default function CategoriesCollectionsTab({
   includeInactive,
 }: CategoriesCollectionsTabProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [categories, setCategories] = useState<CatalogCategoryDto[]>([]);
   const [collections, setCollections] = useState<CatalogCollectionDto[]>([]);
@@ -128,12 +127,6 @@ export default function CategoriesCollectionsTab({
   const [busyColId, setBusyColId] = useState<string | null>(null);
   const [reorderingCols, setReorderingCols] = useState(false);
 
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
-
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -145,23 +138,23 @@ export default function CategoriesCollectionsTab({
       setCollections(cols);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat daftar kategori dan koleksi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, toast]);
 
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
 
-  async function invalidatePublicCatalog() {
+  const invalidatePublicCatalog = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: catalogQueryKeys.categories }),
       queryClient.invalidateQueries({ queryKey: catalogQueryKeys.collections }),
       queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models }),
     ]);
-  }
+  }, [queryClient]);
 
   function resetCategoryForm() {
     setEditingCatId(null);
@@ -176,7 +169,6 @@ export default function CategoriesCollectionsTab({
   }
 
   function startEditCategory(cat: CatalogCategoryDto) {
-    setFeedback(null);
     setEditingCatId(cat.id);
     setCatSlugTouched(true);
     setCatForm({
@@ -189,7 +181,6 @@ export default function CategoriesCollectionsTab({
   }
 
   function startEditCollection(col: CatalogCollectionDto) {
-    setFeedback(null);
     setEditingColId(col.id);
     setColSlugTouched(true);
     setColForm({
@@ -202,20 +193,16 @@ export default function CategoriesCollectionsTab({
 
   async function handleSubmitCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
 
     const name = catForm.name.trim();
     const slug = catForm.slug.trim();
 
     if (name.length < 2) {
-      setFeedback({ variant: 'error', message: 'Nama kategori minimal 2 karakter.' });
+      toast('Nama kategori minimal 2 karakter.', 'err');
       return;
     }
     if (slug.length < 2 || slug.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      setFeedback({
-        variant: 'error',
-        message: 'Slug kategori hanya boleh huruf kecil, angka, dan tanda hubung (-).',
-      });
+      toast('Slug kategori hanya boleh huruf kecil, angka, dan tanda hubung (-).', 'err');
       return;
     }
 
@@ -230,18 +217,12 @@ export default function CategoriesCollectionsTab({
 
       if (editingCatId !== null) {
         const updated = await updateCategory(editingCatId, basePayload);
-        setFeedback({
-          variant: 'success',
-          message: `Kategori "${updated.name}" berhasil diperbarui.`,
-        });
+        toast(`Kategori "${updated.name}" berhasil diperbarui.`, 'ok');
       } else {
         const nextSortOrder =
           categories.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1;
         const created = await createCategory({ ...basePayload, sortOrder: nextSortOrder });
-        setFeedback({
-          variant: 'success',
-          message: `Kategori "${created.name}" berhasil ditambahkan.`,
-        });
+        toast(`Kategori "${created.name}" berhasil ditambahkan.`, 'ok');
       }
 
       resetCategoryForm();
@@ -249,7 +230,7 @@ export default function CategoriesCollectionsTab({
       await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data kategori.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmittingCat(false);
     }
@@ -257,20 +238,37 @@ export default function CategoriesCollectionsTab({
 
   async function handleToggleCategoryActive(cat: CatalogCategoryDto) {
     setBusyCatId(cat.id);
-    setFeedback(null);
     try {
       if (cat.isActive) {
         await deactivateCategory(cat.id);
-        setFeedback({ variant: 'success', message: `Kategori "${cat.name}" dinonaktifkan.` });
+        await loadAll();
+        await invalidatePublicCatalog();
+        toast(`Kategori "${cat.name}" dinonaktifkan.`, 'ok', {
+          duration: 6000,
+          action: {
+            label: 'Urungkan',
+            onClick: async () => {
+              try {
+                await updateCategory(cat.id, { isActive: true });
+                await loadAll();
+                await invalidatePublicCatalog();
+                toast(`Kategori "${cat.name}" diaktifkan kembali.`, 'ok');
+              } catch (undoErr: unknown) {
+                const parsedUndo = extractApiError(undoErr, 'Gagal mengaktifkan kembali kategori.');
+                toast(parsedUndo.message, 'err', { details: parsedUndo.details });
+              }
+            },
+          },
+        });
       } else {
         await updateCategory(cat.id, { isActive: true });
-        setFeedback({ variant: 'success', message: `Kategori "${cat.name}" diaktifkan kembali.` });
+        await loadAll();
+        await invalidatePublicCatalog();
+        toast(`Kategori "${cat.name}" diaktifkan kembali.`, 'ok');
       }
-      await loadAll();
-      await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status kategori.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyCatId(null);
     }
@@ -286,7 +284,6 @@ export default function CategoriesCollectionsTab({
     }));
     setCategories(reordered);
     setReorderingCats(true);
-    setFeedback(null);
     try {
       await reorderCategories({
         items: reordered.map((item) => ({ id: item.id, sortOrder: item.sortOrder })),
@@ -295,7 +292,7 @@ export default function CategoriesCollectionsTab({
       await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan urutan kategori.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
       await loadAll();
     } finally {
       setReorderingCats(false);
@@ -304,20 +301,16 @@ export default function CategoriesCollectionsTab({
 
   async function handleSubmitCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
 
     const name = colForm.name.trim();
     const slug = colForm.slug.trim();
 
     if (name.length < 2) {
-      setFeedback({ variant: 'error', message: 'Nama koleksi minimal 2 karakter.' });
+      toast('Nama koleksi minimal 2 karakter.', 'err');
       return;
     }
     if (slug.length < 2 || slug.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      setFeedback({
-        variant: 'error',
-        message: 'Slug koleksi hanya boleh huruf kecil, angka, dan tanda hubung (-).',
-      });
+      toast('Slug koleksi hanya boleh huruf kecil, angka, dan tanda hubung (-).', 'err');
       return;
     }
 
@@ -332,18 +325,12 @@ export default function CategoriesCollectionsTab({
 
       if (editingColId !== null) {
         const updated = await updateCollection(editingColId, basePayload);
-        setFeedback({
-          variant: 'success',
-          message: `Koleksi "${updated.name}" berhasil diperbarui.`,
-        });
+        toast(`Koleksi "${updated.name}" berhasil diperbarui.`, 'ok');
       } else {
         const nextSortOrder =
           collections.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 1;
         const created = await createCollection({ ...basePayload, sortOrder: nextSortOrder });
-        setFeedback({
-          variant: 'success',
-          message: `Koleksi "${created.name}" berhasil ditambahkan.`,
-        });
+        toast(`Koleksi "${created.name}" berhasil ditambahkan.`, 'ok');
       }
 
       resetCollectionForm();
@@ -351,7 +338,7 @@ export default function CategoriesCollectionsTab({
       await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data koleksi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmittingCol(false);
     }
@@ -359,20 +346,37 @@ export default function CategoriesCollectionsTab({
 
   async function handleToggleCollectionActive(col: CatalogCollectionDto) {
     setBusyColId(col.id);
-    setFeedback(null);
     try {
       if (col.isActive) {
         await deactivateCollection(col.id);
-        setFeedback({ variant: 'success', message: `Koleksi "${col.name}" dinonaktifkan.` });
+        await loadAll();
+        await invalidatePublicCatalog();
+        toast(`Koleksi "${col.name}" dinonaktifkan.`, 'ok', {
+          duration: 6000,
+          action: {
+            label: 'Urungkan',
+            onClick: async () => {
+              try {
+                await updateCollection(col.id, { isActive: true });
+                await loadAll();
+                await invalidatePublicCatalog();
+                toast(`Koleksi "${col.name}" diaktifkan kembali.`, 'ok');
+              } catch (undoErr: unknown) {
+                const parsedUndo = extractApiError(undoErr, 'Gagal mengaktifkan kembali koleksi.');
+                toast(parsedUndo.message, 'err', { details: parsedUndo.details });
+              }
+            },
+          },
+        });
       } else {
         await updateCollection(col.id, { isActive: true });
-        setFeedback({ variant: 'success', message: `Koleksi "${col.name}" diaktifkan kembali.` });
+        await loadAll();
+        await invalidatePublicCatalog();
+        toast(`Koleksi "${col.name}" diaktifkan kembali.`, 'ok');
       }
-      await loadAll();
-      await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status koleksi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyColId(null);
     }
@@ -388,7 +392,6 @@ export default function CategoriesCollectionsTab({
     }));
     setCollections(reordered);
     setReorderingCols(true);
-    setFeedback(null);
     try {
       await reorderCollections({
         items: reordered.map((item) => ({ id: item.id, sortOrder: item.sortOrder })),
@@ -397,7 +400,7 @@ export default function CategoriesCollectionsTab({
       await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan urutan koleksi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
       await loadAll();
     } finally {
       setReorderingCols(false);
@@ -406,15 +409,6 @@ export default function CategoriesCollectionsTab({
 
   return (
     <div className="space-y-8">
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
-
       {/* Seksi Kategori Pakaian */}
       <section className="space-y-4">
         <div className="card-sharp p-4 sm:p-6">
