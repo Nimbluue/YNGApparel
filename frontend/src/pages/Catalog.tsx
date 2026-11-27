@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { COLLECTION_STATUS } from '@yng/shared';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RotateCcw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { CardSkeleton } from '../components/ui/Skeleton';
@@ -10,23 +11,52 @@ import { WishlistHeartButton } from '../components/ui/WishlistHeartButton';
 import { useLanguage } from '../context/LanguageContext';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import { catalogQueryKeys, getCatalogFabrics, getCatalogModels } from '../services/catalogService';
+import {
+  catalogQueryKeys,
+  getCatalogCategories,
+  getCatalogCollections,
+  getCatalogFabrics,
+  getCatalogModels,
+} from '../services/catalogService';
 import { extractApiError } from '../utils/apiError';
 import { formatRupiah } from '../utils/formatRupiah';
 
 type PricePreset = 'all' | 'under_100k' | '100k_to_200k' | 'over_200k';
 type CatalogSortKey = 'featured' | 'price_asc' | 'price_desc' | 'name_asc';
 
+function parseSlugListParam(raw: string): string[] {
+  if (!raw.trim()) return [];
+  const unique = new Set<string>();
+  for (const part of raw.split(',')) {
+    const normalized = part.trim().toLowerCase();
+    if (normalized) {
+      unique.add(normalized);
+    }
+  }
+  return [...unique];
+}
+
 /**
- * Halaman Katalog Koleksi (`/katalog` + `/catalog`) dengan filter desktop sidebar,
+ * Halaman Katalog Koleksi (`/katalog` + `/catalog`) dengan filter kategori & koleksi dinamis,
  * drawer filter mobile (`360px`), urutkan, dan grid produk rasio 3:4 + WishlistHeartButton.
  */
 export default function Catalog() {
   const { t } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKeys.models,
     queryFn: getCatalogModels,
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: catalogQueryKeys.categories,
+    queryFn: getCatalogCategories,
+  });
+
+  const collectionsQuery = useQuery({
+    queryKey: catalogQueryKeys.collections,
+    queryFn: getCatalogCollections,
   });
 
   const fabricsQuery = useQuery({
@@ -34,8 +64,18 @@ export default function Catalog() {
     queryFn: getCatalogFabrics,
   });
 
+  const rawCategoryParam = searchParams.get('kategori') ?? '';
+  const rawCollectionParam = searchParams.get('koleksi') ?? '';
+  const selectedCategorySlugs = useMemo(
+    () => parseSlugListParam(rawCategoryParam),
+    [rawCategoryParam]
+  );
+  const selectedCollectionSlugs = useMemo(
+    () => parseSlugListParam(rawCollectionParam),
+    [rawCollectionParam]
+  );
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedModelSlugs, setSelectedModelSlugs] = useState<string[]>([]);
   const [selectedFabricIds, setSelectedFabricIds] = useState<number[]>([]);
   const [pricePreset, setPricePreset] = useState<PricePreset>('all');
   const [minPriceInput, setMinPriceInput] = useState('');
@@ -49,6 +89,8 @@ export default function Catalog() {
   useEscapeKey(mobileFilterOpen, () => setMobileFilterOpen(false));
 
   const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
+  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
+  const collections = useMemo(() => collectionsQuery.data ?? [], [collectionsQuery.data]);
   const fabrics = useMemo(() => fabricsQuery.data ?? [], [fabricsQuery.data]);
 
   const parsedMinPrice = minPriceInput.trim() ? Number.parseInt(minPriceInput, 10) : null;
@@ -56,15 +98,29 @@ export default function Catalog() {
 
   const hasActiveFilters =
     searchTerm.trim().length > 0 ||
-    selectedModelSlugs.length > 0 ||
+    selectedCategorySlugs.length > 0 ||
+    selectedCollectionSlugs.length > 0 ||
     selectedFabricIds.length > 0 ||
     pricePreset !== 'all' ||
     parsedMinPrice !== null ||
     parsedMaxPrice !== null;
 
-  function toggleModelSlug(slug: string) {
-    setSelectedModelSlugs((prev) =>
-      prev.includes(slug) ? prev.filter((item) => item !== slug) : [...prev, slug]
+  function toggleSlugParam(paramKey: 'kategori' | 'koleksi', current: string[], slug: string) {
+    const next = current.includes(slug)
+      ? current.filter((item) => item !== slug)
+      : [...current, slug];
+
+    setSearchParams(
+      (prev) => {
+        const updated = new URLSearchParams(prev);
+        if (next.length > 0) {
+          updated.set(paramKey, next.join(','));
+        } else {
+          updated.delete(paramKey);
+        }
+        return updated;
+      },
+      { replace: true }
     );
   }
 
@@ -82,7 +138,17 @@ export default function Catalog() {
 
   function resetFilters() {
     setSearchTerm('');
-    setSelectedModelSlugs([]);
+    if (searchParams.has('kategori') || searchParams.has('koleksi')) {
+      setSearchParams(
+        (prev) => {
+          const updated = new URLSearchParams(prev);
+          updated.delete('kategori');
+          updated.delete('koleksi');
+          return updated;
+        },
+        { replace: true }
+      );
+    }
     setSelectedFabricIds([]);
     setPricePreset('all');
     setMinPriceInput('');
@@ -95,11 +161,23 @@ export default function Catalog() {
 
     const filtered = models.filter((model) => {
       if (q) {
-        const hay = `${model.name} ${model.slug} ${model.description ?? ''}`.toLowerCase();
+        const hay = `${model.name} ${model.slug} ${model.description ?? ''} ${
+          model.category?.name ?? ''
+        } ${model.collection?.name ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
 
-      if (selectedModelSlugs.length > 0 && !selectedModelSlugs.includes(model.slug)) {
+      if (
+        selectedCategorySlugs.length > 0 &&
+        (!model.category || !selectedCategorySlugs.includes(model.category.slug))
+      ) {
+        return false;
+      }
+
+      if (
+        selectedCollectionSlugs.length > 0 &&
+        (!model.collection || !selectedCollectionSlugs.includes(model.collection.slug))
+      ) {
         return false;
       }
 
@@ -145,13 +223,15 @@ export default function Catalog() {
     parsedMinPrice,
     pricePreset,
     searchTerm,
+    selectedCategorySlugs,
+    selectedCollectionSlugs,
     selectedFabricIds,
-    selectedModelSlugs,
     sortBy,
   ]);
 
   const activeFilterCount =
-    selectedModelSlugs.length +
+    selectedCategorySlugs.length +
+    selectedCollectionSlugs.length +
     selectedFabricIds.length +
     (pricePreset !== 'all' || parsedMinPrice !== null || parsedMaxPrice !== null ? 1 : 0) +
     (searchTerm.trim() ? 1 : 0);
@@ -181,27 +261,75 @@ export default function Catalog() {
           </div>
         </div>
 
-        {/* Siluet / Model */}
-        {models.length > 0 ? (
+        {/* Kategori Dinamis */}
+        {categories.length > 0 ? (
           <fieldset className="space-y-2.5 border-t border-line pt-5">
             <legend className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">
-              {t('catalog.silhouettesLabel')}
+              {t('catalog.categoriesLabel')}
             </legend>
-            <div className="max-h-52 space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
-              {models.map((model) => {
-                const checked = selectedModelSlugs.includes(model.slug);
+            <div className="space-y-1">
+              {categories.map((category) => {
+                const checked = selectedCategorySlugs.includes(category.slug);
                 return (
                   <label
-                    key={model.id}
-                    className="flex min-h-[36px] cursor-pointer items-center gap-2.5 py-1 text-xs text-ink"
+                    key={category.id}
+                    className="flex min-h-[36px] cursor-pointer items-center justify-between gap-2 py-1 text-xs text-ink"
                   >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleModelSlug(model.slug)}
-                      className="h-4 w-4 shrink-0 rounded-none border-line accent-ink"
-                    />
-                    <span className="truncate">{model.name}</span>
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          toggleSlugParam('kategori', selectedCategorySlugs, category.slug)
+                        }
+                        className="h-4 w-4 shrink-0 rounded-none border-line accent-ink"
+                      />
+                      <span className="truncate">{category.name}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-muted tabular-nums">
+                      {category.activeModelCount}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
+
+        {/* Koleksi / Series Dinamis */}
+        {collections.length > 0 ? (
+          <fieldset className="space-y-2.5 border-t border-line pt-5">
+            <legend className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink">
+              {t('catalog.collectionsLabel')}
+            </legend>
+            <div className="space-y-1">
+              {collections.map((collection) => {
+                const checked = selectedCollectionSlugs.includes(collection.slug);
+                const isSoldOut = collection.status === COLLECTION_STATUS.SOLD_OUT;
+                return (
+                  <label
+                    key={collection.id}
+                    className="flex min-h-[36px] cursor-pointer items-center justify-between gap-2 py-1 text-xs text-ink"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          toggleSlugParam('koleksi', selectedCollectionSlugs, collection.slug)
+                        }
+                        className="h-4 w-4 shrink-0 rounded-none border-line accent-ink"
+                      />
+                      <span className="truncate">{collection.name}</span>
+                      {isSoldOut ? (
+                        <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
+                          {t('catalog.soldOut')}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-muted tabular-nums">
+                      {collection.activeModelCount}
+                    </span>
                   </label>
                 );
               })}
@@ -465,6 +593,16 @@ export default function Catalog() {
                       </div>
 
                       <div className="mt-3 space-y-1">
+                        {model.collection ? (
+                          <div className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted">
+                            <span className="truncate">{model.collection.name}</span>
+                            {model.collection.status === COLLECTION_STATUS.SOLD_OUT ? (
+                              <span className="shrink-0 font-mono text-ink">
+                                {t('catalog.soldOut')}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                         <div className="flex items-start justify-between gap-2">
                           <h2 className="line-clamp-2 font-display text-sm font-semibold text-ink group-hover:underline sm:text-base">
                             {model.name}

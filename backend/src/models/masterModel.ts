@@ -1,5 +1,8 @@
 import type {
   AppSettingKey,
+  CollectionStatus,
+  CreateCatalogCategoryDto,
+  CreateCatalogCollectionDto,
   CreateFabricColorDto,
   CreateFabricDto,
   CreateGarmentModelDto,
@@ -7,6 +10,9 @@ import type {
   CreatePrintSizeDto,
   CreateSizeDto,
   PaymentMethod,
+  ReorderCatalogEntitiesDto,
+  UpdateCatalogCategoryDto,
+  UpdateCatalogCollectionDto,
   UpdateFabricColorDto,
   UpdateFabricDto,
   UpdateGarmentModelDto,
@@ -17,6 +23,32 @@ import type {
 import { query, withTransaction } from '../config/database.js';
 import { AppError } from '../middleware/errorHandler.js';
 
+export interface CatalogCategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  size_chart_image_path: string | null;
+  sort_order: number;
+  is_active: boolean;
+  active_model_count?: number;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface CatalogCollectionRow {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: CollectionStatus;
+  sort_order: number;
+  is_active: boolean;
+  active_model_count?: number;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
 export interface GarmentModelRow {
   id: number;
   slug: string;
@@ -25,6 +57,8 @@ export interface GarmentModelRow {
   base_price: number;
   image_path: string | null;
   mockup_template: string | null;
+  category_id: string | null;
+  collection_id: string | null;
   sort_order: number;
   is_active: boolean;
   created_at: Date | string;
@@ -98,9 +132,28 @@ export interface AppSettingRow {
 }
 
 export interface MasterRepository {
+  listCategories(includeInactive: boolean): Promise<CatalogCategoryRow[]>;
+  findCategoryById(id: string): Promise<CatalogCategoryRow | null>;
+  createCategory(input: CreateCatalogCategoryDto): Promise<CatalogCategoryRow>;
+  updateCategory(id: string, patch: UpdateCatalogCategoryDto): Promise<CatalogCategoryRow | null>;
+  deactivateCategory(id: string): Promise<CatalogCategoryRow | null>;
+  reorderCategories(items: ReorderCatalogEntitiesDto['items']): Promise<CatalogCategoryRow[]>;
+
+  listCollections(includeInactive: boolean): Promise<CatalogCollectionRow[]>;
+  findCollectionById(id: string): Promise<CatalogCollectionRow | null>;
+  createCollection(input: CreateCatalogCollectionDto): Promise<CatalogCollectionRow>;
+  updateCollection(
+    id: string,
+    patch: UpdateCatalogCollectionDto
+  ): Promise<CatalogCollectionRow | null>;
+  deactivateCollection(id: string): Promise<CatalogCollectionRow | null>;
+  reorderCollections(items: ReorderCatalogEntitiesDto['items']): Promise<CatalogCollectionRow[]>;
+
   listModels(includeInactive: boolean): Promise<{
     models: GarmentModelRow[];
     fabricIdsByModel: Map<number, number[]>;
+    categoriesById: Map<string, CatalogCategoryRow>;
+    collectionsById: Map<string, CatalogCollectionRow>;
   }>;
   findModelById(id: number): Promise<GarmentModelRow | null>;
   findModelFabricIds(modelId: number): Promise<number[]>;
@@ -175,8 +228,12 @@ function buildUpdateSetClause(entries: ReadonlyArray<readonly [string, unknown]>
   };
 }
 
+const CATEGORY_COLUMNS =
+  'id, name, slug, description, size_chart_image_path, sort_order, is_active, created_at, updated_at';
+const COLLECTION_COLUMNS =
+  'id, name, slug, description, status, sort_order, is_active, created_at, updated_at';
 const MODEL_COLUMNS =
-  'id, slug, name, description, base_price, image_path, mockup_template, sort_order, is_active, created_at, updated_at';
+  'id, slug, name, description, base_price, image_path, mockup_template, category_id, collection_id, sort_order, is_active, created_at, updated_at';
 const FABRIC_COLUMNS =
   'id, code, name, description, gsm_weight, thickness_level, comfort_level, additional_price, image_path, macro_image_path, sort_order, is_active, created_at, updated_at';
 const FABRIC_COLOR_COLUMNS = 'id, fabric_id, color_name, color_hex, sort_order, is_active';
@@ -187,6 +244,206 @@ const PAYMENT_ACCOUNT_COLUMNS =
   'id, method, provider_name, account_number, account_holder, qr_image_path, instructions, is_active, created_at, updated_at';
 
 export const masterModel: MasterRepository = {
+  async listCategories(includeInactive: boolean) {
+    const whereClause = includeInactive ? '' : 'WHERE c.is_active = TRUE';
+    const result = await query<CatalogCategoryRow>(
+      `SELECT c.id, c.name, c.slug, c.description, c.size_chart_image_path, c.sort_order,
+              c.is_active,
+              COUNT(gm.id) FILTER (WHERE gm.is_active = TRUE)::int AS active_model_count,
+              c.created_at, c.updated_at
+       FROM catalog_categories c
+       LEFT JOIN garment_models gm ON gm.category_id = c.id
+       ${whereClause}
+       GROUP BY c.id
+       ORDER BY c.sort_order ASC, c.name ASC`
+    );
+    return result.rows;
+  },
+
+  async findCategoryById(id: string) {
+    const result = await query<CatalogCategoryRow>(
+      `SELECT c.id, c.name, c.slug, c.description, c.size_chart_image_path, c.sort_order,
+              c.is_active,
+              COUNT(gm.id) FILTER (WHERE gm.is_active = TRUE)::int AS active_model_count,
+              c.created_at, c.updated_at
+       FROM catalog_categories c
+       LEFT JOIN garment_models gm ON gm.category_id = c.id
+       WHERE c.id = $1
+       GROUP BY c.id
+       LIMIT 1`,
+      [id]
+    );
+    return result.rows[0] ?? null;
+  },
+
+  async createCategory(input: CreateCatalogCategoryDto) {
+    const result = await query<CatalogCategoryRow>(
+      `INSERT INTO catalog_categories (
+         name, slug, description, size_chart_image_path, sort_order, is_active
+       )
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING ${CATEGORY_COLUMNS}, 0::int AS active_model_count`,
+      [
+        input.name,
+        input.slug,
+        input.description ?? null,
+        input.sizeChartImagePath ?? null,
+        input.sortOrder ?? 0,
+        input.isActive ?? true,
+      ]
+    );
+    return result.rows[0];
+  },
+
+  async updateCategory(id: string, patch: UpdateCatalogCategoryDto) {
+    const { setSql, values } = buildUpdateSetClause([
+      ['name', patch.name],
+      ['slug', patch.slug],
+      ['description', patch.description],
+      ['size_chart_image_path', patch.sizeChartImagePath],
+      ['sort_order', patch.sortOrder],
+      ['is_active', patch.isActive],
+    ]);
+
+    if (!setSql) {
+      return this.findCategoryById(id);
+    }
+
+    const result = await query<CatalogCategoryRow>(
+      `UPDATE catalog_categories
+       SET ${setSql}
+       WHERE id = $${values.length + 1}
+       RETURNING ${CATEGORY_COLUMNS}`,
+      [...values, id]
+    );
+    if (!result.rows[0]) return null;
+    return this.findCategoryById(id);
+  },
+
+  async deactivateCategory(id: string) {
+    const result = await query<CatalogCategoryRow>(
+      `UPDATE catalog_categories
+       SET is_active = FALSE
+       WHERE id = $1
+       RETURNING ${CATEGORY_COLUMNS}`,
+      [id]
+    );
+    if (!result.rows[0]) return null;
+    return this.findCategoryById(id);
+  },
+
+  async reorderCategories(items: ReorderCatalogEntitiesDto['items']) {
+    await withTransaction(async (client) => {
+      for (const item of items) {
+        await client.query(`UPDATE catalog_categories SET sort_order = $1 WHERE id = $2`, [
+          item.sortOrder,
+          item.id,
+        ]);
+      }
+    });
+    return this.listCategories(true);
+  },
+
+  async listCollections(includeInactive: boolean) {
+    const whereClause = includeInactive ? '' : 'WHERE col.is_active = TRUE';
+    const result = await query<CatalogCollectionRow>(
+      `SELECT col.id, col.name, col.slug, col.description, col.status, col.sort_order,
+              col.is_active,
+              COUNT(gm.id) FILTER (WHERE gm.is_active = TRUE)::int AS active_model_count,
+              col.created_at, col.updated_at
+       FROM catalog_collections col
+       LEFT JOIN garment_models gm ON gm.collection_id = col.id
+       ${whereClause}
+       GROUP BY col.id
+       ORDER BY col.sort_order ASC, col.name ASC`
+    );
+    return result.rows;
+  },
+
+  async findCollectionById(id: string) {
+    const result = await query<CatalogCollectionRow>(
+      `SELECT col.id, col.name, col.slug, col.description, col.status, col.sort_order,
+              col.is_active,
+              COUNT(gm.id) FILTER (WHERE gm.is_active = TRUE)::int AS active_model_count,
+              col.created_at, col.updated_at
+       FROM catalog_collections col
+       LEFT JOIN garment_models gm ON gm.collection_id = col.id
+       WHERE col.id = $1
+       GROUP BY col.id
+       LIMIT 1`,
+      [id]
+    );
+    return result.rows[0] ?? null;
+  },
+
+  async createCollection(input: CreateCatalogCollectionDto) {
+    const result = await query<CatalogCollectionRow>(
+      `INSERT INTO catalog_collections (
+         name, slug, description, status, sort_order, is_active
+       )
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING ${COLLECTION_COLUMNS}, 0::int AS active_model_count`,
+      [
+        input.name,
+        input.slug,
+        input.description ?? null,
+        input.status ?? 'ACTIVE',
+        input.sortOrder ?? 0,
+        input.isActive ?? true,
+      ]
+    );
+    return result.rows[0];
+  },
+
+  async updateCollection(id: string, patch: UpdateCatalogCollectionDto) {
+    const { setSql, values } = buildUpdateSetClause([
+      ['name', patch.name],
+      ['slug', patch.slug],
+      ['description', patch.description],
+      ['status', patch.status],
+      ['sort_order', patch.sortOrder],
+      ['is_active', patch.isActive],
+    ]);
+
+    if (!setSql) {
+      return this.findCollectionById(id);
+    }
+
+    const result = await query<CatalogCollectionRow>(
+      `UPDATE catalog_collections
+       SET ${setSql}
+       WHERE id = $${values.length + 1}
+       RETURNING ${COLLECTION_COLUMNS}`,
+      [...values, id]
+    );
+    if (!result.rows[0]) return null;
+    return this.findCollectionById(id);
+  },
+
+  async deactivateCollection(id: string) {
+    const result = await query<CatalogCollectionRow>(
+      `UPDATE catalog_collections
+       SET is_active = FALSE
+       WHERE id = $1
+       RETURNING ${COLLECTION_COLUMNS}`,
+      [id]
+    );
+    if (!result.rows[0]) return null;
+    return this.findCollectionById(id);
+  },
+
+  async reorderCollections(items: ReorderCatalogEntitiesDto['items']) {
+    await withTransaction(async (client) => {
+      for (const item of items) {
+        await client.query(`UPDATE catalog_collections SET sort_order = $1 WHERE id = $2`, [
+          item.sortOrder,
+          item.id,
+        ]);
+      }
+    });
+    return this.listCollections(true);
+  },
+
   async listModels(includeInactive: boolean) {
     const whereClause = includeInactive ? '' : 'WHERE is_active = TRUE';
     const modelsResult = await query<GarmentModelRow>(
@@ -197,23 +454,62 @@ export const masterModel: MasterRepository = {
     );
 
     const fabricIdsByModel = new Map<number, number[]>();
+    const categoriesById = new Map<string, CatalogCategoryRow>();
+    const collectionsById = new Map<string, CatalogCollectionRow>();
+
     if (modelsResult.rows.length > 0) {
       const modelIds = modelsResult.rows.map((row) => row.id);
-      const relResult = await query<{ model_id: number; fabric_id: number }>(
-        `SELECT model_id, fabric_id
-         FROM model_fabrics
-         WHERE model_id = ANY($1::bigint[])
-         ORDER BY fabric_id ASC`,
-        [modelIds]
-      );
+      const categoryIds = [
+        ...new Set(
+          modelsResult.rows
+            .map((row) => row.category_id)
+            .filter((cid): cid is string => Boolean(cid))
+        ),
+      ];
+      const collectionIds = [
+        ...new Set(
+          modelsResult.rows
+            .map((row) => row.collection_id)
+            .filter((cid): cid is string => Boolean(cid))
+        ),
+      ];
+
+      const [relResult, categoriesRes, collectionsRes] = await Promise.all([
+        query<{ model_id: number; fabric_id: number }>(
+          `SELECT model_id, fabric_id
+           FROM model_fabrics
+           WHERE model_id = ANY($1::bigint[])
+           ORDER BY fabric_id ASC`,
+          [modelIds]
+        ),
+        categoryIds.length > 0
+          ? query<CatalogCategoryRow>(
+              `SELECT ${CATEGORY_COLUMNS} FROM catalog_categories WHERE id = ANY($1::uuid[])`,
+              [categoryIds]
+            )
+          : Promise.resolve({ rows: [] as CatalogCategoryRow[] }),
+        collectionIds.length > 0
+          ? query<CatalogCollectionRow>(
+              `SELECT ${COLLECTION_COLUMNS} FROM catalog_collections WHERE id = ANY($1::uuid[])`,
+              [collectionIds]
+            )
+          : Promise.resolve({ rows: [] as CatalogCollectionRow[] }),
+      ]);
+
       for (const rel of relResult.rows) {
         const list = fabricIdsByModel.get(rel.model_id) ?? [];
         list.push(rel.fabric_id);
         fabricIdsByModel.set(rel.model_id, list);
       }
+      for (const cat of categoriesRes.rows) {
+        categoriesById.set(cat.id, cat);
+      }
+      for (const col of collectionsRes.rows) {
+        collectionsById.set(col.id, col);
+      }
     }
 
-    return { models: modelsResult.rows, fabricIdsByModel };
+    return { models: modelsResult.rows, fabricIdsByModel, categoriesById, collectionsById };
   },
 
   async findModelById(id: number) {
@@ -234,8 +530,11 @@ export const masterModel: MasterRepository = {
 
   async createModel(input: CreateGarmentModelDto) {
     const result = await query<GarmentModelRow>(
-      `INSERT INTO garment_models (slug, name, description, base_price, image_path, mockup_template, sort_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO garment_models (
+         slug, name, description, base_price, image_path, mockup_template,
+         category_id, collection_id, sort_order, is_active
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING ${MODEL_COLUMNS}`,
       [
         input.slug,
@@ -244,6 +543,8 @@ export const masterModel: MasterRepository = {
         input.basePrice,
         input.imagePath ?? null,
         input.mockupTemplate ?? null,
+        input.categoryId ?? null,
+        input.collectionId ?? null,
         input.sortOrder ?? 0,
         input.isActive ?? true,
       ]
@@ -259,6 +560,8 @@ export const masterModel: MasterRepository = {
       ['base_price', patch.basePrice],
       ['image_path', patch.imagePath],
       ['mockup_template', patch.mockupTemplate],
+      ['category_id', patch.categoryId],
+      ['collection_id', patch.collectionId],
       ['sort_order', patch.sortOrder],
       ['is_active', patch.isActive],
     ]);

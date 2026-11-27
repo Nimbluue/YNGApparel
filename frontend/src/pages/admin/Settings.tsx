@@ -30,8 +30,8 @@ const NUMERIC_RULES: Readonly<
   dpi_ok_min: { label: 'Ambang DPI Aman Minimum', min: 50, max: 1200 },
   dpi_warn_min: { label: 'Ambang DPI Peringatan Minimum', min: 10, max: 1200 },
   max_design_file_mb: { label: 'Batas File Desain (MB)', min: 1, max: 50 },
-  signed_url_expiry_seconds: { label: 'Masa Berlaku Signed URL (detik)', min: 60, max: 86400 },
-  temp_upload_ttl_hours: { label: 'TTL File Sementara tmp/ (jam)', min: 1, max: 168 },
+  signed_url_expiry_seconds: { label: 'Masa Aktif Tautan File (detik)', min: 60, max: 86400 },
+  temp_upload_ttl_hours: { label: 'Batas Simpan File Sementara (jam)', min: 1, max: 168 },
 };
 
 function mapToFormStrings(settings: AppSettingsMapDto): SettingsFormStrings {
@@ -187,7 +187,7 @@ export default function Settings() {
       );
       setFeedback({
         variant: 'success',
-        message: 'Pengaturan aplikasi berhasil disimpan secara atomik.',
+        message: 'Pengaturan toko berhasil disimpan.',
       });
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan pengaturan aplikasi.');
@@ -207,8 +207,7 @@ export default function Settings() {
               Pengaturan Toko
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Nilai pengaturan (persentase DP, minimal qty DP, batas bayar, dan DPI Guard) akan
-              dibaca dari server dan di-snapshot ke setiap order baru.
+              Atur identitas toko, ketentuan DP, batas bayar, dan standar file desain.
             </p>
           </div>
           {lastUpdatedLabel ? (
@@ -237,7 +236,7 @@ export default function Settings() {
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-6" noValidate>
           <section className="card-sharp p-4 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
-              <span className="tabular-price text-muted">01</span> · Identitas &amp; Operasional
+              Identitas &amp; Operasional
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
@@ -291,7 +290,7 @@ export default function Settings() {
 
           <section className="card-sharp p-4 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
-              <span className="tabular-price text-muted">02</span> · Aturan DP &amp; Siklus Order
+              Aturan DP &amp; Siklus Order
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
@@ -365,8 +364,7 @@ export default function Settings() {
 
           <section className="card-sharp p-4 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
-              <span className="tabular-price text-muted">03</span> · Unggahan Desain, DPI Guard
-              &amp; Storage
+              Desain &amp; File
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
@@ -422,7 +420,7 @@ export default function Settings() {
 
               <div>
                 <label htmlFor="set-signed-expiry" className="block text-sm font-medium text-ink">
-                  Kedaluwarsa Signed URL (detik)
+                  Masa Aktif Tautan File (detik)
                 </label>
                 <input
                   id="set-signed-expiry"
@@ -439,7 +437,7 @@ export default function Settings() {
 
               <div>
                 <label htmlFor="set-tmp-ttl" className="block text-sm font-medium text-ink">
-                  TTL File Sementara tmp/ (jam)
+                  Batas Simpan File Sementara (jam)
                 </label>
                 <input
                   id="set-tmp-ttl"

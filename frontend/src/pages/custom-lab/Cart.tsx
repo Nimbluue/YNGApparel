@@ -277,16 +277,10 @@ export default function Cart() {
     <div className="w-full space-y-6 pb-8">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
-          <p className="eyebrow">YNG Studio · {pick('Keranjang Custom Lab', 'Studio Bag')}</p>
+          <p className="eyebrow">YNG Studio · {pick('Tas Produksi', 'Studio Bag')}</p>
           <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl">
             {pick('Keranjang Konfigurasi', 'Saved Configurations')}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {pick(
-              'Harga dihitung ulang otomatis dari katalog server setiap keranjang dibuka.',
-              'Pricing is automatically recalculated from the server catalog each time you open your bag.'
-            )}
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -306,10 +300,10 @@ export default function Cart() {
 
       {items.length === 0 ? (
         <EmptyState
-          title={pick('Keranjang Custom Lab masih kosong', 'Your Custom Lab bag is empty')}
+          title={pick('Keranjang masih kosong', 'Your bag is empty')}
           description={pick(
-            'Rancang model, pilih bahan dan warna, atur matriks ukuran serta titik sablon di Custom Lab untuk menambahkannya ke sini.',
-            'Pick a model, fabric, color, size matrix, and print spots in Custom Lab to add configurations here.'
+            'Rancang model, bahan, warna, dan ukuran di Custom Lab untuk menambahkannya ke sini.',
+            'Configure model, fabric, color, and sizes in Custom Lab to add items here.'
           )}
           action={
             <Link to="/custom-lab" className="btn-primary">
@@ -327,12 +321,12 @@ export default function Cart() {
               {pick(
                 <>
                   Terdapat <strong className="tabular-price">{summary.unavailableItemCount}</strong>{' '}
-                  item yang tidak lagi tersedia karena perubahan master katalog. Perbarui
-                  konfigurasi atau hapus item tersebut sebelum checkout.
+                  item tidak tersedia karena perubahan ketersediaan produk. Perbarui atau hapus item
+                  tersebut sebelum checkout.
                 </>,
                 <>
                   <strong className="tabular-price">{summary.unavailableItemCount}</strong> item(s)
-                  are no longer available due to catalog updates. Edit or remove them before
+                  are unavailable due to product availability updates. Edit or remove them before
                   checkout.
                 </>
               )}
@@ -499,10 +493,10 @@ export default function Cart() {
                       </div>
                     </div>
 
-                    {/* Rincian Titik Sablon & Desain */}
+                    {/* Rincian Desain Sablon */}
                     <div className="mt-4 space-y-2">
                       <p className="text-xs font-semibold text-ink">
-                        {pick('Titik Sablon', 'Print Spots')} ({item.config.prints.length})
+                        {pick('Desain Sablon', 'Print Design')} ({item.config.prints.length})
                       </p>
                       {item.config.prints.length === 0 ? (
                         <p className="text-xs text-muted">
@@ -595,9 +589,8 @@ export default function Cart() {
             <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-4">
               <div className="w-full space-y-5 rounded-sm border border-line bg-white p-5 sm:p-6">
                 <div className="border-b border-line pb-4">
-                  <p className="eyebrow">{pick('Ringkasan Keranjang', 'Bag Summary')}</p>
-                  <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                    {pick('Estimasi Tagihan Server', 'Server Quote Summary')}
+                  <h2 className="font-display text-lg font-semibold text-ink">
+                    {pick('Ringkasan Pesanan', 'Order Summary')}
                   </h2>
                 </div>
 
@@ -723,10 +716,6 @@ export default function Cart() {
         open={Boolean(editingItem)}
         onClose={() => setEditingItem(null)}
         title={pick('Ubah Kuantitas & Catatan', 'Edit Quantity & Notes')}
-        description={pick(
-          'Perubahan akan dihitung ulang langsung oleh server.',
-          'Changes will be recalculated automatically by the server.'
-        )}
         size="md"
       >
         {editingItem ? (

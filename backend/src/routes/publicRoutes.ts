@@ -32,6 +32,8 @@ export function createPublicRouter(options: PublicRouterOptions = {}): Router {
   const requireAuthMiddleware = options.requireAuthMiddleware ?? requireAuth;
   const uploadLimiterMiddleware = options.uploadLimiterMiddleware ?? uploadLimiter;
 
+  router.get('/catalog/categories', catalogController.listCategories);
+  router.get('/catalog/collections', catalogController.listCollections);
   router.get('/catalog/models', catalogController.listModels);
   router.get(
     '/catalog/models/:slug',

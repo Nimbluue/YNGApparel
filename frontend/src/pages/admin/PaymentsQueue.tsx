@@ -160,8 +160,7 @@ export default function PaymentsQueue() {
               Antrean Pembayaran
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Periksa bukti transfer atau QRIS pelanggan sebelum pesanan masuk tahap produksi cetak
-              atau pelunasan pengiriman.
+              Verifikasi bukti transfer dan QRIS pelanggan.
             </p>
           </div>
 

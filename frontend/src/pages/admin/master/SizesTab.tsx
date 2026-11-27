@@ -84,13 +84,13 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
     if (parsedExtra === null) {
       setFeedback({
         variant: 'error',
-        message: 'Biaya tambahan harus bilangan bulat rupiah (>= 0).',
+        message: 'Biaya ekstra harus berupa angka bulat (minimal 0).',
       });
       return;
     }
 
     if (parsedSort === null) {
-      setFeedback({ variant: 'error', message: 'Urutan harus bilangan bulat (>= 0).' });
+      setFeedback({ variant: 'error', message: 'Urutan harus berupa angka bulat (minimal 0).' });
       return;
     }
 

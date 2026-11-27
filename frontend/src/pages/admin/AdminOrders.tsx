@@ -103,8 +103,7 @@ export default function AdminOrders() {
               Semua Order
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Cari pesanan berdasarkan kode 6 karakter, nama pelanggan, atau nomor WhatsApp, lalu
-              kelola produksi hingga selesai.
+              Cari dan kelola seluruh pesanan masuk.
             </p>
           </div>
 

@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import CategoriesCollectionsTab from './master/CategoriesCollectionsTab';
 import FabricsTab from './master/FabricsTab';
 import ModelsTab from './master/ModelsTab';
 import PrintSizesTab from './master/PrintSizesTab';
 import SizesTab from './master/SizesTab';
 
-type MasterTabKey = 'models' | 'fabrics' | 'sizes' | 'print-sizes';
+type MasterTabKey = 'models' | 'categories-collections' | 'fabrics' | 'sizes' | 'print-sizes';
 
 const MASTER_TABS: ReadonlyArray<{ key: MasterTabKey; label: string }> = [
-  { key: 'models', label: 'Model Pakaian' },
+  { key: 'models', label: 'Bank Model' },
+  { key: 'categories-collections', label: 'Kategori & Koleksi' },
   { key: 'fabrics', label: 'Bahan & Warna' },
   { key: 'sizes', label: 'Ukuran' },
   { key: 'print-sizes', label: 'Ukuran Sablon' },
@@ -27,21 +29,21 @@ export default function MasterData() {
               Master Data
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Kelola model pakaian, relasi bahan kompatibel, preset warna, ukuran, dan harga sablon.
-              Perubahan harga master hanya berlaku untuk pesanan baru dan tidak mengubah harga yang
-              sudah terkunci di pesanan lama.
+              Perubahan harga hanya berlaku untuk pesanan baru.
             </p>
           </div>
 
-          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
-            <input
-              type="checkbox"
-              checked={includeInactive}
-              onChange={(event) => setIncludeInactive(event.target.checked)}
-              className="h-4 w-4 accent-ink"
-            />
-            <span>Tampilkan Nonaktif</span>
-          </label>
+          {activeTab !== 'models' ? (
+            <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
+              <input
+                type="checkbox"
+                checked={includeInactive}
+                onChange={(event) => setIncludeInactive(event.target.checked)}
+                className="h-4 w-4 accent-ink"
+              />
+              <span>Tampilkan Nonaktif</span>
+            </label>
+          ) : null}
         </div>
 
         <div
@@ -71,7 +73,12 @@ export default function MasterData() {
         </div>
       </section>
 
-      {activeTab === 'models' ? <ModelsTab includeInactive={includeInactive} /> : null}
+      {activeTab === 'models' ? (
+        <ModelsTab includeInactive={includeInactive} onChangeIncludeInactive={setIncludeInactive} />
+      ) : null}
+      {activeTab === 'categories-collections' ? (
+        <CategoriesCollectionsTab includeInactive={includeInactive} />
+      ) : null}
       {activeTab === 'fabrics' ? <FabricsTab includeInactive={includeInactive} /> : null}
       {activeTab === 'sizes' ? <SizesTab includeInactive={includeInactive} /> : null}
       {activeTab === 'print-sizes' ? <PrintSizesTab includeInactive={includeInactive} /> : null}

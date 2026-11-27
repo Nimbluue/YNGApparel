@@ -87,7 +87,7 @@ export function SizeMatrix({ sizes, quantities, onChangeQuantity }: SizeMatrixPr
 
       <div className="flex items-center justify-between rounded-sm border border-line bg-[#FAFAFA] px-4 py-3">
         <span className="text-sm font-medium text-muted">
-          {pick('Total kuantitas sementara', 'Current total quantity')}
+          {pick('Total Pesanan', 'Order Total')}
         </span>
         <span className="tabular-price rounded-sm bg-ink px-3 py-1 text-xs font-semibold text-white">
           {totalQty} pcs

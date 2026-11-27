@@ -1,6 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query';
-import type { FabricDto, GarmentModelDto } from '@yng/shared';
-import { Wand2 } from 'lucide-react';
+import {
+  COLLECTION_STATUS,
+  type CatalogCategoryDto,
+  type CatalogCollectionDto,
+  type FabricDto,
+  type GarmentModelDto,
+} from '@yng/shared';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  GripVertical,
+  Layers,
+  LayoutGrid,
+  List,
+  Pencil,
+  Plus,
+  Power,
+  Wand2,
+  X,
+} from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -17,10 +37,16 @@ import {
   AdminFeedbackBanner,
 } from '../../../components/admin/AdminFeedbackBanner';
 import CatalogImageField from '../../../components/admin/CatalogImageField';
+import { Badge } from '../../../components/ui/Badge';
 import { IconTooltip } from '../../../components/ui/IconTooltip';
+import { Modal } from '../../../components/ui/Modal';
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import {
   createModel,
   deactivateModel,
+  listCategories,
+  listCollections,
   listFabrics,
   listModels,
   replaceModelFabrics,
@@ -32,11 +58,16 @@ import { formatRupiah } from '../../../utils/formatRupiah';
 
 interface ModelsTabProps {
   includeInactive: boolean;
+  onChangeIncludeInactive?: (next: boolean) => void;
 }
+
+type ViewMode = 'grid' | 'table';
 
 interface ModelFormState {
   name: string;
   slug: string;
+  categoryId: string;
+  collectionId: string;
   basePrice: string;
   mockupTemplate: string;
   description: string;
@@ -66,6 +97,8 @@ interface CardPosition {
 const INITIAL_FORM: ModelFormState = {
   name: '',
   slug: '',
+  categoryId: '',
+  collectionId: '',
   basePrice: '0',
   mockupTemplate: '',
   description: '',
@@ -136,21 +169,35 @@ function computeSequentialUpdates(
   return { normalizedModels, changedItems };
 }
 
-export default function ModelsTab({ includeInactive }: ModelsTabProps) {
+export default function ModelsTab({ includeInactive, onChangeIncludeInactive }: ModelsTabProps) {
   const queryClient = useQueryClient();
 
   const [models, setModels] = useState<GarmentModelDto[]>([]);
   const [allFabrics, setAllFabrics] = useState<FabricDto[]>([]);
+  const [categories, setCategories] = useState<CatalogCategoryDto[]>([]);
+  const [collections, setCollections] = useState<CatalogCollectionDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
 
+  // Toolbar Bank Model state
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [collectionFilter, setCollectionFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [reorderMode, setReorderMode] = useState(false);
+
+  // Slide-over Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [form, setForm] = useState<ModelFormState>(INITIAL_FORM);
+  const [drawerError, setDrawerError] = useState<{ message: string; details?: string[] } | null>(
+    null
+  );
 
+  // Modal Atur Bahan
   const [linkingModel, setLinkingModel] = useState<GarmentModelDto | null>(null);
   const [selectedFabricIds, setSelectedFabricIds] = useState<number[]>([]);
   const [savingFabrics, setSavingFabrics] = useState(false);
@@ -169,6 +216,15 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
   const prevPositionsRef = useRef<Map<number, CardPosition>>(new Map());
   const dragSessionRef = useRef<DragSession | null>(null);
 
+  const closeDrawer = useCallback(() => {
+    if (submitting) return;
+    setDrawerOpen(false);
+    setDrawerError(null);
+  }, [submitting]);
+
+  useBodyScrollLock(drawerOpen);
+  useEscapeKey(drawerOpen, closeDrawer);
+
   useEffect(() => {
     modelsRef.current = models;
   }, [models]);
@@ -182,16 +238,29 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
   }, [allFabrics]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const isFiltering = normalizedSearch.length > 0;
+  const isFiltering =
+    normalizedSearch.length > 0 || categoryFilter !== 'ALL' || collectionFilter !== 'ALL';
 
   const visibleModels = useMemo(() => {
-    if (!normalizedSearch) return models;
-    return models.filter(
-      (model) =>
-        model.name.toLowerCase().includes(normalizedSearch) ||
-        model.slug.toLowerCase().includes(normalizedSearch)
-    );
-  }, [models, normalizedSearch]);
+    return models.filter((model) => {
+      if (categoryFilter === 'UNCATEGORIZED') {
+        if (model.categoryId !== null) return false;
+      } else if (categoryFilter !== 'ALL' && model.categoryId !== categoryFilter) {
+        return false;
+      }
+
+      if (collectionFilter !== 'ALL' && model.collectionId !== collectionFilter) {
+        return false;
+      }
+
+      if (normalizedSearch) {
+        const hay = `${model.name} ${model.slug}`.toLowerCase();
+        if (!hay.includes(normalizedSearch)) return false;
+      }
+
+      return true;
+    });
+  }, [models, categoryFilter, collectionFilter, normalizedSearch]);
 
   const globalIndexById = useMemo(() => {
     const map = new Map<number, number>();
@@ -204,15 +273,19 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [modelsData, fabricsData] = await Promise.all([
+      const [modelsData, fabricsData, categoriesData, collectionsData] = await Promise.all([
         listModels(includeInactive),
         listFabrics(true),
+        listCategories(true),
+        listCollections(true),
       ]);
       modelsRef.current = modelsData;
       setModels(modelsData);
       setAllFabrics(fabricsData);
+      setCategories(categoriesData);
+      setCollections(collectionsData);
     } catch (err: unknown) {
-      const parsed = extractApiError(err, 'Gagal memuat daftar model pakaian.');
+      const parsed = extractApiError(err, 'Gagal memuat bank model pakaian.');
       setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
     } finally {
       setLoading(false);
@@ -222,6 +295,14 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  async function invalidatePublicCatalog() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models }),
+      queryClient.invalidateQueries({ queryKey: catalogQueryKeys.categories }),
+      queryClient.invalidateQueries({ queryKey: catalogQueryKeys.collections }),
+    ]);
+  }
 
   const captureCardPositions = useCallback(() => {
     const snapshot = new Map<number, CardPosition>();
@@ -262,7 +343,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models });
         setFeedback({
           variant: 'success',
-          message: `Urutan tampilan model diperbarui (${changedItems.length} model disimpan).`,
+          message: `Urutan tampilan diperbarui (${changedItems.length} model disimpan).`,
         });
       } catch (err: unknown) {
         const parsed = extractApiError(err, 'Gagal menyimpan urutan model pakaian.');
@@ -473,7 +554,14 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
     event: ReactPointerEvent<HTMLButtonElement>,
     model: GarmentModelDto
   ) {
-    if (reordering || loading || submitting || isFiltering || modelsRef.current.length < 2) {
+    if (
+      !reorderMode ||
+      reordering ||
+      loading ||
+      submitting ||
+      isFiltering ||
+      modelsRef.current.length < 2
+    ) {
       return;
     }
     if (event.pointerType === 'mouse' && event.button !== 0) {
@@ -506,7 +594,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
   }
 
   function handleStepMove(index: number, delta: -1 | 1) {
-    if (reordering || loading || isFiltering || draggingId !== null) {
+    if (!reorderMode || reordering || loading || isFiltering || draggingId !== null) {
       return;
     }
     const targetIndex = index + delta;
@@ -529,26 +617,37 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
     }
   }
 
-  function resetForm() {
+  function openCreateDrawer() {
+    setFeedback(null);
+    setDrawerError(null);
     setEditingId(null);
     setSlugTouched(false);
-    setForm(INITIAL_FORM);
+    setForm({
+      ...INITIAL_FORM,
+      categoryId:
+        categoryFilter !== 'ALL' && categoryFilter !== 'UNCATEGORIZED' ? categoryFilter : '',
+      collectionId: collectionFilter !== 'ALL' ? collectionFilter : '',
+    });
+    setDrawerOpen(true);
   }
 
   function startEdit(model: GarmentModelDto) {
     setFeedback(null);
+    setDrawerError(null);
     setEditingId(model.id);
     setSlugTouched(true);
     setForm({
       name: model.name,
       slug: model.slug,
+      categoryId: model.categoryId ?? '',
+      collectionId: model.collectionId ?? '',
       basePrice: String(model.basePrice),
       mockupTemplate: model.mockupTemplate ?? '',
       description: model.description ?? '',
       imagePath: model.imagePath,
       imageUrl: model.imageUrl,
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setDrawerOpen(true);
   }
 
   function openLinkFabrics(model: GarmentModelDto) {
@@ -570,7 +669,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
     try {
       const updated = await replaceModelFabrics(linkingModel.id, { fabricIds: selectedFabricIds });
       setModels((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-      await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models });
+      await invalidatePublicCatalog();
       setLinkingModel(null);
       setFeedback({
         variant: 'success',
@@ -586,31 +685,27 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
+    setDrawerError(null);
 
     const name = form.name.trim();
     const slug = form.slug.trim();
     const basePrice = parseNonNegativeInt(form.basePrice);
 
     if (name.length < 2) {
-      setFeedback({ variant: 'error', message: 'Nama model minimal 2 karakter.' });
+      setDrawerError({ message: 'Nama model minimal 2 karakter.' });
       return;
     }
 
     if (slug.length < 2 || slug.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      setFeedback({
-        variant: 'error',
+      setDrawerError({
         message:
-          'Slug minimal 2 karakter dan hanya boleh huruf kecil, angka, dan tanda hubung (-).',
+          'Slug minimal 2 karakter dan hanya boleh huruf kecil, angka, serta tanda hubung (-).',
       });
       return;
     }
 
     if (basePrice === null) {
-      setFeedback({
-        variant: 'error',
-        message: 'Harga dasar harus berupa bilangan bulat rupiah (>= 0).',
-      });
+      setDrawerError({ message: 'Harga dasar harus berupa bilangan bulat rupiah.' });
       return;
     }
 
@@ -620,6 +715,8 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         name,
         slug,
         basePrice,
+        categoryId: form.categoryId || null,
+        collectionId: form.collectionId || null,
         mockupTemplate: form.mockupTemplate.trim() || null,
         description: form.description.trim() || null,
         imagePath: form.imagePath,
@@ -644,16 +741,19 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         });
         setFeedback({
           variant: 'success',
-          message: `Model "${created.name}" berhasil ditambahkan pada urutan #${nextSortOrder}.`,
+          message: `Model "${created.name}" berhasil ditambahkan ke Bank Model.`,
         });
       }
 
-      resetForm();
+      setDrawerOpen(false);
+      setEditingId(null);
+      setSlugTouched(false);
+      setForm(INITIAL_FORM);
       await loadData();
-      await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models });
+      await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data model.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      setDrawerError({ message: parsed.message, details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -671,7 +771,7 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         setFeedback({ variant: 'success', message: `Model "${model.name}" diaktifkan kembali.` });
       }
       await loadData();
-      await queryClient.invalidateQueries({ queryKey: catalogQueryKeys.models });
+      await invalidatePublicCatalog();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status model.');
       setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
@@ -680,8 +780,14 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
     }
   }
 
+  function resetAllFilters() {
+    setCategoryFilter('ALL');
+    setCollectionFilter('ALL');
+    setSearchQuery('');
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {feedback ? (
         <AdminFeedbackBanner
           variant={feedback.variant}
@@ -691,216 +797,553 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
         />
       ) : null}
 
-      <section className="card-sharp p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
-          <div>
-            <h2 className="font-display text-base font-semibold text-ink">
-              {editingId !== null ? 'Edit Model Pakaian' : 'Tambah Model Pakaian'}
-            </h2>
-            <p className="text-xs text-muted">
-              Harga dasar dalam integer rupiah penuh tanpa desimal. Urutan tampil diatur lewat
-              daftar model di bawah.
-            </p>
-          </div>
-          {editingId !== null ? (
-            <button type="button" onClick={resetForm} className="btn-secondary px-4 py-2">
-              Batal Edit
-            </button>
-          ) : null}
-        </div>
-
-        <form onSubmit={(event) => void handleSubmit(event)} className="mt-4 space-y-4" noValidate>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="model-name" className="block text-sm font-medium text-ink">
-                Nama Model
-              </label>
-              <input
-                id="model-name"
-                type="text"
-                value={form.name}
-                onChange={(event) => {
-                  const nextName = event.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    name: nextName,
-                    slug: !slugTouched && editingId === null ? slugify(nextName) : prev.slug,
-                  }));
-                }}
-                placeholder="Kaos Lengan Pendek"
-                className="input-sharp mt-1.5"
-                disabled={submitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="model-slug" className="block text-sm font-medium text-ink">
-                Slug Unik
-              </label>
-              <div className="mt-1.5 flex items-center gap-2">
-                <input
-                  id="model-slug"
-                  type="text"
-                  value={form.slug}
-                  onChange={(event) => {
-                    setSlugTouched(true);
-                    setForm((prev) => ({
-                      ...prev,
-                      slug: event.target.value.toLowerCase().replace(/\s+/g, '-'),
-                    }));
-                  }}
-                  placeholder="kaos-lengan-pendek"
-                  className="input-sharp min-w-0 flex-1 font-mono"
-                  disabled={submitting}
-                />
-                <IconTooltip
-                  label="Samakan slug dengan nama model"
-                  disabled={submitting || !form.name.trim()}
-                  onClick={() => {
-                    setForm((prev) => ({ ...prev, slug: slugify(prev.name) }));
-                    if (editingId === null) {
-                      setSlugTouched(false);
-                    }
-                  }}
-                  className="h-11 w-11 shrink-0 border border-neutral-300 bg-white hover:border-ink"
-                >
-                  <Wand2 size={17} strokeWidth={1.5} aria-hidden="true" />
-                </IconTooltip>
-              </div>
-              {editingId === null ? (
-                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-                  <span>
-                    {slugTouched
-                      ? 'Edit manual aktif — perubahan Nama Model tidak menimpa slug.'
-                      : 'Terisi otomatis dari Nama Model. Edit manual bila perlu.'}
-                  </span>
-                  {slugTouched ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSlugTouched(false);
-                        setForm((prev) => ({ ...prev, slug: slugify(prev.name) }));
-                      }}
-                      className="inline-flex min-h-touch items-center font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-                    >
-                      Ikuti Nama Model lagi
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="mt-1.5 text-xs text-muted">
-                  Digunakan pada tautan katalog{' '}
-                  <span className="font-mono text-ink">/custom-lab?model=…</span>.
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="model-price" className="block text-sm font-medium text-ink">
-                Harga Dasar (Rp)
-              </label>
-              <input
-                id="model-price"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                step={1}
-                value={form.basePrice}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, basePrice: event.target.value }))
-                }
-                className="input-sharp tabular-price mt-1.5"
-                disabled={submitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="model-template" className="block text-sm font-medium text-ink">
-                Template Mockup (Opsional)
-              </label>
-              <input
-                id="model-template"
-                type="text"
-                value={form.mockupTemplate}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, mockupTemplate: event.target.value }))
-                }
-                placeholder="tee-short"
-                className="input-sharp mt-1.5 font-mono"
-                disabled={submitting}
-              />
-              <p className="mt-1.5 text-xs leading-relaxed text-muted">
-                Opsional — persiapan untuk fitur pratinjau Mockup 2D di Fase 2. Boleh dikosongkan.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="model-description" className="block text-sm font-medium text-ink">
-              Deskripsi (Opsional)
-            </label>
-            <input
-              id="model-description"
-              type="text"
-              value={form.description}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, description: event.target.value }))
-              }
-              placeholder="Keterangan singkat model"
-              className="input-sharp mt-1.5"
-              disabled={submitting}
-            />
-          </div>
-
-          <CatalogImageField
-            id="model-image-upload"
-            label="Foto Model Pakaian"
-            folder="models"
-            pathValue={form.imagePath}
-            existingUrl={form.imageUrl}
-            onChange={(nextPath, nextUrl) =>
-              setForm((prev) => ({ ...prev, imagePath: nextPath, imageUrl: nextUrl }))
-            }
-            disabled={submitting}
-          />
-
-          <div className="flex flex-wrap gap-2">
-            <button type="submit" className="btn-primary w-full sm:w-auto" disabled={submitting}>
-              {submitting
-                ? 'Menyimpan...'
-                : editingId !== null
-                  ? 'Simpan Perubahan Model'
-                  : 'Tambah Model'}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {linkingModel ? (
-        <section className="card-sharp border-ink p-4 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
-            <div>
-              <p className="eyebrow">Relasi Model &amp; Bahan</p>
-              <h3 className="font-display text-base font-semibold text-ink">
-                Pilih Bahan untuk {linkingModel.name}
-              </h3>
-            </div>
+      {/* Toolbar Bank Model */}
+      <section className="card-sharp space-y-4 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div
+            role="tablist"
+            aria-label="Filter cepat kategori model"
+            className="flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:pb-0"
+          >
             <button
               type="button"
-              onClick={() => setLinkingModel(null)}
-              className="btn-secondary px-4 py-2"
-              disabled={savingFabrics}
+              role="tab"
+              aria-selected={categoryFilter === 'ALL'}
+              onClick={() => setCategoryFilter('ALL')}
+              className={`inline-flex min-h-[38px] shrink-0 items-center rounded-sm border px-3.5 text-xs font-semibold transition-colors ${
+                categoryFilter === 'ALL'
+                  ? 'border-ink bg-ink text-white'
+                  : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
+              }`}
             >
-              Tutup
+              Semua ({models.length})
             </button>
+            {categories.map((cat) => {
+              const count = models.filter((m) => m.categoryId === cat.id).length;
+              const isSelected = categoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`inline-flex min-h-[38px] shrink-0 items-center gap-1.5 rounded-sm border px-3.5 text-xs font-semibold transition-colors ${
+                    isSelected
+                      ? 'border-ink bg-ink text-white'
+                      : 'border-line bg-white text-ink hover:border-ink'
+                  }`}
+                >
+                  <span>{cat.name}</span>
+                  <span
+                    className={`font-mono text-[10px] tabular-nums ${
+                      isSelected ? 'text-neutral-300' : 'text-muted'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+            {models.some((m) => m.categoryId === null) ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={categoryFilter === 'UNCATEGORIZED'}
+                onClick={() => setCategoryFilter('UNCATEGORIZED')}
+                className={`inline-flex min-h-[38px] shrink-0 items-center rounded-sm border px-3.5 text-xs font-semibold transition-colors ${
+                  categoryFilter === 'UNCATEGORIZED'
+                    ? 'border-ink bg-ink text-white'
+                    : 'border-line bg-white text-muted hover:border-ink hover:text-ink'
+                }`}
+              >
+                Tanpa Kategori
+              </button>
+            ) : null}
           </div>
 
-          {allFabrics.length === 0 ? (
-            <p className="mt-4 text-sm text-muted">
-              Belum ada bahan. Tambahkan bahan pada tab Bahan &amp; Warna terlebih dahulu.
-            </p>
-          ) : (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={openCreateDrawer}
+            className="btn-primary inline-flex shrink-0 items-center gap-2 px-4 py-2.5 text-xs"
+          >
+            <Plus size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span>+ Tambah Model</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2.5 border-t border-line pt-3.5 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center lg:justify-between">
+          <div className="flex flex-1 flex-wrap items-center gap-2.5">
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Cari nama atau slug model"
+              placeholder="Cari nama atau slug model..."
+              className="input-sharp min-w-[200px] flex-1 sm:max-w-xs"
+            />
+
+            <select
+              aria-label="Filter koleksi model"
+              value={collectionFilter}
+              onChange={(event) => setCollectionFilter(event.target.value)}
+              className="input-sharp w-full sm:w-52"
+            >
+              <option value="ALL">Semua Koleksi / Series</option>
+              {collections.map((col) => (
+                <option key={col.id} value={col.id}>
+                  {col.name}
+                  {col.status === COLLECTION_STATUS.SOLD_OUT ? ' (Sold Out)' : ''}
+                </option>
+              ))}
+            </select>
+
+            {onChangeIncludeInactive ? (
+              <label className="inline-flex min-h-touch cursor-pointer items-center gap-2 rounded-sm border border-line bg-[#FAFAFA] px-3.5 text-xs font-semibold text-ink">
+                <input
+                  type="checkbox"
+                  checked={includeInactive}
+                  onChange={(event) => onChangeIncludeInactive(event.target.checked)}
+                  className="h-4 w-4 accent-ink"
+                />
+                <span>Tampilkan Nonaktif</span>
+              </label>
+            ) : null}
+
+            {isFiltering ? (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-3 text-xs font-semibold text-ink transition-colors hover:border-ink"
+              >
+                Reset Filter
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            {reordering ? (
+              <span role="status" className="text-xs font-medium text-muted">
+                Menyimpan urutan...
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              aria-pressed={reorderMode}
+              onClick={() => setReorderMode((prev) => !prev)}
+              className={`inline-flex min-h-touch items-center gap-1.5 rounded-sm border px-3.5 text-xs font-semibold transition-colors ${
+                reorderMode
+                  ? 'border-ink bg-ink text-white'
+                  : 'border-line bg-white text-ink hover:border-ink hover:bg-[#FAFAFA]'
+              }`}
+            >
+              <ArrowUpDown size={15} strokeWidth={1.5} aria-hidden="true" />
+              <span>{reorderMode ? 'Selesai Urutkan' : 'Atur Urutan'}</span>
+            </button>
+
+            <div className="flex items-center rounded-sm border border-line bg-[#FAFAFA] p-0.5">
+              <IconTooltip
+                label="Tampilan Grid Kartu"
+                onClick={() => setViewMode('grid')}
+                className={`h-9 w-9 min-h-[36px] ${
+                  viewMode === 'grid'
+                    ? 'bg-ink text-white'
+                    : 'bg-transparent text-muted hover:text-ink'
+                }`}
+              >
+                <LayoutGrid size={16} strokeWidth={1.5} aria-hidden="true" />
+              </IconTooltip>
+              <IconTooltip
+                label="Tampilan Tabel Ringkas"
+                onClick={() => setViewMode('table')}
+                className={`h-9 w-9 min-h-[36px] ${
+                  viewMode === 'table'
+                    ? 'bg-ink text-white'
+                    : 'bg-transparent text-muted hover:text-ink'
+                }`}
+              >
+                <List size={16} strokeWidth={1.5} aria-hidden="true" />
+              </IconTooltip>
+            </div>
+          </div>
+        </div>
+
+        {reorderMode && isFiltering ? (
+          <p className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Kosongkan filter kategori, koleksi, dan pencarian untuk menggeser urutan tampil katalog.
+          </p>
+        ) : null}
+      </section>
+
+      {/* Konten Bank Model */}
+      {loading ? (
+        <div className="card-sharp p-6 text-center text-sm text-muted">
+          Memuat bank model pakaian...
+        </div>
+      ) : models.length === 0 ? (
+        <div className="card-sharp space-y-3 p-8 text-center">
+          <p className="text-sm text-muted">Belum ada model pakaian pada katalog.</p>
+          <button type="button" onClick={openCreateDrawer} className="btn-primary text-xs">
+            + Tambah Model Pertama
+          </button>
+        </div>
+      ) : visibleModels.length === 0 ? (
+        <div className="card-sharp space-y-3 p-6 text-center">
+          <p className="text-sm text-muted">Tidak ada model yang cocok dengan filter saat ini.</p>
+          <button type="button" onClick={resetAllFilters} className="btn-secondary text-xs">
+            Tampilkan Semua Model
+          </button>
+        </div>
+      ) : viewMode === 'table' ? (
+        <div className="card-sharp overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-line bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                  {reorderMode ? <th className="w-24 px-3 py-3">Urutan</th> : null}
+                  <th className="px-4 py-3">Model</th>
+                  <th className="px-4 py-3">Kategori</th>
+                  <th className="px-4 py-3">Koleksi / Series</th>
+                  <th className="px-4 py-3 text-right">Harga Dasar</th>
+                  <th className="px-4 py-3 text-center">Bahan</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {visibleModels.map((model, index) => {
+                  const globalIndex = globalIndexById.get(model.id) ?? index;
+                  const isReorderLocked = reordering || isFiltering || models.length < 2;
+
+                  return (
+                    <tr key={model.id} className="hover:bg-[#FAFAFA]">
+                      {reorderMode ? (
+                        <td className="px-3 py-3 align-middle">
+                          <div className="flex items-center gap-1">
+                            <span className="tabular-price mr-1 font-mono text-xs text-muted">
+                              #{globalIndex + 1}
+                            </span>
+                            <IconTooltip
+                              label="Geser naik"
+                              disabled={globalIndex === 0 || isReorderLocked}
+                              onClick={() => handleStepMove(globalIndex, -1)}
+                              className="h-8 w-8 min-h-[32px] border border-line bg-white hover:border-ink"
+                            >
+                              <ArrowUp size={13} strokeWidth={1.5} aria-hidden="true" />
+                            </IconTooltip>
+                            <IconTooltip
+                              label="Geser turun"
+                              disabled={globalIndex === models.length - 1 || isReorderLocked}
+                              onClick={() => handleStepMove(globalIndex, 1)}
+                              className="h-8 w-8 min-h-[32px] border border-line bg-white hover:border-ink"
+                            >
+                              <ArrowDown size={13} strokeWidth={1.5} aria-hidden="true" />
+                            </IconTooltip>
+                          </div>
+                        </td>
+                      ) : null}
+
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-12 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
+                            {model.imageUrl ? (
+                              <img
+                                src={model.imageUrl}
+                                alt={model.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-[9px] text-muted">—</span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-display font-semibold text-ink">
+                              {model.name}
+                            </p>
+                            <p className="truncate font-mono text-xs text-muted">{model.slug}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3 text-xs text-ink">
+                        {model.category?.name ?? <span className="text-muted">—</span>}
+                      </td>
+
+                      <td className="px-4 py-3 text-xs">
+                        {model.collection ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-ink">{model.collection.name}</span>
+                            {model.collection.status === COLLECTION_STATUS.SOLD_OUT ? (
+                              <Badge variant="warn">Sold Out</Badge>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+
+                      <td className="tabular-price px-4 py-3 text-right font-semibold text-ink">
+                        {formatRupiah(model.basePrice)}
+                      </td>
+
+                      <td className="tabular-price px-4 py-3 text-center text-xs text-ink">
+                        {model.fabricIds.length}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <ActiveStatusBadge isActive={model.isActive} />
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <IconTooltip
+                            label={`Edit ${model.name}`}
+                            onClick={() => startEdit(model)}
+                            className="h-9 w-9 min-h-[36px] border border-line bg-white hover:border-ink"
+                          >
+                            <Pencil size={15} strokeWidth={1.5} aria-hidden="true" />
+                          </IconTooltip>
+                          <IconTooltip
+                            label={`Atur Bahan (${model.fabricIds.length})`}
+                            onClick={() => openLinkFabrics(model)}
+                            className="h-9 w-9 min-h-[36px] border border-line bg-white hover:border-ink"
+                          >
+                            <Layers size={15} strokeWidth={1.5} aria-hidden="true" />
+                          </IconTooltip>
+                          <IconTooltip
+                            label={
+                              model.isActive
+                                ? `Nonaktifkan ${model.name}`
+                                : `Aktifkan ${model.name}`
+                            }
+                            disabled={busyId === model.id}
+                            onClick={() => void handleToggleActive(model)}
+                            className={`h-9 w-9 min-h-[36px] border bg-white ${
+                              model.isActive
+                                ? 'border-line text-status-err hover:border-status-err hover:bg-red-50'
+                                : 'border-line text-status-ok hover:border-status-ok hover:bg-emerald-50'
+                            }`}
+                          >
+                            <Power size={15} strokeWidth={1.5} aria-hidden="true" />
+                          </IconTooltip>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`relative grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 ${
+            draggingId !== null ? 'select-none' : ''
+          }`}
+        >
+          {visibleModels.map((model, index) => {
+            const globalIndex = globalIndexById.get(model.id) ?? index;
+            const isDragging = draggingId === model.id;
+            const isReorderLocked = reordering || isFiltering || models.length < 2;
+
+            return (
+              <article
+                key={model.id}
+                ref={(node) => {
+                  if (node) {
+                    cardRefs.current.set(model.id, node);
+                  } else {
+                    cardRefs.current.delete(model.id);
+                  }
+                }}
+                style={
+                  isDragging
+                    ? {
+                        transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) scale(1.01)`,
+                      }
+                    : undefined
+                }
+                className={`card-sharp flex flex-col justify-between p-4 transition-shadow duration-150 ${
+                  isDragging ? 'relative z-20 border-ink shadow-lg ring-1 ring-ink/15' : ''
+                }`}
+              >
+                {reorderMode ? (
+                  <div className="mb-3 flex items-center justify-between gap-2 border-b border-line pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onPointerDown={(event) => handleDragHandlePointerDown(event, model)}
+                        onKeyDown={(event) => handleHandleKeyDown(event, globalIndex)}
+                        disabled={isReorderLocked}
+                        aria-label={`Seret untuk mengubah urutan ${model.name}`}
+                        title={
+                          isFiltering
+                            ? 'Kosongkan filter untuk menggeser urutan'
+                            : 'Tahan & geser atau tekan panah keyboard'
+                        }
+                        className="inline-flex h-10 w-10 min-h-[40px] touch-none cursor-grab items-center justify-center rounded-sm border border-line bg-[#FAFAFA] text-ink transition-colors hover:border-ink active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <GripVertical size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+
+                      <span className="tabular-price inline-flex items-center rounded-sm border border-line bg-[#FAFAFA] px-3 py-1 text-xs font-semibold text-ink">
+                        #{globalIndex + 1}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleStepMove(globalIndex, -1)}
+                        disabled={globalIndex === 0 || isReorderLocked || draggingId !== null}
+                        aria-label={`Geser ${model.name} ke urutan sebelumnya`}
+                        className="inline-flex h-10 w-10 min-h-[40px] items-center justify-center rounded-sm border border-line bg-white text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        <ArrowUp size={15} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStepMove(globalIndex, 1)}
+                        disabled={
+                          globalIndex === models.length - 1 ||
+                          isReorderLocked ||
+                          draggingId !== null
+                        }
+                        aria-label={`Geser ${model.name} ke urutan berikutnya`}
+                        className="inline-flex h-10 w-10 min-h-[40px] items-center justify-center rounded-sm border border-line bg-white text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        <ArrowDown size={15} strokeWidth={1.5} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div>
+                  <div className="flex gap-4">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
+                      {model.imageUrl ? (
+                        <img
+                          src={model.imageUrl}
+                          alt={model.name}
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="px-1 text-center text-xs text-muted">Tanpa foto</span>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="font-display text-base font-semibold text-ink">
+                          {model.name}
+                        </h3>
+                        <ActiveStatusBadge isActive={model.isActive} />
+                      </div>
+                      <p className="truncate font-mono text-xs text-muted">{model.slug}</p>
+                      <p className="tabular-price text-sm font-semibold text-ink">
+                        {formatRupiah(model.basePrice)}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {model.category ? (
+                          <span className="rounded-sm border border-line bg-[#FAFAFA] px-2 py-0.5 text-[11px] font-medium text-ink">
+                            {model.category.name}
+                          </span>
+                        ) : null}
+                        {model.collection ? (
+                          <span className="inline-flex items-center gap-1 rounded-sm border border-line bg-white px-2 py-0.5 text-[11px] text-muted">
+                            <span>{model.collection.name}</span>
+                            {model.collection.status === COLLECTION_STATUS.SOLD_OUT ? (
+                              <span className="font-semibold text-status-warn">· Sold Out</span>
+                            ) : null}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 border-t border-line pt-3">
+                    <p className="text-xs font-medium text-muted">
+                      Bahan kompatibel (
+                      <span className="tabular-price">{model.fabricIds.length}</span>)
+                    </p>
+                    {model.fabricIds.length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {model.fabricIds.map((fid) => {
+                          const f = fabricMap.get(fid);
+                          return (
+                            <span
+                              key={fid}
+                              className="rounded-sm border border-line-strong bg-[#FAFAFA] px-2.5 py-0.5 font-mono text-[11px] text-ink"
+                            >
+                              {f ? f.code : `#${fid}`}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-status-warn">
+                        Belum ada bahan terhubung. Klik &ldquo;Atur Bahan&rdquo;.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(model)}
+                    className="btn-secondary flex-1 px-3 py-2 text-xs sm:flex-none"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openLinkFabrics(model)}
+                    className="btn-secondary flex-1 px-3 py-2 text-xs sm:flex-none"
+                  >
+                    Atur Bahan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleActive(model)}
+                    disabled={busyId === model.id}
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 sm:flex-none ${
+                      model.isActive
+                        ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
+                        : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
+                    }`}
+                  >
+                    {busyId === model.id
+                      ? 'Proses...'
+                      : model.isActive
+                        ? 'Nonaktifkan'
+                        : 'Aktifkan'}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal Atur Bahan */}
+      <Modal
+        open={Boolean(linkingModel)}
+        onClose={() => {
+          if (!savingFabrics) setLinkingModel(null);
+        }}
+        title={linkingModel ? `Atur Bahan · ${linkingModel.name}` : 'Atur Bahan Model'}
+        size="md"
+      >
+        {allFabrics.length === 0 ? (
+          <p className="text-sm text-muted">
+            Belum ada bahan. Tambahkan bahan pada tab Bahan &amp; Warna terlebih dahulu.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid max-h-[55vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
               {allFabrics.map((fabric) => {
                 const checked = selectedFabricIds.includes(fabric.id);
                 return (
@@ -935,282 +1378,308 @@ export default function ModelsTab({ includeInactive }: ModelsTabProps) {
                 );
               })}
             </div>
-          )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleSaveFabrics()}
-              disabled={savingFabrics}
-              className="btn-primary w-full sm:w-auto"
-            >
-              {savingFabrics ? 'Menyimpan Relasi...' : 'Simpan Relasi Bahan'}
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="font-display text-base font-semibold text-ink">
-              Daftar Model (<span className="tabular-price">{models.length}</span>)
-            </h2>
-            <p className="mt-0.5 text-xs text-muted">
-              {isFiltering ? (
-                <>
-                  Menampilkan{' '}
-                  <span className="tabular-price font-medium text-ink">{visibleModels.length}</span>{' '}
-                  dari <span className="tabular-price font-medium text-ink">{models.length}</span>{' '}
-                  model. Kosongkan pencarian untuk mengubah urutan tampil.
-                </>
-              ) : (
-                'Tahan & geser pegangan atau gunakan tombol ↑/↓ untuk mengatur urutan tampil katalog.'
-              )}
-            </p>
-          </div>
-
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            {reordering ? (
-              <span role="status" className="text-xs font-medium text-muted">
-                Menyimpan urutan...
-              </span>
-            ) : null}
-
-            <div className="flex items-center gap-2 sm:w-72">
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                aria-label="Cari model berdasarkan nama atau slug"
-                placeholder="Cari nama atau slug model..."
-                className="input-sharp"
-              />
-              {isFiltering ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="btn-secondary shrink-0 px-3.5 py-2 text-xs"
-                >
-                  Reset
-                </button>
-              ) : null}
+            <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-3">
+              <button
+                type="button"
+                onClick={() => setLinkingModel(null)}
+                disabled={savingFabrics}
+                className="btn-secondary px-4 py-2 text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveFabrics()}
+                disabled={savingFabrics}
+                className="btn-primary px-5 py-2 text-xs"
+              >
+                {savingFabrics ? 'Menyimpan...' : 'Simpan Relasi Bahan'}
+              </button>
             </div>
           </div>
-        </div>
-
-        {loading ? (
-          <div className="card-sharp p-6 text-center text-sm text-muted">
-            Memuat daftar model pakaian...
-          </div>
-        ) : models.length === 0 ? (
-          <div className="card-sharp p-6 text-center text-sm text-muted">
-            Belum ada model pakaian untuk ditampilkan.
-          </div>
-        ) : visibleModels.length === 0 ? (
-          <div className="card-sharp space-y-3 p-6 text-center">
-            <p className="text-sm text-muted">
-              Tidak ada model yang cocok dengan pencarian &ldquo;{searchQuery.trim()}&rdquo;.
-            </p>
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="btn-secondary px-4 py-2 text-xs"
-            >
-              Tampilkan Semua
-            </button>
-          </div>
-        ) : (
-          <div
-            className={`relative grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 ${
-              draggingId !== null ? 'select-none' : ''
-            }`}
-          >
-            {visibleModels.map((model, index) => {
-              const globalIndex = globalIndexById.get(model.id) ?? index;
-              const isDragging = draggingId === model.id;
-              const isReorderLocked = reordering || isFiltering || models.length < 2;
-
-              return (
-                <article
-                  key={model.id}
-                  ref={(node) => {
-                    if (node) {
-                      cardRefs.current.set(model.id, node);
-                    } else {
-                      cardRefs.current.delete(model.id);
-                    }
-                  }}
-                  style={
-                    isDragging
-                      ? {
-                          transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) scale(1.01)`,
-                        }
-                      : undefined
-                  }
-                  className={`card-sharp flex flex-col justify-between p-4 transition-shadow duration-150 ${
-                    isDragging ? 'relative z-20 border-ink shadow-lg ring-1 ring-ink/15' : ''
-                  }`}
-                >
-                  <div className="mb-3 flex items-center justify-between gap-2 border-b border-line pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onPointerDown={(event) => handleDragHandlePointerDown(event, model)}
-                        onKeyDown={(event) => handleHandleKeyDown(event, globalIndex)}
-                        disabled={isReorderLocked}
-                        aria-label={`Seret untuk mengubah urutan ${model.name}`}
-                        title={
-                          isFiltering
-                            ? 'Kosongkan pencarian untuk menggeser urutan'
-                            : 'Tahan & geser atau tekan panah keyboard'
-                        }
-                        className="inline-flex h-11 w-11 touch-none cursor-grab items-center justify-center rounded-sm border border-line bg-[#FAFAFA] text-ink transition-colors hover:border-ink active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <svg
-                          viewBox="0 0 16 16"
-                          className="h-4 w-4 fill-current"
-                          aria-hidden="true"
-                        >
-                          <circle cx="5.5" cy="3.5" r="1.2" />
-                          <circle cx="10.5" cy="3.5" r="1.2" />
-                          <circle cx="5.5" cy="8" r="1.2" />
-                          <circle cx="10.5" cy="8" r="1.2" />
-                          <circle cx="5.5" cy="12.5" r="1.2" />
-                          <circle cx="10.5" cy="12.5" r="1.2" />
-                        </svg>
-                      </button>
-
-                      <span className="tabular-price inline-flex items-center rounded-sm border border-line bg-[#FAFAFA] px-3 py-1 text-xs font-semibold text-ink">
-                        #{globalIndex + 1}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleStepMove(globalIndex, -1)}
-                        disabled={globalIndex === 0 || isReorderLocked || draggingId !== null}
-                        aria-label={`Geser ${model.name} ke urutan sebelumnya`}
-                        title="Geser ke urutan sebelumnya"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-line bg-white text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleStepMove(globalIndex, 1)}
-                        disabled={
-                          globalIndex === models.length - 1 ||
-                          isReorderLocked ||
-                          draggingId !== null
-                        }
-                        aria-label={`Geser ${model.name} ke urutan berikutnya`}
-                        title="Geser ke urutan berikutnya"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-sm border border-line bg-white text-sm font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-35"
-                      >
-                        ↓
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
-                      {model.imageUrl ? (
-                        <img
-                          src={model.imageUrl}
-                          alt={model.name}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <span className="px-1 text-center text-xs text-muted">Tanpa foto</span>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="font-display text-base font-semibold text-ink">
-                          {model.name}
-                        </h3>
-                        <ActiveStatusBadge isActive={model.isActive} />
-                      </div>
-                      <p className="truncate font-mono text-xs text-muted">{model.slug}</p>
-                      <p className="tabular-price text-sm font-semibold text-ink">
-                        {formatRupiah(model.basePrice)}
-                      </p>
-                      {model.mockupTemplate ? (
-                        <p className="text-xs text-muted">
-                          Template mockup:{' '}
-                          <span className="font-mono text-ink">{model.mockupTemplate}</span>
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 border-t border-line pt-3">
-                    <p className="text-xs font-medium text-muted">
-                      Bahan kompatibel (
-                      <span className="tabular-price">{model.fabricIds.length}</span>)
-                    </p>
-                    {model.fabricIds.length > 0 ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {model.fabricIds.map((fid) => {
-                          const f = fabricMap.get(fid);
-                          return (
-                            <span
-                              key={fid}
-                              className="rounded-sm border border-line-strong bg-[#FAFAFA] px-2.5 py-0.5 font-mono text-[11px] text-ink"
-                            >
-                              {f ? f.code : `#${fid}`}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="mt-1 text-xs text-status-warn">
-                        Belum ada bahan terhubung. Klik &ldquo;Atur Bahan&rdquo;.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(model)}
-                      className="btn-secondary flex-1 px-3 py-2 sm:flex-none"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openLinkFabrics(model)}
-                      className="btn-secondary flex-1 px-3 py-2 sm:flex-none"
-                    >
-                      Atur Bahan
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleToggleActive(model)}
-                      disabled={busyId === model.id}
-                      className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 sm:flex-none ${
-                        model.isActive
-                          ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
-                          : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'
-                      }`}
-                    >
-                      {busyId === model.id
-                        ? 'Proses...'
-                        : model.isActive
-                          ? 'Nonaktifkan'
-                          : 'Aktifkan'}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
         )}
-      </section>
+      </Modal>
+
+      {/* Slide-Over Drawer Tambah / Edit Model */}
+      <AnimatePresence>
+        {drawerOpen ? (
+          <div className="fixed inset-0 z-50">
+            <motion.div
+              aria-hidden="true"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={closeDrawer}
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+            />
+
+            <motion.aside
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="model-drawer-title"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 38 }}
+              className="fixed inset-y-0 right-0 z-10 flex w-[94vw] max-w-[540px] flex-col border-l border-line bg-white"
+            >
+              <header className="flex h-16 shrink-0 items-center justify-between border-b border-line px-5 sm:px-6">
+                <div>
+                  <h2
+                    id="model-drawer-title"
+                    className="font-display text-base font-semibold text-ink"
+                  >
+                    {editingId !== null ? 'Edit Model Pakaian' : 'Tambah Model Pakaian'}
+                  </h2>
+                  <p className="text-xs text-muted">
+                    Harga dasar dalam rupiah penuh tanpa desimal.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  disabled={submitting}
+                  aria-label="Tutup panel form model"
+                  className="inline-flex h-10 w-10 min-h-[40px] items-center justify-center rounded-sm text-ink transition-colors hover:bg-surface disabled:opacity-40"
+                >
+                  <X size={20} strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              </header>
+
+              <form
+                onSubmit={(event) => void handleSubmit(event)}
+                className="flex flex-1 flex-col overflow-hidden"
+                noValidate
+              >
+                <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
+                  {drawerError ? (
+                    <AdminFeedbackBanner
+                      variant="error"
+                      message={drawerError.message}
+                      details={drawerError.details}
+                      onDismiss={() => setDrawerError(null)}
+                    />
+                  ) : null}
+
+                  <div>
+                    <label htmlFor="model-name" className="block text-sm font-medium text-ink">
+                      Nama Model
+                    </label>
+                    <input
+                      id="model-name"
+                      type="text"
+                      value={form.name}
+                      onChange={(event) => {
+                        const nextName = event.target.value;
+                        setForm((prev) => ({
+                          ...prev,
+                          name: nextName,
+                          slug: !slugTouched && editingId === null ? slugify(nextName) : prev.slug,
+                        }));
+                      }}
+                      placeholder="Kaos Lengan Pendek"
+                      className="input-sharp mt-1.5"
+                      disabled={submitting}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="model-slug" className="block text-sm font-medium text-ink">
+                      Slug Unik
+                    </label>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <input
+                        id="model-slug"
+                        type="text"
+                        value={form.slug}
+                        onChange={(event) => {
+                          setSlugTouched(true);
+                          setForm((prev) => ({
+                            ...prev,
+                            slug: event.target.value.toLowerCase().replace(/\s+/g, '-'),
+                          }));
+                        }}
+                        placeholder="kaos-lengan-pendek"
+                        className="input-sharp min-w-0 flex-1 font-mono"
+                        disabled={submitting}
+                      />
+                      <IconTooltip
+                        label="Samakan slug dengan nama"
+                        disabled={submitting || !form.name.trim()}
+                        onClick={() => {
+                          setForm((prev) => ({ ...prev, slug: slugify(prev.name) }));
+                          if (editingId === null) {
+                            setSlugTouched(false);
+                          }
+                        }}
+                        className="h-11 w-11 shrink-0 border border-neutral-300 bg-white hover:border-ink"
+                      >
+                        <Wand2 size={17} strokeWidth={1.5} aria-hidden="true" />
+                      </IconTooltip>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="model-category"
+                        className="block text-sm font-medium text-ink"
+                      >
+                        Kategori
+                      </label>
+                      <select
+                        id="model-category"
+                        value={form.categoryId}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, categoryId: event.target.value }))
+                        }
+                        className="input-sharp mt-1.5"
+                        disabled={submitting}
+                      >
+                        <option value="">Tanpa Kategori</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                            {!cat.isActive ? ' (Nonaktif)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="model-collection"
+                        className="block text-sm font-medium text-ink"
+                      >
+                        Koleksi / Series
+                      </label>
+                      <select
+                        id="model-collection"
+                        value={form.collectionId}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, collectionId: event.target.value }))
+                        }
+                        className="input-sharp mt-1.5"
+                        disabled={submitting}
+                      >
+                        <option value="">Tanpa Koleksi</option>
+                        {collections.map((col) => (
+                          <option key={col.id} value={col.id}>
+                            {col.name}
+                            {col.status === COLLECTION_STATUS.SOLD_OUT
+                              ? ' (Sold Out)'
+                              : col.status === COLLECTION_STATUS.ARCHIVED
+                                ? ' (Arsip)'
+                                : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="model-price" className="block text-sm font-medium text-ink">
+                        Harga Dasar (Rp)
+                      </label>
+                      <input
+                        id="model-price"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        value={form.basePrice}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, basePrice: event.target.value }))
+                        }
+                        className="input-sharp tabular-price mt-1.5"
+                        disabled={submitting}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="model-template"
+                        className="block text-sm font-medium text-ink"
+                      >
+                        Template Mockup (Opsional)
+                      </label>
+                      <input
+                        id="model-template"
+                        type="text"
+                        value={form.mockupTemplate}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, mockupTemplate: event.target.value }))
+                        }
+                        placeholder="tee-short"
+                        className="input-sharp mt-1.5 font-mono"
+                        disabled={submitting}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="model-description"
+                      className="block text-sm font-medium text-ink"
+                    >
+                      Deskripsi (Opsional)
+                    </label>
+                    <input
+                      id="model-description"
+                      type="text"
+                      value={form.description}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, description: event.target.value }))
+                      }
+                      placeholder="Keterangan singkat model"
+                      className="input-sharp mt-1.5"
+                      disabled={submitting}
+                    />
+                  </div>
+
+                  <CatalogImageField
+                    id="model-image-upload"
+                    label="Foto Model Pakaian"
+                    folder="models"
+                    pathValue={form.imagePath}
+                    existingUrl={form.imageUrl}
+                    onChange={(nextPath, nextUrl) =>
+                      setForm((prev) => ({ ...prev, imagePath: nextPath, imageUrl: nextUrl }))
+                    }
+                    disabled={submitting}
+                  />
+                </div>
+
+                <footer className="flex shrink-0 items-center justify-end gap-2.5 border-t border-line bg-[#FAFAFA] px-5 py-4 sm:px-6">
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    disabled={submitting}
+                    className="btn-secondary px-4 py-2 text-xs"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn-primary px-5 py-2 text-xs"
+                  >
+                    {submitting
+                      ? 'Menyimpan...'
+                      : editingId !== null
+                        ? 'Simpan Perubahan'
+                        : 'Tambah Model'}
+                  </button>
+                </footer>
+              </form>
+            </motion.aside>
+          </div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

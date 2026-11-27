@@ -184,8 +184,7 @@ export default function PaymentAccounts() {
               Rekening &amp; QRIS
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Kelola rekening bank dan kode QRIS resmi toko. Hanya akun pembayaran berstatus aktif
-              yang akan ditampilkan ke pelanggan saat memilih metode bayar.
+              Rekening dan QRIS aktif tampil saat pelanggan membayar.
             </p>
           </div>
 
@@ -319,11 +318,11 @@ export default function PaymentAccounts() {
 
           <CatalogImageField
             id="pa-qris-upload"
-            label="Gambar Kode QRIS (Folder qris)"
+            label="Gambar Kode QRIS"
             folder="qris"
             pathValue={form.qrImagePath}
             existingUrl={form.qrImageUrl}
-            helperText="Resolusi <= 2000px dipertahankan tanpa diperkecil agar QR mudah dipindai."
+            helperText="Gunakan gambar QR jelas agar mudah dipindai."
             onChange={(nextPath, nextUrl) =>
               setForm((prev) => ({ ...prev, qrImagePath: nextPath, qrImageUrl: nextUrl }))
             }

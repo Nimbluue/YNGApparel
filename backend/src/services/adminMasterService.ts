@@ -4,8 +4,14 @@ import {
   type AppSettingKey,
   type AppSettingsMapDto,
   type AppSettingsResponseDto,
+  type CatalogCategoryDto,
+  type CatalogCategorySummaryDto,
+  type CatalogCollectionDto,
+  type CatalogCollectionSummaryDto,
   type CatalogImageFolder,
   type CatalogImageUploadDto,
+  type CreateCatalogCategoryDto,
+  type CreateCatalogCollectionDto,
   type CreateFabricColorDto,
   type CreateFabricDto,
   type CreateGarmentModelDto,
@@ -17,8 +23,11 @@ import {
   type GarmentModelDto,
   type PaymentAccountDto,
   type PrintSizeDto,
+  type ReorderCatalogEntitiesDto,
   type SizeDto,
   type UpdateAppSettingsDto,
+  type UpdateCatalogCategoryDto,
+  type UpdateCatalogCollectionDto,
   type UpdateFabricColorDto,
   type UpdateFabricDto,
   type UpdateGarmentModelDto,
@@ -30,6 +39,8 @@ import { APP_SETTING_KEYS, STORAGE_BUCKETS } from '../config/constants.js';
 import { AppError } from '../middleware/errorHandler.js';
 import masterModel, {
   type AppSettingRow,
+  type CatalogCategoryRow,
+  type CatalogCollectionRow,
   type FabricColorRow,
   type FabricRow,
   type GarmentModelRow,
@@ -134,7 +145,67 @@ export function createAdminMasterService(deps: AdminMasterServiceDeps) {
     processImage = processCatalogImage,
   } = deps;
 
-  function toGarmentModelDto(row: GarmentModelRow, fabricIds: number[]): GarmentModelDto {
+  function toCategorySummaryDto(
+    row: CatalogCategoryRow | null | undefined
+  ): CatalogCategorySummaryDto | null {
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      sizeChartImageUrl: getPublicCatalogUrl(row.size_chart_image_path),
+    };
+  }
+
+  function toCollectionSummaryDto(
+    row: CatalogCollectionRow | null | undefined
+  ): CatalogCollectionSummaryDto | null {
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      status: row.status,
+    };
+  }
+
+  function toCategoryDto(row: CatalogCategoryRow): CatalogCategoryDto {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      sizeChartImagePath: row.size_chart_image_path,
+      sizeChartImageUrl: getPublicCatalogUrl(row.size_chart_image_path),
+      sortOrder: row.sort_order,
+      isActive: row.is_active,
+      activeModelCount: row.active_model_count ?? 0,
+      createdAt: toIsoString(row.created_at),
+      updatedAt: toIsoString(row.updated_at),
+    };
+  }
+
+  function toCollectionDto(row: CatalogCollectionRow): CatalogCollectionDto {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      status: row.status,
+      sortOrder: row.sort_order,
+      isActive: row.is_active,
+      activeModelCount: row.active_model_count ?? 0,
+      createdAt: toIsoString(row.created_at),
+      updatedAt: toIsoString(row.updated_at),
+    };
+  }
+
+  function toGarmentModelDto(
+    row: GarmentModelRow,
+    fabricIds: number[],
+    categoryRow?: CatalogCategoryRow | null,
+    collectionRow?: CatalogCollectionRow | null
+  ): GarmentModelDto {
     return {
       id: row.id,
       slug: row.slug,
@@ -144,12 +215,27 @@ export function createAdminMasterService(deps: AdminMasterServiceDeps) {
       imagePath: row.image_path,
       imageUrl: getPublicCatalogUrl(row.image_path),
       mockupTemplate: row.mockup_template,
+      categoryId: row.category_id ?? null,
+      collectionId: row.collection_id ?? null,
+      category: toCategorySummaryDto(categoryRow),
+      collection: toCollectionSummaryDto(collectionRow),
       sortOrder: row.sort_order,
       isActive: row.is_active,
       fabricIds,
       createdAt: toIsoString(row.created_at),
       updatedAt: toIsoString(row.updated_at),
     };
+  }
+
+  async function resolveModelRelations(row: GarmentModelRow): Promise<{
+    categoryRow: CatalogCategoryRow | null;
+    collectionRow: CatalogCollectionRow | null;
+  }> {
+    const [categoryRow, collectionRow] = await Promise.all([
+      row.category_id ? masterRepo.findCategoryById(row.category_id) : Promise.resolve(null),
+      row.collection_id ? masterRepo.findCollectionById(row.collection_id) : Promise.resolve(null),
+    ]);
+    return { categoryRow, collectionRow };
   }
 
   function toFabricDto(row: FabricRow, colors: readonly FabricColorRow[]): FabricDto {
@@ -226,21 +312,149 @@ export function createAdminMasterService(deps: AdminMasterServiceDeps) {
       };
     },
 
+    // ── Kategori Pakaian & Size Chart ─────────────────────────────────────
+    async listCategories(includeInactive: boolean): Promise<CatalogCategoryDto[]> {
+      const rows = await masterRepo.listCategories(includeInactive);
+      return rows.map(toCategoryDto);
+    },
+
+    async createCategory(input: CreateCatalogCategoryDto): Promise<CatalogCategoryDto> {
+      const created = await masterRepo.createCategory(input);
+      return toCategoryDto(created);
+    },
+
+    async updateCategory(id: string, patch: UpdateCatalogCategoryDto): Promise<CatalogCategoryDto> {
+      const existing = await masterRepo.findCategoryById(id);
+      if (!existing) {
+        throw new AppError('Kategori pakaian tidak ditemukan.', 404);
+      }
+
+      const updated = await masterRepo.updateCategory(id, patch);
+      if (!updated) {
+        throw new AppError('Kategori pakaian tidak ditemukan.', 404);
+      }
+
+      if (
+        patch.sizeChartImagePath !== undefined &&
+        existing.size_chart_image_path &&
+        existing.size_chart_image_path !== updated.size_chart_image_path
+      ) {
+        await cleanupReplacedPaths([existing.size_chart_image_path]);
+      }
+
+      return toCategoryDto(updated);
+    },
+
+    async deactivateCategory(id: string): Promise<CatalogCategoryDto> {
+      const deactivated = await masterRepo.deactivateCategory(id);
+      if (!deactivated) {
+        throw new AppError('Kategori pakaian tidak ditemukan.', 404);
+      }
+      return toCategoryDto(deactivated);
+    },
+
+    async reorderCategories(
+      items: ReorderCatalogEntitiesDto['items']
+    ): Promise<CatalogCategoryDto[]> {
+      const rows = await masterRepo.reorderCategories(items);
+      return rows.map(toCategoryDto);
+    },
+
+    // ── Koleksi / Series ──────────────────────────────────────────────────
+    async listCollections(includeInactive: boolean): Promise<CatalogCollectionDto[]> {
+      const rows = await masterRepo.listCollections(includeInactive);
+      return rows.map(toCollectionDto);
+    },
+
+    async createCollection(input: CreateCatalogCollectionDto): Promise<CatalogCollectionDto> {
+      const created = await masterRepo.createCollection(input);
+      return toCollectionDto(created);
+    },
+
+    async updateCollection(
+      id: string,
+      patch: UpdateCatalogCollectionDto
+    ): Promise<CatalogCollectionDto> {
+      const existing = await masterRepo.findCollectionById(id);
+      if (!existing) {
+        throw new AppError('Koleksi tidak ditemukan.', 404);
+      }
+
+      const updated = await masterRepo.updateCollection(id, patch);
+      if (!updated) {
+        throw new AppError('Koleksi tidak ditemukan.', 404);
+      }
+      return toCollectionDto(updated);
+    },
+
+    async deactivateCollection(id: string): Promise<CatalogCollectionDto> {
+      const deactivated = await masterRepo.deactivateCollection(id);
+      if (!deactivated) {
+        throw new AppError('Koleksi tidak ditemukan.', 404);
+      }
+      return toCollectionDto(deactivated);
+    },
+
+    async reorderCollections(
+      items: ReorderCatalogEntitiesDto['items']
+    ): Promise<CatalogCollectionDto[]> {
+      const rows = await masterRepo.reorderCollections(items);
+      return rows.map(toCollectionDto);
+    },
+
     // ── Model Pakaian & Relasi Bahan ──────────────────────────────────────
     async listModels(includeInactive: boolean): Promise<GarmentModelDto[]> {
-      const { models, fabricIdsByModel } = await masterRepo.listModels(includeInactive);
-      return models.map((row) => toGarmentModelDto(row, fabricIdsByModel.get(row.id) ?? []));
+      const { models, fabricIdsByModel, categoriesById, collectionsById } =
+        await masterRepo.listModels(includeInactive);
+      return models.map((row) =>
+        toGarmentModelDto(
+          row,
+          fabricIdsByModel.get(row.id) ?? [],
+          row.category_id ? categoriesById.get(row.category_id) : null,
+          row.collection_id ? collectionsById.get(row.collection_id) : null
+        )
+      );
     },
 
     async createModel(input: CreateGarmentModelDto): Promise<GarmentModelDto> {
+      let categoryRow: CatalogCategoryRow | null = null;
+      if (input.categoryId) {
+        categoryRow = await masterRepo.findCategoryById(input.categoryId);
+        if (!categoryRow) {
+          throw new AppError('Kategori pakaian yang dipilih tidak ditemukan.', 400);
+        }
+      }
+
+      let collectionRow: CatalogCollectionRow | null = null;
+      if (input.collectionId) {
+        collectionRow = await masterRepo.findCollectionById(input.collectionId);
+        if (!collectionRow) {
+          throw new AppError('Koleksi yang dipilih tidak ditemukan.', 400);
+        }
+      }
+
       const created = await masterRepo.createModel(input);
-      return toGarmentModelDto(created, []);
+      return toGarmentModelDto(created, [], categoryRow, collectionRow);
     },
 
     async updateModel(id: number, patch: UpdateGarmentModelDto): Promise<GarmentModelDto> {
       const existing = await masterRepo.findModelById(id);
       if (!existing) {
         throw new AppError('Model pakaian tidak ditemukan.', 404);
+      }
+
+      if (patch.categoryId) {
+        const category = await masterRepo.findCategoryById(patch.categoryId);
+        if (!category) {
+          throw new AppError('Kategori pakaian yang dipilih tidak ditemukan.', 400);
+        }
+      }
+
+      if (patch.collectionId) {
+        const collection = await masterRepo.findCollectionById(patch.collectionId);
+        if (!collection) {
+          throw new AppError('Koleksi yang dipilih tidak ditemukan.', 400);
+        }
       }
 
       // Pembaruan basePrice hanya mengubah master; snapshot locked_base_price pada order lama tetap terkunci.
@@ -257,8 +471,11 @@ export function createAdminMasterService(deps: AdminMasterServiceDeps) {
         await cleanupReplacedPaths([existing.image_path]);
       }
 
-      const fabricIds = await masterRepo.findModelFabricIds(id);
-      return toGarmentModelDto(updated, fabricIds);
+      const [fabricIds, relations] = await Promise.all([
+        masterRepo.findModelFabricIds(id),
+        resolveModelRelations(updated),
+      ]);
+      return toGarmentModelDto(updated, fabricIds, relations.categoryRow, relations.collectionRow);
     },
 
     async deactivateModel(id: number): Promise<GarmentModelDto> {
@@ -266,8 +483,16 @@ export function createAdminMasterService(deps: AdminMasterServiceDeps) {
       if (!deactivated) {
         throw new AppError('Model pakaian tidak ditemukan.', 404);
       }
-      const fabricIds = await masterRepo.findModelFabricIds(id);
-      return toGarmentModelDto(deactivated, fabricIds);
+      const [fabricIds, relations] = await Promise.all([
+        masterRepo.findModelFabricIds(id),
+        resolveModelRelations(deactivated),
+      ]);
+      return toGarmentModelDto(
+        deactivated,
+        fabricIds,
+        relations.categoryRow,
+        relations.collectionRow
+      );
     },
 
     async replaceModelFabrics(modelId: number, fabricIds: number[]): Promise<GarmentModelDto> {
@@ -279,7 +504,13 @@ export function createAdminMasterService(deps: AdminMasterServiceDeps) {
       if (!model) {
         throw new AppError('Model pakaian tidak ditemukan.', 404);
       }
-      return toGarmentModelDto(model, updatedFabricIds);
+      const relations = await resolveModelRelations(model);
+      return toGarmentModelDto(
+        model,
+        updatedFabricIds,
+        relations.categoryRow,
+        relations.collectionRow
+      );
     },
 
     // ── Bahan & Preset Warna ──────────────────────────────────────────────

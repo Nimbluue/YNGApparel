@@ -9,7 +9,12 @@ import { EditorialButton } from '../components/ui/EditorialButton';
 import { Skeleton } from '../components/ui/Skeleton';
 import { WishlistHeartButton } from '../components/ui/WishlistHeartButton';
 import { useLanguage } from '../context/LanguageContext';
-import { catalogQueryKeys, getCatalogFabrics, getCatalogModels } from '../services/catalogService';
+import {
+  catalogQueryKeys,
+  getCatalogCategories,
+  getCatalogFabrics,
+  getCatalogModels,
+} from '../services/catalogService';
 import { formatRupiah } from '../utils/formatRupiah';
 
 const REVEAL_TRANSITION = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
@@ -24,6 +29,12 @@ export default function Home() {
     retry: false,
   });
 
+  const categoriesQuery = useQuery({
+    queryKey: catalogQueryKeys.categories,
+    queryFn: getCatalogCategories,
+    retry: false,
+  });
+
   const fabricsQuery = useQuery({
     queryKey: catalogQueryKeys.fabrics,
     queryFn: getCatalogFabrics,
@@ -31,6 +42,16 @@ export default function Home() {
   });
 
   const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
+  const categories = useMemo(() => {
+    const raw = categoriesQuery.data ?? [];
+    return raw.map((category) => ({
+      ...category,
+      coverImageUrl:
+        models.find((m) => m.categoryId === category.id && Boolean(m.imageUrl))?.imageUrl ??
+        models.find((m) => m.categoryId === category.id)?.imageUrl ??
+        null,
+    }));
+  }, [categoriesQuery.data, models]);
   const fabrics = useMemo(() => fabricsQuery.data ?? [], [fabricsQuery.data]);
 
   const heroSlides = useMemo(() => {
@@ -203,7 +224,7 @@ export default function Home() {
       </section>
 
       {/* 2. Carousel KATEGORI */}
-      {modelsQuery.isLoading || models.length > 0 ? (
+      {categoriesQuery.isLoading || categories.length > 0 ? (
         <section
           aria-labelledby="home-category-heading"
           className="mx-auto w-full max-w-[1400px] px-4 py-14 sm:px-6 sm:py-20 lg:px-8 xl:px-12"
@@ -215,7 +236,7 @@ export default function Home() {
             {t('home.categoryHeading')}
           </h2>
 
-          {modelsQuery.isLoading ? (
+          {categoriesQuery.isLoading ? (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <Skeleton className="aspect-[3/4] w-full rounded-none" />
               <Skeleton className="aspect-[3/4] w-full rounded-none" />
@@ -228,25 +249,25 @@ export default function Home() {
               prevLabel={t('home.prevSlide')}
               nextLabel={t('home.nextSlide')}
             >
-              {models.map((model) => (
+              {categories.map((category) => (
                 <div
-                  key={model.id}
+                  key={category.id}
                   className="min-w-0 shrink-0 basis-[74%] pl-4 sm:basis-[44%] md:basis-[31%] lg:basis-[24%]"
                 >
                   <Link
-                    to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
+                    to={`/katalog?kategori=${encodeURIComponent(category.slug)}`}
                     className="group relative block aspect-[3/4] w-full overflow-hidden bg-surface focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
                   >
-                    {model.imageUrl ? (
+                    {category.coverImageUrl ? (
                       <img
-                        src={model.imageUrl}
-                        alt={model.name}
+                        src={category.coverImageUrl}
+                        alt={category.name}
                         className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-[#181818] px-4 text-center">
                         <span className="font-display text-xs uppercase tracking-[0.2em] text-neutral-400">
-                          {model.name}
+                          {category.name}
                         </span>
                       </div>
                     )}
@@ -254,9 +275,14 @@ export default function Home() {
                       aria-hidden="true"
                       className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent"
                     />
-                    <span className="absolute inset-x-4 bottom-4 font-display text-xs font-semibold uppercase tracking-[0.18em] text-white sm:text-sm">
-                      {model.name}
-                    </span>
+                    <div className="absolute inset-x-4 bottom-4 flex items-baseline justify-between gap-2 text-white">
+                      <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">
+                        {category.name}
+                      </span>
+                      <span className="font-mono text-[10px] tracking-[0.08em] text-neutral-300 tabular-nums">
+                        {t('home.categoryModelsCount', { count: category.activeModelCount })}
+                      </span>
+                    </div>
                   </Link>
                 </div>
               ))}

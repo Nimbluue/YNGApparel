@@ -1,15 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
-import { USER_ROLE } from '@yng/shared';
+import { COLLECTION_STATUS, USER_ROLE } from '@yng/shared';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Heart, LogOut, Package, Shield, User, X } from 'lucide-react';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { ArrowRight, Heart, LogOut, Package, Shield, User, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { catalogQueryKeys, getCatalogModels } from '../../services/catalogService';
+import {
+  catalogQueryKeys,
+  getCatalogCategories,
+  getCatalogCollections,
+} from '../../services/catalogService';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 export interface MobileNavDrawerProps {
@@ -19,9 +23,8 @@ export interface MobileNavDrawerProps {
 }
 
 /**
- * Drawer navigasi mobile dari kiri (`360px` friendly) dengan kategori model, bahasa, dan akun.
+ * Drawer navigasi mobile dari kiri (`360px` friendly) dengan kategori dinamis, koleksi, bahasa, dan akun.
  */
-// ASSUMPTION: karena skema katalog belum memiliki entitas kategori terpisah, menu Kategori memetakan setiap model aktif ke `/custom-lab?model=<slug>` dan tautan koleksi ke `/katalog`.
 export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDrawerProps) {
   const { user, isGuest, logout } = useAuth();
   const { t } = useLanguage();
@@ -34,9 +37,15 @@ export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDraw
   useBodyScrollLock(open);
   useEscapeKey(open, onClose);
 
-  const modelsQuery = useQuery({
-    queryKey: catalogQueryKeys.models,
-    queryFn: getCatalogModels,
+  const categoriesQuery = useQuery({
+    queryKey: catalogQueryKeys.categories,
+    queryFn: getCatalogCategories,
+    enabled: open,
+  });
+
+  const collectionsQuery = useQuery({
+    queryKey: catalogQueryKeys.collections,
+    queryFn: getCatalogCollections,
     enabled: open,
   });
 
@@ -67,7 +76,8 @@ export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDraw
   }
 
   const firstName = user?.fullName?.trim().split(/\s+/)[0] || '';
-  const models = modelsQuery.data ?? [];
+  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
+  const collections = useMemo(() => collectionsQuery.data ?? [], [collectionsQuery.data]);
 
   return (
     <AnimatePresence>
@@ -156,35 +166,77 @@ export function MobileNavDrawer({ open, onClose, returnFocusRef }: MobileNavDraw
                 </NavLink>
               </div>
 
-              <div className="py-4">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-                  {t('nav.categories')}
-                </p>
-                <ul className="space-y-0.5">
-                  {models.map((model, index) => (
-                    <li key={model.id}>
-                      <Link
-                        to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
-                        onClick={onClose}
-                        className="flex min-h-touch items-center gap-3 py-1.5 text-sm text-ink transition-colors hover:text-muted"
-                      >
-                        <span className="font-mono text-[11px] text-muted tabular-nums">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                        <span className="truncate">{model.name}</span>
-                      </Link>
-                    </li>
-                  ))}
-                  <li>
-                    <Link
-                      to="/katalog"
-                      onClick={onClose}
-                      className="flex min-h-touch items-center py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-ink"
-                    >
-                      {t('nav.allCollections')}
-                    </Link>
-                  </li>
-                </ul>
+              <div className="space-y-4 py-4">
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                    {t('nav.categoriesHeading')}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {categories.map((category) => (
+                      <li key={category.id}>
+                        <Link
+                          to={`/katalog?kategori=${encodeURIComponent(category.slug)}`}
+                          onClick={onClose}
+                          className="flex min-h-touch items-center justify-between gap-3 py-1.5 text-sm text-ink transition-colors hover:text-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+                        >
+                          <span className="truncate font-medium">{category.name}</span>
+                          <span className="font-mono text-[11px] text-muted tabular-nums">
+                            {category.activeModelCount}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {collections.length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
+                      {t('nav.collectionsHeading')}
+                    </p>
+                    <ul className="space-y-0.5">
+                      {collections.map((collection) => {
+                        const isSoldOut = collection.status === COLLECTION_STATUS.SOLD_OUT;
+                        return (
+                          <li key={collection.id}>
+                            <Link
+                              to={`/katalog?koleksi=${encodeURIComponent(collection.slug)}`}
+                              onClick={onClose}
+                              className="flex min-h-touch items-center justify-between gap-3 py-1.5 text-sm text-ink transition-colors hover:text-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+                            >
+                              <span
+                                className={`truncate font-medium ${
+                                  isSoldOut ? 'text-muted' : 'text-ink'
+                                }`}
+                              >
+                                {collection.name}
+                              </span>
+                              <span className="flex shrink-0 items-center gap-2">
+                                {isSoldOut ? (
+                                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
+                                    {t('nav.soldOut')}
+                                  </span>
+                                ) : null}
+                                <span className="font-mono text-[11px] text-muted tabular-nums">
+                                  {collection.activeModelCount}
+                                </span>
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+
+                <Link
+                  to="/katalog"
+                  onClick={onClose}
+                  className="flex min-h-touch items-center justify-between border-t border-line pt-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+                >
+                  <span>{t('nav.allCollections')}</span>
+                  <ArrowRight size={14} strokeWidth={1.5} aria-hidden="true" />
+                </Link>
               </div>
 
               <div className="space-y-3 py-4">

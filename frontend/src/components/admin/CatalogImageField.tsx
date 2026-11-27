@@ -10,7 +10,7 @@ const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 interface CatalogImageFieldProps {
   id: string;
   label: string;
-  folder: 'models' | 'fabrics' | 'qris';
+  folder: 'models' | 'fabrics' | 'qris' | 'size-charts';
   pathValue: string | null;
   existingUrl: string | null;
   onChange: (nextPath: string | null, nextPreviewUrl: string | null) => void;

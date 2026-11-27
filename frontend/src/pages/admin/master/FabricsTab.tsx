@@ -377,14 +377,9 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
-          <div>
-            <h2 className="font-display text-base font-semibold text-ink">
-              {editingFabricId !== null ? 'Edit Bahan Pakaian' : 'Tambah Bahan Pakaian'}
-            </h2>
-            <p className="text-xs text-muted">
-              Kelola spesifikasi bahan, tambahan harga, dan foto serat makro.
-            </p>
-          </div>
+          <h2 className="font-display text-base font-semibold text-ink">
+            {editingFabricId !== null ? 'Edit Bahan Pakaian' : 'Tambah Bahan Pakaian'}
+          </h2>
           {editingFabricId !== null ? (
             <button type="button" onClick={resetFabricForm} className="btn-secondary px-4 py-2">
               Batal Edit
@@ -567,7 +562,7 @@ export default function FabricsTab({ includeInactive }: FabricsTabProps) {
 
             <CatalogImageField
               id="fabric-macro-upload"
-              label="Foto Makro Serat (Fabric Lab)"
+              label="Foto Detail Serat"
               folder="fabrics"
               pathValue={form.macroImagePath}
               existingUrl={form.macroImageUrl}

@@ -1,8 +1,12 @@
 import type {
   ApiSuccessResponse,
   AppSettingsResponseDto,
+  CatalogCategoryDto,
+  CatalogCollectionDto,
   CatalogImageFolder,
   CatalogImageUploadDto,
+  CreateCatalogCategoryDto,
+  CreateCatalogCollectionDto,
   CreateFabricColorDto,
   CreateFabricDto,
   CreateGarmentModelDto,
@@ -14,9 +18,12 @@ import type {
   GarmentModelDto,
   PaymentAccountDto,
   PrintSizeDto,
+  ReorderCatalogEntitiesDto,
   ReplaceModelFabricsDto,
   SizeDto,
   UpdateAppSettingsDto,
+  UpdateCatalogCategoryDto,
+  UpdateCatalogCollectionDto,
   UpdateFabricColorDto,
   UpdateFabricDto,
   UpdateGarmentModelDto,
@@ -47,6 +54,98 @@ export async function uploadCatalogImage(
       headers: { 'Content-Type': undefined },
       timeout: 30000,
     }
+  );
+  return response.data.data;
+}
+
+// ── Kategori Pakaian & Size Chart ──────────────────────────────────────────
+export async function listCategories(includeInactive = false): Promise<CatalogCategoryDto[]> {
+  const response = await api.get<ApiSuccessResponse<CatalogCategoryDto[]>>('/admin/categories', {
+    params: buildIncludeInactiveParams(includeInactive),
+  });
+  return response.data.data;
+}
+
+export async function createCategory(
+  payload: CreateCatalogCategoryDto
+): Promise<CatalogCategoryDto> {
+  const response = await api.post<ApiSuccessResponse<CatalogCategoryDto>>(
+    '/admin/categories',
+    payload
+  );
+  return response.data.data;
+}
+
+export async function updateCategory(
+  id: string,
+  payload: UpdateCatalogCategoryDto
+): Promise<CatalogCategoryDto> {
+  const response = await api.patch<ApiSuccessResponse<CatalogCategoryDto>>(
+    `/admin/categories/${encodeURIComponent(id)}`,
+    payload
+  );
+  return response.data.data;
+}
+
+export async function deactivateCategory(id: string): Promise<CatalogCategoryDto> {
+  const response = await api.delete<ApiSuccessResponse<CatalogCategoryDto>>(
+    `/admin/categories/${encodeURIComponent(id)}`
+  );
+  return response.data.data;
+}
+
+export async function reorderCategories(
+  payload: ReorderCatalogEntitiesDto
+): Promise<CatalogCategoryDto[]> {
+  const response = await api.patch<ApiSuccessResponse<CatalogCategoryDto[]>>(
+    '/admin/categories/reorder',
+    payload
+  );
+  return response.data.data;
+}
+
+// ── Koleksi / Series ───────────────────────────────────────────────────────
+export async function listCollections(includeInactive = false): Promise<CatalogCollectionDto[]> {
+  const response = await api.get<ApiSuccessResponse<CatalogCollectionDto[]>>('/admin/collections', {
+    params: buildIncludeInactiveParams(includeInactive),
+  });
+  return response.data.data;
+}
+
+export async function createCollection(
+  payload: CreateCatalogCollectionDto
+): Promise<CatalogCollectionDto> {
+  const response = await api.post<ApiSuccessResponse<CatalogCollectionDto>>(
+    '/admin/collections',
+    payload
+  );
+  return response.data.data;
+}
+
+export async function updateCollection(
+  id: string,
+  payload: UpdateCatalogCollectionDto
+): Promise<CatalogCollectionDto> {
+  const response = await api.patch<ApiSuccessResponse<CatalogCollectionDto>>(
+    `/admin/collections/${encodeURIComponent(id)}`,
+    payload
+  );
+  return response.data.data;
+}
+
+export async function deactivateCollection(id: string): Promise<CatalogCollectionDto> {
+  const response = await api.delete<ApiSuccessResponse<CatalogCollectionDto>>(
+    `/admin/collections/${encodeURIComponent(id)}`
+  );
+  return response.data.data;
+}
+
+export async function reorderCollections(
+  payload: ReorderCatalogEntitiesDto
+): Promise<CatalogCollectionDto[]> {
+  const response = await api.patch<ApiSuccessResponse<CatalogCollectionDto[]>>(
+    '/admin/collections/reorder',
+    payload
   );
   return response.data.data;
 }

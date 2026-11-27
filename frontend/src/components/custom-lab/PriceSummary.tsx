@@ -80,34 +80,13 @@ export function PriceSummary({
     serverItem?.fabricAdditionalPrice ?? localEstimate.fabricAdditionalPrice;
   const printSpotsTotal = serverItem?.printSpotsTotal ?? localEstimate.printSpotsTotal;
 
-  const syncStatusBadge = quoteError ? (
-    <span className="inline-flex items-center rounded-sm border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-status-err">
-      {pick('Validasi server', 'Server validation')}
-    </span>
-  ) : isQuotePending ? (
-    <span className="inline-flex items-center rounded-sm border border-line bg-[#FAFAFA] px-2.5 py-0.5 text-xs font-medium text-muted">
-      {pick('Menghitung server...', 'Calculating on server...')}
-    </span>
-  ) : serverQuote ? (
-    <span className="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-status-ok">
-      {pick('Harga resmi server', 'Official server price')}
-    </span>
-  ) : (
-    <span className="inline-flex items-center rounded-sm border border-line bg-[#FAFAFA] px-2.5 py-0.5 text-xs font-medium text-muted">
-      {pick('Estimasi sementara', 'Live estimate')}
-    </span>
-  );
-
   const summaryBody = (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
-        <div>
-          <p className="eyebrow">{pick('Ringkasan Harga', 'Price Summary')}</p>
-          <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-            {modelName ?? pick('Belum pilih model', 'No model selected')}
-          </h2>
-        </div>
-        {syncStatusBadge}
+      <div className="border-b border-line pb-4">
+        <p className="eyebrow">{pick('Ringkasan Harga', 'Price Summary')}</p>
+        <h2 className="mt-1 font-display text-lg font-semibold text-ink">
+          {modelName ?? pick('Belum pilih model', 'No model selected')}
+        </h2>
       </div>
 
       <dl className="space-y-2.5 text-sm">
@@ -120,17 +99,14 @@ export function PriceSummary({
           <dd className="text-right font-medium text-ink">{colorSummary ?? '—'}</dd>
         </div>
         <div className="flex items-start justify-between gap-3">
-          <dt className="text-muted">{pick('Titik Sablon', 'Print Spots')}</dt>
+          <dt className="text-muted">{pick('Desain Sablon', 'Print Design')}</dt>
           <dd className="text-right font-medium text-ink">
             {printSpotsCount > 0 ? (
               <>
-                <span className="tabular-price">{printSpotsCount}</span> {pick('titik', 'spots')}
+                <span className="tabular-price">{printSpotsCount}</span> {pick('desain', 'prints')}
               </>
             ) : (
-              <>
-                {pick('Polos', 'Plain')} (<span className="tabular-price">0</span>{' '}
-                {pick('titik', 'spots')})
-              </>
+              pick('Polos', 'Plain')
             )}
           </dd>
         </div>
@@ -297,8 +273,8 @@ export function PriceSummary({
       ) : !isReadyForServerQuote ? (
         <p className="rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs text-muted">
           {pick(
-            'Lengkapi pilihan bahan, warna, jumlah ukuran, dan ukuran sablon untuk menghitung harga resmi server.',
-            'Complete fabric, color, size quantities, and print size to calculate the official server quote.'
+            'Lengkapi bahan, warna, ukuran, dan desain untuk melihat total akhir.',
+            'Complete fabric, color, sizes, and print options to see final total.'
           )}
         </p>
       ) : null}
@@ -309,7 +285,11 @@ export function PriceSummary({
             {pick('Total', 'Total')} (
             <span className="tabular-price text-ink">{activeTotalQty} pcs</span>)
           </span>
-          <span className="tabular-price text-xl font-bold text-ink">
+          <span
+            className={`tabular-price text-xl font-bold text-ink transition-opacity ${
+              isQuotePending ? 'opacity-65' : ''
+            }`}
+          >
             {formatRupiah(activeSubtotal)}
           </span>
         </div>

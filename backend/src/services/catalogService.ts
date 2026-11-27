@@ -1,5 +1,9 @@
 import type {
   AppSettingKey,
+  CatalogCategorySummaryDto,
+  CatalogCollectionSummaryDto,
+  PublicCatalogCategoryDto,
+  PublicCatalogCollectionDto,
   PublicCatalogConfigDto,
   PublicFabricColorDto,
   PublicFabricDto,
@@ -15,6 +19,8 @@ import { AppError } from '../middleware/errorHandler.js';
 import catalogModel, { type CatalogRepository } from '../models/catalogModel.js';
 import type {
   AppSettingRow,
+  CatalogCategoryRow,
+  CatalogCollectionRow,
   FabricColorRow,
   FabricRow,
   GarmentModelRow,
@@ -96,10 +102,62 @@ function toPublicCatalogConfigDto(rows: readonly AppSettingRow[]): PublicCatalog
 export function createCatalogService(deps: CatalogServiceDeps) {
   const { catalogRepo, getPublicCatalogUrl } = deps;
 
+  function toCategorySummaryDto(
+    row: CatalogCategoryRow | null | undefined
+  ): CatalogCategorySummaryDto | null {
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      sizeChartImageUrl: getPublicCatalogUrl(row.size_chart_image_path),
+    };
+  }
+
+  function toCollectionSummaryDto(
+    row: CatalogCollectionRow | null | undefined
+  ): CatalogCollectionSummaryDto | null {
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      status: row.status,
+    };
+  }
+
+  function toPublicCategoryDto(row: CatalogCategoryRow): PublicCatalogCategoryDto {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      sizeChartImageUrl: getPublicCatalogUrl(row.size_chart_image_path),
+      sortOrder: toNumber(row.sort_order),
+      activeModelCount: toNumber(row.active_model_count ?? 0),
+    };
+  }
+
+  function toPublicCollectionDto(row: CatalogCollectionRow): PublicCatalogCollectionDto {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      status: row.status,
+      sortOrder: toNumber(row.sort_order),
+      activeModelCount: toNumber(row.active_model_count ?? 0),
+    };
+  }
+
   function toPublicGarmentModelDto(
     row: GarmentModelRow,
-    fabricIds: number[]
+    fabricIds: number[],
+    categoryRow?: CatalogCategoryRow | null,
+    collectionRow?: CatalogCollectionRow | null
   ): PublicGarmentModelDto {
+    const resolvedCategory = toCategorySummaryDto(categoryRow);
+    const resolvedCollection = toCollectionSummaryDto(collectionRow);
     return {
       id: toNumber(row.id),
       slug: row.slug,
@@ -108,6 +166,10 @@ export function createCatalogService(deps: CatalogServiceDeps) {
       basePrice: toRupiahInt(row.base_price),
       imageUrl: getPublicCatalogUrl(row.image_path),
       mockupTemplate: row.mockup_template,
+      categoryId: resolvedCategory ? resolvedCategory.id : null,
+      collectionId: resolvedCollection ? resolvedCollection.id : null,
+      category: resolvedCategory,
+      collection: resolvedCollection,
       sortOrder: toNumber(row.sort_order),
       fabricIds: fabricIds.map(toNumber),
     };
@@ -143,9 +205,27 @@ export function createCatalogService(deps: CatalogServiceDeps) {
   }
 
   return {
+    async listCategories(): Promise<PublicCatalogCategoryDto[]> {
+      const rows = await catalogRepo.listActiveCategories();
+      return rows.map(toPublicCategoryDto);
+    },
+
+    async listCollections(): Promise<PublicCatalogCollectionDto[]> {
+      const rows = await catalogRepo.listActiveCollections();
+      return rows.map(toPublicCollectionDto);
+    },
+
     async listModels(): Promise<PublicGarmentModelDto[]> {
-      const { models, fabricIdsByModel } = await catalogRepo.listActiveModels();
-      return models.map((row) => toPublicGarmentModelDto(row, fabricIdsByModel.get(row.id) ?? []));
+      const { models, fabricIdsByModel, categoriesById, collectionsById } =
+        await catalogRepo.listActiveModels();
+      return models.map((row) =>
+        toPublicGarmentModelDto(
+          row,
+          fabricIdsByModel.get(row.id) ?? [],
+          row.category_id ? categoriesById.get(row.category_id) : null,
+          row.collection_id ? collectionsById.get(row.collection_id) : null
+        )
+      );
     },
 
     async getModelBySlug(slug: string): Promise<PublicModelDetailDto> {
@@ -161,7 +241,9 @@ export function createCatalogService(deps: CatalogServiceDeps) {
       return {
         ...toPublicGarmentModelDto(
           detail.model,
-          fabrics.map((fabric) => fabric.id)
+          fabrics.map((fabric) => fabric.id),
+          detail.category,
+          detail.collection
         ),
         fabrics,
       };

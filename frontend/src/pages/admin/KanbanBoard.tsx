@@ -187,8 +187,7 @@ export default function KanbanBoard() {
               Dashboard
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Pantau antrean produksi aktif per tahap, verifikasi pembayaran dan desain, serta akses
-              detail SPK dan pengiriman pesanan.
+              Pantau antrean produksi aktif di setiap tahap.
             </p>
           </div>
 

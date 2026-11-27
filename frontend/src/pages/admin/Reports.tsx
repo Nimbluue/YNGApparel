@@ -171,8 +171,7 @@ export default function Reports() {
               Laporan Keuangan
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Ringkasan omzet terverifikasi bersih (setelah refund), performa model pakaian,
-              pelanggan berulang, dan ekspor CSV siap olah.
+              Ringkasan omzet bersih, model terlaris, dan ekspor CSV.
             </p>
           </div>
 
@@ -194,7 +193,7 @@ export default function Reports() {
               loading={exportingCsv}
               onClick={() => void handleExportCsv()}
             >
-              Export CSV (Tab Aktif)
+              Ekspor CSV
             </Button>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import type {
   ApiSuccessResponse,
+  PublicCatalogCategoryDto,
+  PublicCatalogCollectionDto,
   PublicCatalogConfigDto,
   PublicFabricDto,
   PublicGarmentModelDto,
@@ -11,6 +13,8 @@ import type {
 import api from './api';
 
 export const catalogQueryKeys = {
+  categories: ['catalog', 'categories'] as const,
+  collections: ['catalog', 'collections'] as const,
   models: ['catalog', 'models'] as const,
   modelDetail: (slug: string) => ['catalog', 'models', slug] as const,
   fabrics: ['catalog', 'fabrics'] as const,
@@ -19,6 +23,18 @@ export const catalogQueryKeys = {
   config: ['catalog', 'config'] as const,
   paymentAccounts: ['catalog', 'payment-accounts'] as const,
 };
+
+export async function getCatalogCategories(): Promise<PublicCatalogCategoryDto[]> {
+  const response =
+    await api.get<ApiSuccessResponse<PublicCatalogCategoryDto[]>>('/catalog/categories');
+  return response.data.data;
+}
+
+export async function getCatalogCollections(): Promise<PublicCatalogCollectionDto[]> {
+  const response =
+    await api.get<ApiSuccessResponse<PublicCatalogCollectionDto[]>>('/catalog/collections');
+  return response.data.data;
+}
 
 export async function getCatalogModels(): Promise<PublicGarmentModelDto[]> {
   const response = await api.get<ApiSuccessResponse<PublicGarmentModelDto[]>>('/catalog/models');

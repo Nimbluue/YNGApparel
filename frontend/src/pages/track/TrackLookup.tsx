@@ -139,8 +139,8 @@ export default function TrackLookup() {
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-muted">
           {pick(
-            'Pantau antrean sablon, foto hasil Quality Control, tagihan pelunasan atau ongkir, serta nomor resi kurir tanpa perlu login. Berlaku untuk order website maupun manual WhatsApp.',
-            'Follow print queues, Quality Control photos, remaining balance or shipping invoices, and courier tracking without logging in. Works for both website and WhatsApp orders.'
+            'Pantau proses produksi, foto QC, hingga resi pengiriman tanpa perlu masuk akun.',
+            'Track production progress, QC photos, and courier delivery without signing in.'
           )}
         </p>
       </header>
@@ -194,18 +194,6 @@ export default function TrackLookup() {
                   placeholder={pick('YNG-K7M2QX atau K7M2QX', 'YNG-K7M2QX or K7M2QX')}
                   className="input-sharp mt-1.5 font-mono uppercase tracking-wider"
                 />
-                <p className="mt-1.5 text-xs text-muted">
-                  {pick(
-                    <>
-                      Ketik 6 karakter kode atau lengkap dengan awalan{' '}
-                      <span className="font-mono">YNG-</span>.
-                    </>,
-                    <>
-                      Type the 6-character code or full format with{' '}
-                      <span className="font-mono">YNG-</span>.
-                    </>
-                  )}
-                </p>
               </div>
 
               <div>
@@ -227,12 +215,6 @@ export default function TrackLookup() {
                   placeholder="7890"
                   className="input-sharp tabular-price mt-1.5 font-mono tracking-[0.25em]"
                 />
-                <p className="mt-1.5 text-xs text-muted">
-                  {pick(
-                    'Sesuai nomor WhatsApp penerima yang tercatat pada pesanan.',
-                    'Matches the recipient WhatsApp number recorded on the order.'
-                  )}
-                </p>
               </div>
 
               <EditorialButton type="submit" fullWidth loading={lookupMutation.isPending}>
@@ -336,36 +318,34 @@ export default function TrackLookup() {
 
             <ul className="space-y-2.5 text-xs leading-relaxed text-muted sm:text-sm">
               <li>
-                <strong className="text-ink">
-                  {pick('1. Kode Pesanan & Magic Link:', '1. Order Code & Magic Link:')}
-                </strong>{' '}
+                <strong className="text-ink">{pick('Kode Pesanan:', 'Order Code:')}</strong>{' '}
                 {pick(
                   <>
-                    Kode order berformat <span className="font-mono text-ink">YNG-XXXXXX</span>{' '}
-                    diterbitkan saat checkout website atau dikirim admin untuk pesanan WhatsApp.
+                    Format <span className="font-mono text-ink">YNG-XXXXXX</span> diterbitkan saat
+                    checkout atau dikirim admin untuk pesanan WhatsApp.
                   </>,
                   <>
-                    Order codes formatted as <span className="font-mono text-ink">YNG-XXXXXX</span>{' '}
-                    are issued on checkout or sent by admin for WhatsApp orders.
+                    Formatted as <span className="font-mono text-ink">YNG-XXXXXX</span>, issued on
+                    checkout or sent by admin for WhatsApp orders.
                   </>
                 )}
               </li>
               <li>
                 <strong className="text-ink">
-                  {pick('2. Privasi Terjaga:', '2. Privacy Protected:')}
+                  {pick('Privasi Terjaga:', 'Privacy Protected:')}
                 </strong>{' '}
                 {pick(
-                  'Nama, nomor WhatsApp, dan alamat tujuan disamarkan otomatis pada halaman publik.',
-                  'Name, WhatsApp number, and shipping address are automatically masked on public view.'
+                  'Nama, WhatsApp, dan alamat pengiriman disamarkan otomatis.',
+                  'Name, WhatsApp number, and address are automatically masked.'
                 )}
               </li>
               <li>
                 <strong className="text-ink">
-                  {pick('3. Tagihan Lanjutan & Foto QC:', '3. Follow-up Invoices & QC Photos:')}
+                  {pick('Tagihan & Foto QC:', 'Invoices & QC Photos:')}
                 </strong>{' '}
                 {pick(
-                  'Anda dapat melihat hasil foto Quality Control dan langsung mengunggah bukti pelunasan atau ongkos kirim dari halaman tracker.',
-                  'Inspect Quality Control photos and upload balance or shipping fee proofs directly from the tracker page.'
+                  'Cek foto hasil QC dan unggah bukti pelunasan atau ongkir langsung dari halaman ini.',
+                  'View QC photos and upload balance or shipping fee proofs directly on the tracker page.'
                 )}
               </li>
             </ul>

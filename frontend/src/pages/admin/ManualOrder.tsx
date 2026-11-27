@@ -573,8 +573,7 @@ export default function ManualOrder() {
               Buat Order Manual
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Catat pesanan dari WhatsApp, Instagram DM, atau walk-in workshop tanpa wajib akun
-              pelanggan. Harga dan snapshot item dikalkulasi otomatis dari katalog aktif.
+              Catat pesanan dari WhatsApp, Instagram DM, atau walk-in.
             </p>
           </div>
           <Link to="/admin/orders" className="btn-secondary shrink-0 text-xs">
@@ -601,7 +600,7 @@ export default function ManualOrder() {
           {/* 1. Sumber & Data Pelanggan */}
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-4">
             <div>
-              <p className="eyebrow">01 · Data Pemesan</p>
+              <p className="eyebrow">Data Pemesan</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 Sumber Order &amp; Kontak Pelanggan
               </h2>
@@ -699,11 +698,11 @@ export default function ManualOrder() {
 
             <details className="rounded-sm border border-line bg-[#FAFAFA] p-3.5">
               <summary className="cursor-pointer font-display text-xs font-semibold text-ink">
-                Tautkan ke Akun Website Pelanggan (Opsional — biarkan kosong jika tanpa akun)
+                Tautkan ke Akun Pelanggan (Opsional)
               </summary>
               <div className="mt-3">
                 <Input
-                  label="User UUID Pelanggan"
+                  label="ID Akun Pelanggan"
                   placeholder="UUID akun user terdaftar (opsional)"
                   value={userUuid}
                   onChange={(e) => setUserUuid(e.target.value)}
@@ -716,7 +715,7 @@ export default function ManualOrder() {
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="eyebrow">02 · Spesifikasi Item</p>
+                <p className="eyebrow">Spesifikasi Item</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                   Item Pesanan ({items.length})
                 </h2>
@@ -948,7 +947,7 @@ export default function ManualOrder() {
                     <div className="space-y-2.5 border-t border-line pt-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-ink">
-                          Titik Sablon ({item.prints.length})
+                          Desain Sablon ({item.prints.length})
                         </span>
                         <div className="flex flex-wrap items-center gap-3">
                           <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-ink">
@@ -971,7 +970,7 @@ export default function ManualOrder() {
                             size="sm"
                             onClick={() => handleAddPrintSpot(item.localId)}
                           >
-                            + Titik Sablon
+                            + Tambah Desain
                           </Button>
                         </div>
                       </div>
@@ -1062,7 +1061,7 @@ export default function ManualOrder() {
                               }
                               className="self-start text-xs font-semibold text-status-err hover:underline sm:self-center"
                             >
-                              Hapus Titik
+                              Hapus
                             </button>
                           </div>
                         </div>
@@ -1092,7 +1091,7 @@ export default function ManualOrder() {
         <aside className="w-full min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-span-5 xl:col-span-4">
           <section className="rounded-sm border border-ink bg-white p-5 space-y-4">
             <div>
-              <p className="eyebrow">03 · Tagihan &amp; Pembayaran</p>
+              <p className="eyebrow">Tagihan &amp; Pembayaran</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 Ringkasan Order Manual
               </h2>
@@ -1218,7 +1217,7 @@ export default function ManualOrder() {
                   className="mt-0.5 h-4 w-4 accent-ink"
                 />
                 <span>
-                  <strong className="block">Pembayaran awal sudah diterima (VERIFIED)</strong>
+                  <strong className="block">Pembayaran awal sudah diterima</strong>
                   <span className="text-muted">
                     Tandai lunas/DP langsung terverifikasi agar tidak menunggu bukti transfer.
                   </span>

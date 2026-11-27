@@ -41,42 +41,26 @@ export function PrintSpotPicker({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs leading-relaxed text-muted">
-          {pick(
-            <>
-              Tambahkan 1 atau lebih titik sablon, atau biarkan 0 titik untuk pesanan polos. Format
-              desain: PNG, JPG, WEBP, SVG, PDF (maks.{' '}
-              <span className="tabular-price">{maxDesignFileMb} MB</span>).
-            </>,
-            <>
-              Add 1 or more print placements, or leave 0 spots for a blank garment. Accepted
-              formats: PNG, JPG, WEBP, SVG, PDF (max{' '}
-              <span className="tabular-price">{maxDesignFileMb} MB</span>).
-            </>
-          )}
-        </p>
+        {spots.length === 0 ? (
+          <p className="text-xs text-muted">
+            {pick('Pesanan polos (tanpa sablon)', 'Plain order (no print)')}
+          </p>
+        ) : (
+          <span className="text-xs text-muted">
+            <span className="tabular-price font-medium text-ink">{spots.length}</span>{' '}
+            {pick('desain ditambahkan', 'prints added')}
+          </span>
+        )}
         <button
           type="button"
           onClick={onAddSpot}
           className="btn-secondary shrink-0 px-4 py-2 text-xs"
         >
-          {pick('+ Tambah Titik Sablon', '+ Add Print Spot')}
+          {pick('+ Tambah Desain', '+ Add Design')}
         </button>
       </div>
 
-      {spots.length === 0 ? (
-        <div className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-5 text-center">
-          <p className="text-sm font-medium text-ink">
-            {pick('Belum ada titik sablon (Polos)', 'No print spots added (Plain)')}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {pick(
-              'Klik “+ Tambah Titik Sablon” bila ingin menambahkan cetak desain.',
-              'Click “+ Add Print Spot” if you want to add graphic prints.'
-            )}
-          </p>
-        </div>
-      ) : (
+      {spots.length > 0 ? (
         <div className="space-y-3">
           {spots.map((spot, index) => {
             const feedback = uploadFeedbackBySpotKey[spot.key];
@@ -88,7 +72,7 @@ export function PrintSpotPicker({
                 <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
                   <div>
                     <p className="font-display text-sm font-semibold text-ink">
-                      {pick('Titik Sablon #', 'Print Spot #')}
+                      {pick('Desain #', 'Design #')}
                       <span className="tabular-price">{index + 1}</span>
                     </p>
                     {selectedSize ? (
@@ -106,7 +90,7 @@ export function PrintSpotPicker({
                     onClick={() => onRemoveSpot(spot.key)}
                     className="inline-flex min-h-touch items-center rounded-sm border border-line px-3.5 text-xs font-semibold text-status-err transition-colors hover:border-status-err hover:bg-red-50"
                   >
-                    {pick('Hapus Titik', 'Remove Spot')}
+                    {pick('Hapus', 'Remove')}
                   </button>
                 </div>
 
@@ -171,7 +155,7 @@ export function PrintSpotPicker({
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-3 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-4 space-y-3 border-t border-line pt-3">
                   <label className="inline-flex min-h-touch cursor-pointer items-center gap-2.5 text-sm text-ink">
                     <input
                       type="checkbox"
@@ -187,11 +171,11 @@ export function PrintSpotPicker({
                       }}
                       className="h-4 w-4 accent-ink"
                     />
-                    <span>{pick('Bantu desainkan saya (Gratis)', 'Request free design help')}</span>
+                    <span>{pick('Bantu desainkan (Gratis)', 'Request free design help')}</span>
                   </label>
 
                   {!spot.needsDesignHelp ? (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-3">
                       <input
                         ref={(el) => {
                           fileInputRefs.current[spot.key] = el;
@@ -200,8 +184,8 @@ export function PrintSpotPicker({
                         accept={ACCEPTED_DESIGN_INPUT}
                         className="sr-only"
                         aria-label={pick(
-                          `Pilih file desain titik sablon ${index + 1}`,
-                          `Choose design file for print spot ${index + 1}`
+                          `Pilih file desain ${index + 1}`,
+                          `Choose file for design ${index + 1}`
                         )}
                         onChange={(event) => {
                           const file = event.target.files?.[0];
@@ -211,52 +195,61 @@ export function PrintSpotPicker({
                           }
                         }}
                       />
-                      <button
-                        type="button"
-                        disabled={isUploading}
-                        onClick={() => {
-                          if (isGuest) {
-                            onRequestLoginForUpload();
-                            return;
-                          }
-                          fileInputRefs.current[spot.key]?.click();
-                        }}
-                        className="btn-secondary w-full px-4 py-2 text-xs sm:w-auto"
-                      >
-                        {isUploading
-                          ? pick('Mengunggah...', 'Uploading...')
-                          : isGuest
-                            ? pick('Upload Desain (Masuk Akun)', 'Upload Design (Sign In)')
-                            : spot.fileRef
-                              ? pick('Ganti File Desain', 'Replace Design File')
-                              : pick('Upload Desain', 'Upload Design')}
-                      </button>
+                      <div className="flex flex-wrap items-center justify-between gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isUploading}
+                            onClick={() => {
+                              if (isGuest) {
+                                onRequestLoginForUpload();
+                                return;
+                              }
+                              fileInputRefs.current[spot.key]?.click();
+                            }}
+                            className="btn-secondary px-4 py-2 text-xs"
+                          >
+                            {isUploading
+                              ? pick('Mengunggah...', 'Uploading...')
+                              : isGuest
+                                ? pick('Upload Desain (Masuk)', 'Upload Design (Sign In)')
+                                : spot.fileRef
+                                  ? pick('Ganti File', 'Replace File')
+                                  : pick('Upload Desain', 'Upload Design')}
+                          </button>
 
-                      {spot.fileRef ? (
-                        <button
-                          type="button"
-                          disabled={isUploading}
-                          onClick={() =>
-                            onUpdateSpot(spot.key, {
-                              fileRef: null,
-                              fileName: null,
-                              width: null,
-                              height: null,
-                            })
-                          }
-                          className="inline-flex min-h-touch items-center rounded-sm border border-line px-3.5 text-xs font-medium text-muted transition-colors hover:border-ink hover:text-ink"
-                        >
-                          {pick('Hapus File', 'Remove File')}
-                        </button>
-                      ) : null}
+                          {spot.fileRef ? (
+                            <button
+                              type="button"
+                              disabled={isUploading}
+                              onClick={() =>
+                                onUpdateSpot(spot.key, {
+                                  fileRef: null,
+                                  fileName: null,
+                                  width: null,
+                                  height: null,
+                                })
+                              }
+                              className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-3.5 text-xs font-medium text-muted transition-colors hover:border-ink hover:text-ink"
+                            >
+                              {pick('Hapus File', 'Remove File')}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <p className="font-mono text-[11px] text-muted">
+                          PNG, JPG, WEBP, SVG, PDF ·{' '}
+                          {pick(`Maks. ${maxDesignFileMb} MB`, `Max ${maxDesignFileMb} MB`)}
+                        </p>
+                      </div>
                     </div>
                   ) : (
-                    <span className="text-xs text-muted">
+                    <p className="text-xs text-muted">
                       {pick(
-                        'Tim desain kami akan menghubungi via WhatsApp (tanpa wajib unggah file).',
-                        'Our design team will reach out via WhatsApp (no file upload required).'
+                        'Tim desain kami akan menghubungi via WhatsApp.',
+                        'Our design team will reach out via WhatsApp.'
                       )}
-                    </span>
+                    </p>
                   )}
                 </div>
 
@@ -290,7 +283,7 @@ export function PrintSpotPicker({
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

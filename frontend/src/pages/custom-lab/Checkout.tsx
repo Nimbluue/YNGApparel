@@ -485,12 +485,6 @@ export default function Checkout() {
           <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl">
             {pick('Konfirmasi Pengiriman & Pembayaran', 'Confirm Delivery & Payment')}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {pick(
-              'Harga final dan syarat DP dihitung ulang dan dikunci otomatis oleh server saat pesanan dibuat.',
-              'Final pricing and deposit eligibility are recalculated and locked by the server when placing the order.'
-            )}
-          </p>
         </div>
         <Link to="/keranjang" className="btn-secondary">
           {pick('Kembali ke Keranjang', 'Back to Bag')}
@@ -536,12 +530,10 @@ export default function Checkout() {
       >
         {/* Kolom Kiri: Pengiriman, Pembayaran, & Rincian Item */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7">
-          {/* 01. Metode Pengiriman / Pengambilan */}
+          {/* Metode Pengiriman / Pengambilan */}
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">
-                {pick('01 · Pengiriman / Pengambilan', '01 · Delivery / Pickup')}
-              </p>
+              <p className="eyebrow">{pick('Pengiriman', 'Delivery')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 {pick('Pilih Metode Penerimaan Pesanan', 'Choose Fulfillment Method')}
               </h2>
@@ -668,15 +660,14 @@ export default function Checkout() {
                     <p className="text-xs text-muted">
                       {pick(
                         <>
-                          Alamat disalin sebagai snapshot pesanan ini. Kelola buku alamat permanen
-                          di{' '}
+                          Kelola alamat tersimpan di{' '}
                           <Link to="/akun" className="font-semibold text-ink underline">
                             Akun Saya
                           </Link>
                           .
                         </>,
                         <>
-                          Address is copied as a snapshot for this order. Manage saved addresses in{' '}
+                          Manage saved addresses in{' '}
                           <Link to="/akun" className="font-semibold text-ink underline">
                             My Account
                           </Link>
@@ -908,10 +899,10 @@ export default function Checkout() {
             )}
           </section>
 
-          {/* 02. Skema Pembayaran (Dynamic DP Gatekeeper) */}
+          {/* Skema Pembayaran */}
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">{pick('02 · Skema Pembayaran', '02 · Payment Scheme')}</p>
+              <p className="eyebrow">{pick('Pembayaran', 'Payment')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 {pick('Pilih Pembayaran Lunas atau DP', 'Choose Full Payment or Deposit')}{' '}
                 <span className="tabular-price">{checkoutSummary.dpPercent}%</span>
@@ -1024,11 +1015,11 @@ export default function Checkout() {
             </div>
           </section>
 
-          {/* 03. Rincian Item Terpilih */}
+          {/* Rincian Item Terpilih */}
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">{pick('03 · Rincian Item', '03 · Item Details')}</p>
+                <p className="eyebrow">{pick('Rincian Item', 'Items')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                   {pick('Item yang Akan Diproduksi', 'Items for Production')} (
                   {selectedItems.length})
@@ -1163,9 +1154,8 @@ export default function Checkout() {
         <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-5">
           <div className="w-full space-y-5 rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">{pick('Ringkasan Tagihan', 'Invoice Summary')}</p>
-              <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                {pick('Total Produksi Terkunci', 'Locked Production Total')}
+              <h2 className="font-display text-lg font-semibold text-ink">
+                {pick('Ringkasan Tagihan', 'Order Summary')}
               </h2>
             </div>
 
@@ -1225,13 +1215,10 @@ export default function Checkout() {
             </dl>
 
             <div className="rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs leading-relaxed text-muted">
-              <p className="font-semibold text-ink">
-                {pick('Langkah setelah Buat Pesanan:', 'Next step after placing order:')}
-              </p>
-              <p className="mt-1">
+              <p>
                 {pick(
-                  'Anda akan diarahkan ke halaman detail pesanan untuk melihat rekening bank/QRIS resmi studio dan mengunggah bukti pembayaran awal.',
-                  'You will be taken to the order detail page to view studio bank/QRIS accounts and upload your initial payment proof.'
+                  'Rekening bank/QRIS dan unggah bukti pembayaran tersedia pada halaman detail pesanan.',
+                  'Studio bank/QRIS accounts and payment proof upload appear on the order detail page.'
                 )}
               </p>
               {configQuery.data?.productionEstimateText ? (

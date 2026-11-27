@@ -90,3 +90,10 @@ export const COLLECTIVE_STATUS = {
   EXPIRED: 'EXPIRED',
 } as const;
 export type CollectiveStatus = (typeof COLLECTIVE_STATUS)[keyof typeof COLLECTIVE_STATUS];
+
+export const COLLECTION_STATUS = {
+  ACTIVE: 'ACTIVE',
+  SOLD_OUT: 'SOLD_OUT',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+export type CollectionStatus = (typeof COLLECTION_STATUS)[keyof typeof COLLECTION_STATUS];

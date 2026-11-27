@@ -114,13 +114,13 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
     if (pricePerSpot === null) {
       setFeedback({
         variant: 'error',
-        message: 'Harga per titik harus bilangan bulat rupiah (>= 0).',
+        message: 'Harga sablon harus berupa angka bulat (minimal 0).',
       });
       return;
     }
 
     if (sortOrder === null) {
-      setFeedback({ variant: 'error', message: 'Urutan harus bilangan bulat (>= 0).' });
+      setFeedback({ variant: 'error', message: 'Urutan harus berupa angka bulat (minimal 0).' });
       return;
     }
 
@@ -297,7 +297,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
             <div>
               <label htmlFor="ps-price" className="block text-sm font-medium text-ink">
-                Harga / Titik (Rp)
+                Harga / Desain (Rp)
               </label>
               <input
                 id="ps-price"

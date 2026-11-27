@@ -56,6 +56,8 @@ function createInMemoryCatalogStore() {
       base_price: 160000,
       image_path: null,
       mockup_template: 'hoodie',
+      category_id: null,
+      collection_id: null,
       sort_order: 2,
       is_active: true,
       created_at: now,
@@ -69,6 +71,8 @@ function createInMemoryCatalogStore() {
       base_price: 65000,
       image_path: 'models/11111111111111111111111111111111.jpg',
       mockup_template: 'tee-short',
+      category_id: null,
+      collection_id: null,
       sort_order: 1,
       is_active: true,
       created_at: now,
@@ -82,6 +86,8 @@ function createInMemoryCatalogStore() {
       base_price: 200000,
       image_path: 'models/33333333333333333333333333333333.jpg',
       mockup_template: 'jacket-zip',
+      category_id: null,
+      collection_id: null,
       sort_order: 3,
       is_active: false,
       created_at: now,
@@ -304,6 +310,12 @@ function createInMemoryCatalogStore() {
   };
 
   const catalogRepo: CatalogRepository = {
+    async listActiveCategories() {
+      return [];
+    },
+    async listActiveCollections() {
+      return [];
+    },
     async listActiveModels() {
       const activeModels = models
         .filter((m) => m.is_active)
@@ -324,7 +336,12 @@ function createInMemoryCatalogStore() {
         fabricIdsByModel.set(m.id, linked);
       }
 
-      return { models: activeModels, fabricIdsByModel };
+      return {
+        models: activeModels,
+        fabricIdsByModel,
+        categoriesById: new Map(),
+        collectionsById: new Map(),
+      };
     },
 
     async findActiveModelDetailBySlug(slug: string) {
@@ -348,7 +365,7 @@ function createInMemoryCatalogStore() {
         );
       }
 
-      return { model, fabrics: activeFabrics, colorsByFabric };
+      return { model, category: null, collection: null, fabrics: activeFabrics, colorsByFabric };
     },
 
     async listActiveFabrics() {

@@ -27,6 +27,10 @@ export interface MappedHttpError {
 const UNIQUE_CONSTRAINT_MESSAGES: Readonly<Record<string, MappedHttpError>> = {
   uq_users_email: { status: 409, message: 'Email sudah terdaftar.' },
   uq_ua_one_default: { status: 409, message: 'Hanya satu alamat utama yang diperbolehkan.' },
+  catalog_categories_name_key: { status: 409, message: 'Nama kategori sudah digunakan.' },
+  catalog_categories_slug_key: { status: 409, message: 'Slug kategori sudah digunakan.' },
+  catalog_collections_name_key: { status: 409, message: 'Nama koleksi sudah digunakan.' },
+  catalog_collections_slug_key: { status: 409, message: 'Slug koleksi sudah digunakan.' },
   garment_models_slug_key: { status: 409, message: 'Slug model pakaian sudah digunakan.' },
   fabrics_code_key: { status: 409, message: 'Kode bahan sudah digunakan.' },
   uq_fabric_color: { status: 409, message: 'Nama warna tersebut sudah ada pada bahan ini.' },
@@ -94,6 +98,7 @@ const CHECK_CONSTRAINT_MESSAGES: Readonly<Record<string, string>> = {
   chk_rp_price: 'Harga produk tidak boleh negatif.',
   chk_rp_sale: 'Harga promo harus lebih kecil dari harga normal dan tidak boleh negatif.',
   chk_rpv_stock: 'Stok varian tidak boleh negatif.',
+  chk_catalog_collections_status: 'Status koleksi harus ACTIVE, SOLD_OUT, atau ARCHIVED.',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

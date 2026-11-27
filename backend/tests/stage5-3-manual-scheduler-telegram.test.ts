@@ -76,6 +76,8 @@ function createPricingRef(): PricingReferenceData {
           base_price: 55000,
           image_path: null,
           mockup_template: null,
+          category_id: null,
+          collection_id: null,
           sort_order: 1,
           is_active: true,
           created_at: now,
