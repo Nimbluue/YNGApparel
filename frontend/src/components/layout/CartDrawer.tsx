@@ -18,6 +18,7 @@ import {
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { EditorialButton } from '../ui/EditorialButton';
+import { IconTooltip } from '../ui/IconTooltip';
 import { useToast } from '../ui/toastContext';
 
 export interface CartDrawerProps {
@@ -27,7 +28,8 @@ export interface CartDrawerProps {
 }
 
 /**
- * Floating "Studio Bag" drawer dengan DP Gatekeeper Progress Bar dan metadata spec-sheet per item.
+ * Floating "Studio Bag" drawer dengan checkbox checkout, DP Gatekeeper Progress Bar,
+ * dan metadata spec-sheet per item tersinkron dengan `useCartStore`.
  */
 export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
   const { isGuest, loading: authLoading } = useAuth();
@@ -35,10 +37,16 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const checkedItems = useCartStore((s) => s.checkedItems);
+  const toggleItem = useCartStore((s) => s.toggleItem);
   const setCheckedItems = useCartStore((s) => s.setCheckedItems);
+  const checkAll = useCartStore((s) => s.checkAll);
+  const uncheckAll = useCartStore((s) => s.uncheckAll);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const wasOpenRef = useRef(false);
+  const initializedRef = useRef(false);
 
   useBodyScrollLock(open);
   useEscapeKey(open, onClose);
@@ -110,20 +118,73 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
 
   const items = useMemo(() => cartQuery.data?.items ?? [], [cartQuery.data?.items]);
   const summary = cartQuery.data?.summary;
+
   const availableUuids = useMemo(
     () => items.filter((item) => item.isAvailable).map((item) => item.cartItemUuid),
     [items]
   );
 
+  // Sinkronkan default pilihan saat keranjang pertama kali dimuat dan bersihkan UUID yang sudah tidak tersedia
+  useEffect(() => {
+    if (!cartQuery.data) return;
+
+    const validSet = new Set(availableUuids);
+    const pruned = Array.from(checkedItems).filter((uuid) => validSet.has(uuid));
+
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      if (pruned.length === 0 && availableUuids.length > 0) {
+        setCheckedItems(availableUuids);
+      } else if (pruned.length !== checkedItems.size) {
+        setCheckedItems(pruned);
+      }
+      return;
+    }
+
+    if (pruned.length !== checkedItems.size) {
+      setCheckedItems(pruned);
+    }
+  }, [availableUuids, cartQuery.data, checkedItems, setCheckedItems]);
+
+  const selectedItems = useMemo(
+    () => items.filter((item) => item.isAvailable && checkedItems.has(item.cartItemUuid)),
+    [checkedItems, items]
+  );
+
+  const selectedUuids = useMemo(
+    () => selectedItems.map((item) => item.cartItemUuid),
+    [selectedItems]
+  );
+
+  const selectedQty = useMemo(
+    () => selectedItems.reduce((sum, item) => sum + item.itemQty, 0),
+    [selectedItems]
+  );
+
+  const selectedSubtotal = useMemo(
+    () => selectedItems.reduce((sum, item) => sum + item.lineSubtotal, 0),
+    [selectedItems]
+  );
+
+  const allAvailableChecked =
+    availableUuids.length > 0 && selectedUuids.length === availableUuids.length;
+
   const dpMinQty = summary?.dpMinQty ?? configQuery.data?.dpMinQty ?? 12;
   const dpPercent = summary?.dpPercent ?? configQuery.data?.dpPercent ?? 70;
-  const totalQty = summary?.totalQty ?? 0;
-  const missingForDp = Math.max(0, dpMinQty - totalQty);
-  const dpProgressPct = Math.min(100, Math.round((totalQty / Math.max(1, dpMinQty)) * 100));
+  const missingForDp = Math.max(0, dpMinQty - selectedQty);
+  const dpProgressPct = Math.min(100, Math.round((selectedQty / Math.max(1, dpMinQty)) * 100));
+
+  function handleToggleAll() {
+    if (allAvailableChecked) {
+      uncheckAll();
+    } else {
+      checkAll(availableUuids);
+    }
+  }
 
   function handleCheckout() {
-    if (availableUuids.length === 0) return;
-    setCheckedItems(availableUuids);
+    if (selectedUuids.length === 0) return;
+    setCheckedItems(selectedUuids);
     onClose();
     navigate('/checkout');
   }
@@ -158,7 +219,7 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                   {t('cart.title')}
                 </h2>
                 <span className="rounded-sm border border-line bg-surface px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-ink tabular-nums">
-                  {t('cart.pcsUpper', { count: totalQty })}
+                  {t('cart.pcsUpper', { count: selectedQty })}
                 </span>
                 {!isGuest && summary ? (
                   <span className="font-mono text-[11px] text-muted tabular-nums">
@@ -172,14 +233,35 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                 type="button"
                 onClick={onClose}
                 aria-label={t('cart.close')}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-sm text-ink transition-colors hover:bg-surface"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-sm text-ink transition-colors hover:bg-surface focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
               >
                 <X size={20} strokeWidth={1.5} aria-hidden="true" />
               </button>
             </div>
 
+            {!isGuest && items.length > 0 ? (
+              <div className="flex shrink-0 items-center justify-between border-b border-line bg-white px-5 py-2.5 text-xs">
+                <label className="inline-flex min-h-[32px] cursor-pointer items-center gap-2.5 font-medium text-ink">
+                  <input
+                    type="checkbox"
+                    checked={allAvailableChecked}
+                    disabled={availableUuids.length === 0}
+                    onChange={handleToggleAll}
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                  <span>{t('cart.selectAll')}</span>
+                </label>
+                <span className="font-mono text-[11px] text-muted tabular-nums">
+                  {t('cart.selectedCount', {
+                    selected: selectedUuids.length,
+                    total: availableUuids.length,
+                  })}
+                </span>
+              </div>
+            ) : null}
+
             {!isGuest ? (
-              <div className="shrink-0 border-b border-line bg-surface/60 px-5 py-3">
+              <div className="shrink-0 border-b border-line bg-[#FAFAFA] px-5 py-3">
                 <div className="flex items-center justify-between gap-2 text-[11px]">
                   <span className="font-medium text-ink">
                     {missingForDp > 0
@@ -187,14 +269,14 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                       : t('cart.dpUnlocked', { percent: dpPercent })}
                   </span>
                   <span className="shrink-0 font-mono font-semibold text-ink tabular-nums">
-                    {totalQty}/{dpMinQty}
+                    {selectedQty}/{dpMinQty}
                   </span>
                 </div>
                 <div
                   className="mt-2 h-1 w-full overflow-hidden bg-neutral-200"
                   role="progressbar"
                   aria-label={t('cart.dpTargetLabel', { percent: dpPercent })}
-                  aria-valuenow={Math.min(totalQty, dpMinQty)}
+                  aria-valuenow={Math.min(selectedQty, dpMinQty)}
                   aria-valuemin={0}
                   aria-valuemax={dpMinQty}
                 >
@@ -320,13 +402,26 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                     const spotsCount = item.config.prints.length;
                     const isDeleting =
                       deleteMutation.isPending && deleteMutation.variables === item.cartItemUuid;
+                    const isChecked = item.isAvailable && checkedItems.has(item.cartItemUuid);
 
                     return (
-                      <li key={item.cartItemUuid} className="flex gap-3.5 py-4 first:pt-0">
+                      <li
+                        key={item.cartItemUuid}
+                        className="flex items-start gap-3 py-4 first:pt-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={!item.isAvailable}
+                          onChange={() => toggleItem(item.cartItemUuid)}
+                          aria-label={t('cart.selectItemAria', { name: modelName })}
+                          className="mt-1.5 h-4 w-4 shrink-0 cursor-pointer accent-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+
                         <Link
                           to={`/custom-lab?edit=${encodeURIComponent(item.cartItemUuid)}`}
                           onClick={onClose}
-                          className="aspect-[3/4] w-20 shrink-0 overflow-hidden border border-line bg-surface"
+                          className="aspect-[3/4] w-[72px] shrink-0 overflow-hidden border border-line bg-surface"
                         >
                           {catalogModel?.imageUrl ? (
                             <img
@@ -368,7 +463,7 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                               </div>
 
                               <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted tabular-nums">
-                                <span className="rounded-sm border border-line bg-surface px-1.5 py-0.5 text-ink">
+                                <span className="rounded-sm border border-line bg-[#FAFAFA] px-1.5 py-0.5 text-ink">
                                   {t('cart.pcsUpper', { count: item.itemQty })}
                                 </span>
                                 <span>
@@ -385,12 +480,15 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                               ) : null}
                             </div>
 
-                            <button
-                              type="button"
-                              disabled={isDeleting}
-                              onClick={() => deleteMutation.mutate(item.cartItemUuid)}
-                              aria-label={t('cart.remove', { name: modelName })}
-                              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-sm text-muted transition-colors hover:bg-surface hover:text-ink disabled:opacity-40"
+                            <IconTooltip
+                              label={t('cart.deletePermanentTooltip')}
+                              tooltipPosition="left"
+                              onClick={() => {
+                                if (!isDeleting) {
+                                  deleteMutation.mutate(item.cartItemUuid);
+                                }
+                              }}
+                              className="h-9 w-9 min-h-[36px] min-w-[36px] shrink-0 text-muted hover:text-status-err"
                             >
                               {isDeleting ? (
                                 <Loader2
@@ -402,7 +500,7 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                               ) : (
                                 <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />
                               )}
-                            </button>
+                            </IconTooltip>
                           </div>
 
                           <p className="mt-2 font-mono text-sm font-semibold text-ink tabular-nums">
@@ -421,22 +519,26 @@ export function CartDrawer({ open, onClose, returnFocusRef }: CartDrawerProps) {
                 <div className="mb-1 flex items-center justify-between text-xs text-muted">
                   <span>{t('cart.totalQty')}</span>
                   <span className="font-mono tabular-nums text-ink">
-                    {t('cart.pcs', { count: summary.totalQty })}
+                    {t('cart.pcs', { count: selectedQty })}
                   </span>
                 </div>
                 <div className="mb-2 flex items-baseline justify-between">
                   <span className="text-sm font-medium text-ink">{t('cart.subtotal')}</span>
                   <span className="font-mono text-base font-semibold text-ink tabular-nums">
-                    {formatRupiah(summary.subtotalAmount)}
+                    {formatRupiah(selectedSubtotal)}
                   </span>
                 </div>
                 <p className="mb-4 text-[11px] text-muted">
-                  {availableUuids.length === 0 ? t('cart.noAvailable') : t('cart.shippingNote')}
+                  {availableUuids.length === 0
+                    ? t('cart.noAvailable')
+                    : selectedUuids.length === 0
+                      ? t('cart.noneSelected')
+                      : t('cart.shippingNote')}
                 </p>
 
                 <EditorialButton
                   fullWidth
-                  disabled={availableUuids.length === 0}
+                  disabled={selectedUuids.length === 0}
                   onClick={handleCheckout}
                 >
                   {t('cart.checkout')}

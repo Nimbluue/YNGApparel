@@ -19,8 +19,9 @@ function DesktopNavLink({ to, label, end = false }: { to: string; label: string;
     <NavLink
       to={to}
       end={end}
+      onMouseUp={(event) => event.currentTarget.blur()}
       className={({ isActive }) =>
-        `relative inline-flex min-h-touch items-center text-[12px] font-medium uppercase tracking-[0.14em] text-ink after:absolute after:bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:bg-ink after:transition-transform after:duration-300 hover:after:scale-x-100 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 ${
+        `relative inline-flex min-h-touch items-center text-[12px] font-medium uppercase tracking-[0.14em] text-ink outline-none after:absolute after:bottom-2 after:left-0 after:h-px after:w-full after:origin-left after:bg-ink after:transition-transform after:duration-300 hover:after:scale-x-100 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 ${
           isActive ? 'after:scale-x-100' : 'after:scale-x-0'
         }`
       }
@@ -110,7 +111,8 @@ export function SiteHeader() {
           <div className="flex items-center justify-start">
             <Link
               to="/"
-              className="inline-flex min-h-touch items-baseline gap-2 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+              onMouseUp={(event) => event.currentTarget.blur()}
+              className="inline-flex min-h-touch items-baseline gap-2 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
             >
               <span className="font-display text-lg font-extrabold tracking-[0.18em] text-ink">
                 YNG
@@ -134,11 +136,7 @@ export function SiteHeader() {
               <IconTooltip label={t('tooltip.search')} onClick={openSearch}>
                 <Search size={20} strokeWidth={1.5} aria-hidden="true" />
               </IconTooltip>
-              <IconTooltip
-                label={t('tooltip.wishlist')}
-                to="/akun?tab=wishlist"
-                badge={wishlistCount}
-              >
+              <IconTooltip label={t('tooltip.wishlist')} to="/wishlist" badge={wishlistCount}>
                 <Heart size={20} strokeWidth={1.5} aria-hidden="true" />
               </IconTooltip>
               <IconTooltip label={t('tooltip.cart')} badge={cartBadgeCount} onClick={openCart}>

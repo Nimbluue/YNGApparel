@@ -1,8 +1,13 @@
 import {
+  COLLECTION_STATUS,
   PAYMENT_METHOD,
   type AppSettingsResponseDto,
+  type CatalogCategoryDto,
+  type CatalogCollectionDto,
   type CatalogImageFolder,
   type CatalogImageUploadDto,
+  type CreateCatalogCategoryDto,
+  type CreateCatalogCollectionDto,
   type CreateFabricColorDto,
   type CreateFabricDto,
   type CreateGarmentModelDto,
@@ -14,9 +19,12 @@ import {
   type GarmentModelDto,
   type PaymentAccountDto,
   type PrintSizeDto,
+  type ReorderCatalogEntitiesDto,
   type ReplaceModelFabricsDto,
   type SizeDto,
   type UpdateAppSettingsDto,
+  type UpdateCatalogCategoryDto,
+  type UpdateCatalogCollectionDto,
   type UpdateFabricColorDto,
   type UpdateFabricDto,
   type UpdateGarmentModelDto,
@@ -44,6 +52,12 @@ const positiveIntParam = z
 export const idParamSchema = z
   .object({
     id: positiveIntParam,
+  })
+  .strict();
+
+export const uuidParamSchema = z
+  .object({
+    id: z.string().uuid('Parameter ID harus berupa UUID yang valid.'),
   })
   .strict();
 
@@ -91,7 +105,7 @@ const sortOrderSchema = z
   .min(0, 'Urutan tampilan tidak boleh negatif.')
   .max(100_000, 'Urutan tampilan terlalu besar.');
 
-function catalogImagePathSchema(folder: 'models' | 'fabrics' | 'qris') {
+function catalogImagePathSchema(folder: 'models' | 'fabrics' | 'qris' | 'size-charts') {
   return z
     .string({
       invalid_type_error: 'Path gambar harus berupa teks.',
@@ -146,6 +160,67 @@ function nonEmptyPatch<T extends Record<string, unknown>>(schema: z.ZodType<T>) 
   );
 }
 
+// ── Skema Zod Kategori & Koleksi ───────────────────────────────────────────
+export const createCategoryBodySchema = z
+  .object({
+    name: z
+      .string({
+        required_error: 'Nama kategori wajib diisi.',
+        invalid_type_error: 'Nama kategori harus berupa teks.',
+      })
+      .trim()
+      .min(2, 'Nama kategori minimal 2 karakter.')
+      .max(120, 'Nama kategori maksimal 120 karakter.'),
+    slug: slugSchema,
+    description: z.string().trim().max(2000).nullable().optional(),
+    sizeChartImagePath: catalogImagePathSchema('size-charts').nullable().optional(),
+    sortOrder: sortOrderSchema.optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+export const updateCategoryBodySchema = nonEmptyPatch(createCategoryBodySchema.partial().strict());
+
+export const createCollectionBodySchema = z
+  .object({
+    name: z
+      .string({
+        required_error: 'Nama koleksi wajib diisi.',
+        invalid_type_error: 'Nama koleksi harus berupa teks.',
+      })
+      .trim()
+      .min(2, 'Nama koleksi minimal 2 karakter.')
+      .max(120, 'Nama koleksi maksimal 120 karakter.'),
+    slug: slugSchema,
+    description: z.string().trim().max(2000).nullable().optional(),
+    status: z
+      .enum([COLLECTION_STATUS.ACTIVE, COLLECTION_STATUS.SOLD_OUT, COLLECTION_STATUS.ARCHIVED])
+      .optional(),
+    sortOrder: sortOrderSchema.optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+export const updateCollectionBodySchema = nonEmptyPatch(
+  createCollectionBodySchema.partial().strict()
+);
+
+export const reorderCatalogEntitiesBodySchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid('ID item reorder harus berupa UUID valid.'),
+            sortOrder: sortOrderSchema,
+          })
+          .strict()
+      )
+      .min(1, 'Minimal satu item urutan wajib dikirim.')
+      .max(200, 'Maksimal 200 item per permintaan reorder.'),
+  })
+  .strict();
+
 // ── Skema Zod Model Pakaian ────────────────────────────────────────────────
 export const createModelBodySchema = z
   .object({
@@ -162,6 +237,8 @@ export const createModelBodySchema = z
     basePrice: rupiahSchema('Harga dasar model'),
     imagePath: catalogImagePathSchema('models').nullable().optional(),
     mockupTemplate: z.string().trim().min(1).max(100).nullable().optional(),
+    categoryId: z.string().uuid('ID kategori tidak valid.').nullable().optional(),
+    collectionId: z.string().uuid('ID koleksi tidak valid.').nullable().optional(),
     sortOrder: sortOrderSchema.optional(),
     isActive: z.boolean().optional(),
   })
@@ -372,6 +449,16 @@ export const updateSettingsBodySchema = nonEmptyPatch(
 
 export interface AdminMasterController {
   uploadImage: RequestHandler;
+  listCategories: RequestHandler;
+  createCategory: RequestHandler;
+  updateCategory: RequestHandler;
+  deactivateCategory: RequestHandler;
+  reorderCategories: RequestHandler;
+  listCollections: RequestHandler;
+  createCollection: RequestHandler;
+  updateCollection: RequestHandler;
+  deactivateCollection: RequestHandler;
+  reorderCollections: RequestHandler;
   listModels: RequestHandler;
   createModel: RequestHandler;
   updateModel: RequestHandler;
@@ -419,7 +506,7 @@ export function createAdminMasterController(
       const folder = bodyFolder ?? queryFolder;
       if (!folder) {
         throw new AppError(
-          'Folder tujuan unggahan wajib diisi (models, fabrics, qris, logs, ready).',
+          'Folder tujuan unggahan wajib diisi (models, fabrics, qris, logs, ready, size-charts).',
           400
         );
       }
@@ -432,6 +519,98 @@ export function createAdminMasterController(
       return sendCreated<CatalogImageUploadDto>(res, {
         message: 'Gambar berhasil diunggah ke bucket catalog.',
         data: uploaded,
+      });
+    }),
+
+    listCategories: asyncHandler(async (req, res) => {
+      const includeInactive = req.query.includeInactive === 'true';
+      const data = await service.listCategories(includeInactive);
+      return sendSuccess<CatalogCategoryDto[]>(res, {
+        message: 'Daftar kategori pakaian berhasil dimuat.',
+        data,
+      });
+    }),
+
+    createCategory: asyncHandler(async (req, res) => {
+      const body = req.body as CreateCatalogCategoryDto;
+      const created = await service.createCategory(body);
+      return sendCreated<CatalogCategoryDto>(res, {
+        message: 'Kategori pakaian berhasil dibuat.',
+        data: created,
+      });
+    }),
+
+    updateCategory: asyncHandler(async (req, res) => {
+      const id = String(req.params.id ?? '');
+      const body = req.body as UpdateCatalogCategoryDto;
+      const updated = await service.updateCategory(id, body);
+      return sendSuccess<CatalogCategoryDto>(res, {
+        message: 'Kategori pakaian berhasil diperbarui.',
+        data: updated,
+      });
+    }),
+
+    deactivateCategory: asyncHandler(async (req, res) => {
+      const id = String(req.params.id ?? '');
+      const deactivated = await service.deactivateCategory(id);
+      return sendSuccess<CatalogCategoryDto>(res, {
+        message: 'Kategori pakaian berhasil dinonaktifkan.',
+        data: deactivated,
+      });
+    }),
+
+    reorderCategories: asyncHandler(async (req, res) => {
+      const body = req.body as ReorderCatalogEntitiesDto;
+      const data = await service.reorderCategories(body.items);
+      return sendSuccess<CatalogCategoryDto[]>(res, {
+        message: 'Urutan kategori pakaian berhasil diperbarui.',
+        data,
+      });
+    }),
+
+    listCollections: asyncHandler(async (req, res) => {
+      const includeInactive = req.query.includeInactive === 'true';
+      const data = await service.listCollections(includeInactive);
+      return sendSuccess<CatalogCollectionDto[]>(res, {
+        message: 'Daftar koleksi berhasil dimuat.',
+        data,
+      });
+    }),
+
+    createCollection: asyncHandler(async (req, res) => {
+      const body = req.body as CreateCatalogCollectionDto;
+      const created = await service.createCollection(body);
+      return sendCreated<CatalogCollectionDto>(res, {
+        message: 'Koleksi berhasil dibuat.',
+        data: created,
+      });
+    }),
+
+    updateCollection: asyncHandler(async (req, res) => {
+      const id = String(req.params.id ?? '');
+      const body = req.body as UpdateCatalogCollectionDto;
+      const updated = await service.updateCollection(id, body);
+      return sendSuccess<CatalogCollectionDto>(res, {
+        message: 'Koleksi berhasil diperbarui.',
+        data: updated,
+      });
+    }),
+
+    deactivateCollection: asyncHandler(async (req, res) => {
+      const id = String(req.params.id ?? '');
+      const deactivated = await service.deactivateCollection(id);
+      return sendSuccess<CatalogCollectionDto>(res, {
+        message: 'Koleksi berhasil dinonaktifkan.',
+        data: deactivated,
+      });
+    }),
+
+    reorderCollections: asyncHandler(async (req, res) => {
+      const body = req.body as ReorderCatalogEntitiesDto;
+      const data = await service.reorderCollections(body.items);
+      return sendSuccess<CatalogCollectionDto[]>(res, {
+        message: 'Urutan koleksi berhasil diperbarui.',
+        data,
       });
     }),
 

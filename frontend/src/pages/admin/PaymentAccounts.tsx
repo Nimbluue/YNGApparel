@@ -1,7 +1,8 @@
 import { PAYMENT_METHOD, type PaymentAccountDto, type PaymentMethod } from '@yng/shared';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ActiveStatusBadge, AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
+import { ActiveStatusBadge } from '../../components/admin/AdminFeedbackBanner';
 import CatalogImageField from '../../components/admin/CatalogImageField';
+import { useToast } from '../../components/ui/toastContext';
 import {
   createPaymentAccount,
   deactivatePaymentAccount,
@@ -31,6 +32,7 @@ const INITIAL_FORM: PaymentFormState = {
 };
 
 export default function PaymentAccounts() {
+  const { toast } = useToast();
   const [accounts, setAccounts] = useState<PaymentAccountDto[]>([]);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,12 +42,6 @@ export default function PaymentAccounts() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<PaymentFormState>(INITIAL_FORM);
 
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
-
   const loadAccounts = useCallback(async () => {
     setLoading(true);
     try {
@@ -53,11 +49,11 @@ export default function PaymentAccounts() {
       setAccounts(data);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat daftar rekening pembayaran.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, toast]);
 
   useEffect(() => {
     void loadAccounts();
@@ -69,7 +65,6 @@ export default function PaymentAccounts() {
   }
 
   function startEdit(account: PaymentAccountDto) {
-    setFeedback(null);
     setEditingId(account.id);
     setForm({
       method: account.method,
@@ -85,7 +80,6 @@ export default function PaymentAccounts() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
 
     const providerName = form.providerName.trim();
     const accountHolder = form.accountHolder.trim();
@@ -93,12 +87,12 @@ export default function PaymentAccounts() {
     const accountNumber = trimmedNumber.length > 0 ? trimmedNumber : null;
 
     if (providerName.length < 2) {
-      setFeedback({ variant: 'error', message: 'Nama penyedia / bank minimal 2 karakter.' });
+      toast('Nama penyedia / bank minimal 2 karakter.', 'err');
       return;
     }
 
     if (accountHolder.length < 2) {
-      setFeedback({ variant: 'error', message: 'Nama pemilik rekening minimal 2 karakter.' });
+      toast('Nama pemilik rekening minimal 2 karakter.', 'err');
       return;
     }
 
@@ -106,10 +100,7 @@ export default function PaymentAccounts() {
       form.method === PAYMENT_METHOD.BANK_TRANSFER &&
       (!accountNumber || accountNumber.length < 3)
     ) {
-      setFeedback({
-        variant: 'error',
-        message: 'Nomor rekening wajib diisi (minimal 3 karakter) untuk metode transfer bank.',
-      });
+      toast('Nomor rekening wajib diisi (minimal 3 karakter) untuk metode transfer bank.', 'err');
       return;
     }
 
@@ -126,23 +117,17 @@ export default function PaymentAccounts() {
 
       if (editingId !== null) {
         const updated = await updatePaymentAccount(editingId, payload);
-        setFeedback({
-          variant: 'success',
-          message: `Akun pembayaran "${updated.providerName}" berhasil diperbarui.`,
-        });
+        toast(`Akun pembayaran "${updated.providerName}" berhasil diperbarui.`, 'ok');
       } else {
         const created = await createPaymentAccount(payload);
-        setFeedback({
-          variant: 'success',
-          message: `Akun pembayaran "${created.providerName}" berhasil ditambahkan.`,
-        });
+        toast(`Akun pembayaran "${created.providerName}" berhasil ditambahkan.`, 'ok');
       }
 
       resetForm();
       await loadAccounts();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan rekening pembayaran.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -150,25 +135,18 @@ export default function PaymentAccounts() {
 
   async function handleToggleActive(account: PaymentAccountDto) {
     setBusyId(account.id);
-    setFeedback(null);
     try {
       if (account.isActive) {
         await deactivatePaymentAccount(account.id);
-        setFeedback({
-          variant: 'success',
-          message: `Akun pembayaran "${account.providerName}" dinonaktifkan.`,
-        });
+        toast(`Akun pembayaran "${account.providerName}" dinonaktifkan.`, 'ok');
       } else {
         await updatePaymentAccount(account.id, { isActive: true });
-        setFeedback({
-          variant: 'success',
-          message: `Akun pembayaran "${account.providerName}" diaktifkan kembali.`,
-        });
+        toast(`Akun pembayaran "${account.providerName}" diaktifkan kembali.`, 'ok');
       }
       await loadAccounts();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status akun pembayaran.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyId(null);
     }
@@ -176,7 +154,7 @@ export default function PaymentAccounts() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Ruang Produksi · Pembayaran</p>
@@ -184,12 +162,11 @@ export default function PaymentAccounts() {
               Rekening &amp; QRIS
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Kelola rekening bank dan kode QRIS resmi toko. Hanya akun pembayaran berstatus aktif
-              yang akan ditampilkan ke pelanggan saat memilih metode bayar.
+              Rekening dan QRIS aktif tampil saat pelanggan membayar.
             </p>
           </div>
 
-          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink">
+          <label className="inline-flex min-h-touch shrink-0 cursor-pointer items-center gap-2.5 rounded-sm border border-line bg-[#FAFAFA] px-4 py-2 text-xs font-semibold text-ink">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -200,15 +177,6 @@ export default function PaymentAccounts() {
           </label>
         </div>
       </section>
-
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
 
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
@@ -319,11 +287,11 @@ export default function PaymentAccounts() {
 
           <CatalogImageField
             id="pa-qris-upload"
-            label="Gambar Kode QRIS (Folder qris)"
+            label="Gambar Kode QRIS"
             folder="qris"
             pathValue={form.qrImagePath}
             existingUrl={form.qrImageUrl}
-            helperText="Resolusi <= 2000px dipertahankan tanpa diperkecil agar QR mudah dipindai."
+            helperText="Gunakan gambar QR jelas agar mudah dipindai."
             onChange={(nextPath, nextUrl) =>
               setForm((prev) => ({ ...prev, qrImagePath: nextPath, qrImageUrl: nextUrl }))
             }
@@ -370,7 +338,7 @@ export default function PaymentAccounts() {
 
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
+                      <span className="rounded-sm bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
                         {account.method === PAYMENT_METHOD.QRIS ? 'QRIS' : 'Transfer Bank'}
                       </span>
                       <ActiveStatusBadge isActive={account.isActive} />
@@ -408,7 +376,7 @@ export default function PaymentAccounts() {
                     type="button"
                     onClick={() => void handleToggleActive(account)}
                     disabled={busyId === account.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       account.isActive
                         ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
                         : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'

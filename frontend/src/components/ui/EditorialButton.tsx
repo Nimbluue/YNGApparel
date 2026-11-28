@@ -13,7 +13,7 @@ const sheenVariants = {
 };
 
 export interface EditorialButtonProps {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'inverse' | 'outlineInverse';
   size?: 'md' | 'sm';
   fullWidth?: boolean;
   to?: string;
@@ -54,7 +54,11 @@ export function EditorialButton({
       ? 'border border-ink bg-ink text-white hover:bg-neutral-900'
       : variant === 'secondary'
         ? 'border border-ink bg-white text-ink hover:bg-ink hover:text-white'
-        : 'border border-transparent bg-transparent text-ink underline-offset-4 hover:underline';
+        : variant === 'inverse'
+          ? 'border border-white bg-white text-[#111111] hover:border-neutral-100 hover:bg-neutral-100'
+          : variant === 'outlineInverse'
+            ? 'border border-white/75 bg-transparent text-white hover:border-white hover:bg-white hover:text-[#111111]'
+            : 'border border-transparent bg-transparent text-ink underline-offset-4 hover:underline';
 
   const baseClasses = [
     'relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-sm font-display font-semibold uppercase tracking-[0.14em] transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',

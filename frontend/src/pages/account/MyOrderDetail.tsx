@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Badge, DesignBadge, PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/toastContext';
@@ -314,10 +315,32 @@ export default function MyOrderDetail() {
 
   return (
     <div className="w-full space-y-6 pb-10">
+      <EditorialBackBar
+        fallbackTo="/pesanan"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.account'), to: '/akun' },
+          { label: t('breadcrumb.orders'), to: '/pesanan' },
+          { label: order.orderCode },
+        ]}
+        rightSlot={
+          waInquiryHref ? (
+            <a
+              href={waInquiryHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary px-4 text-xs"
+            >
+              {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
+            </a>
+          ) : undefined
+        }
+      />
+
       {justCreated ? (
         <div
           role="status"
-          className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-xs leading-relaxed text-status-ok sm:text-sm"
+          className="rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-xs leading-relaxed text-status-ok sm:text-sm"
         >
           {pick(
             <>
@@ -335,26 +358,6 @@ export default function MyOrderDetail() {
 
       {/* Header Detail Pesanan */}
       <header className="space-y-4 border-b border-line pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            to="/pesanan"
-            className="inline-flex min-h-touch items-center text-xs font-semibold text-muted transition-colors hover:text-ink"
-          >
-            {pick('← Kembali ke Daftar Pesanan', '← Back to Order History')}
-          </Link>
-
-          {waInquiryHref ? (
-            <a
-              href={waInquiryHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-secondary px-4 text-xs"
-            >
-              {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
-            </a>
-          ) : null}
-        </div>
-
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="eyebrow">YNG Studio · {pick('Detail Pesanan', 'Order Detail')}</p>
@@ -367,7 +370,7 @@ export default function MyOrderDetail() {
                 onClick={() =>
                   void copyToClipboard(order.orderCode, pick('Kode pesanan', 'Order code'))
                 }
-                className="inline-flex min-h-touch items-center rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink"
+                className="inline-flex min-h-touch items-center rounded-sm border border-line bg-[#FAFAFA] px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink"
               >
                 {pick('Salin Kode', 'Copy Code')}
               </button>
@@ -393,7 +396,7 @@ export default function MyOrderDetail() {
       {order.productionStatus === PRODUCTION_STATUS.CANCELLED ? (
         <div
           role="alert"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
+          className="rounded-sm border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
         >
           <p className="font-semibold">{pick('Pesanan Dibatalkan', 'Order Cancelled')}</p>
           {order.cancelledReason ? (
@@ -408,7 +411,7 @@ export default function MyOrderDetail() {
         {/* Kolom Kiri: Pembayaran, Upload Bukti, & Rincian Item */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7">
           {/* Status & Daftar Tahap Pembayaran */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
                 <p className="eyebrow">
@@ -437,7 +440,7 @@ export default function MyOrderDetail() {
                 return (
                   <div
                     key={payment.paymentUuid}
-                    className="rounded-2xl border border-line bg-surface p-4"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
@@ -471,7 +474,7 @@ export default function MyOrderDetail() {
                     </div>
 
                     {payment.status === PAYMENT_STATUS.REJECTED && payment.rejectionReason ? (
-                      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-status-err">
+                      <div className="mt-3 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs text-status-err">
                         <strong>{pick('Alasan Penolakan:', 'Rejection Reason:')}</strong>{' '}
                         {payment.rejectionReason}.{' '}
                         {pick(
@@ -487,7 +490,7 @@ export default function MyOrderDetail() {
                           href={payment.proofImageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group relative inline-block overflow-hidden rounded-xl border border-line bg-white"
+                          className="group relative inline-block overflow-hidden rounded-sm border border-line bg-white"
                         >
                           <img
                             src={payment.proofImageUrl}
@@ -520,7 +523,7 @@ export default function MyOrderDetail() {
               </p>
 
               {order.paymentAccounts.length === 0 ? (
-                <p className="rounded-2xl border border-line bg-surface p-4 text-xs text-muted">
+                <p className="rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs text-muted">
                   {pick(
                     'Belum ada rekening atau QRIS aktif terdaftar. Hubungi admin via WhatsApp untuk konfirmasi tujuan transfer.',
                     'No active bank or QRIS account listed yet. Contact admin via WhatsApp for transfer details.'
@@ -531,7 +534,7 @@ export default function MyOrderDetail() {
                   {bankAccounts.map((acc) => (
                     <div
                       key={acc.id}
-                      className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+                      className="flex flex-col justify-between gap-3 rounded-sm border border-line bg-[#FAFAFA] p-4"
                     >
                       <div className="space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -573,7 +576,7 @@ export default function MyOrderDetail() {
                   {qrisAccounts.map((acc) => (
                     <div
                       key={acc.id}
-                      className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+                      className="flex flex-col justify-between gap-3 rounded-sm border border-line bg-[#FAFAFA] p-4"
                     >
                       <div className="space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -592,7 +595,7 @@ export default function MyOrderDetail() {
                           href={acc.qrImageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex flex-col items-center rounded-xl border border-line bg-white p-3 transition-colors hover:border-ink"
+                          className="inline-flex flex-col items-center rounded-sm border border-line bg-white p-3 transition-colors hover:border-ink"
                         >
                           <img
                             src={acc.qrImageUrl}
@@ -631,7 +634,7 @@ export default function MyOrderDetail() {
                 {uploadError ? (
                   <div
                     role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err"
+                    className="rounded-sm border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err"
                   >
                     {uploadError}
                   </div>
@@ -670,10 +673,10 @@ export default function MyOrderDetail() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod(PAYMENT_METHOD.BANK_TRANSFER)}
-                    className={`min-h-touch w-full rounded-xl border px-3 text-xs font-semibold transition-colors ${
+                    className={`min-h-touch w-full rounded-sm border px-3 text-xs font-semibold transition-colors ${
                       paymentMethod === PAYMENT_METHOD.BANK_TRANSFER
                         ? 'border-ink bg-ink text-white'
-                        : 'border-line bg-surface text-ink hover:border-ink'
+                        : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                     }`}
                   >
                     {pick('Transfer Bank', 'Bank Transfer')}
@@ -681,10 +684,10 @@ export default function MyOrderDetail() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod(PAYMENT_METHOD.QRIS)}
-                    className={`min-h-touch w-full rounded-xl border px-3 text-xs font-semibold transition-colors ${
+                    className={`min-h-touch w-full rounded-sm border px-3 text-xs font-semibold transition-colors ${
                       paymentMethod === PAYMENT_METHOD.QRIS
                         ? 'border-ink bg-ink text-white'
-                        : 'border-line bg-surface text-ink hover:border-ink'
+                        : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                     }`}
                   >
                     QRIS
@@ -731,17 +734,17 @@ export default function MyOrderDetail() {
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     onChange={handleFileChange}
-                    className="mt-1.5 block min-h-touch w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink file:mr-3 file:min-h-[32px] file:rounded-full file:border file:border-line file:bg-white file:px-3.5 file:text-xs file:font-semibold file:text-ink hover:file:border-ink"
+                    className="mt-1.5 block min-h-touch w-full rounded-sm border border-line bg-[#FAFAFA] px-3 py-2 text-xs text-ink file:mr-3 file:min-h-[32px] file:rounded-sm file:border file:border-line file:bg-white file:px-3.5 file:text-xs file:font-semibold file:text-ink hover:file:border-ink"
                   />
                 </div>
 
                 {previewUrl && selectedFile ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-line bg-[#FAFAFA] p-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <img
                         src={previewUrl}
                         alt={pick('Pratinjau bukti pembayaran', 'Payment proof preview')}
-                        className="h-16 w-16 shrink-0 rounded-xl border border-line bg-white object-cover"
+                        className="h-16 w-16 shrink-0 rounded-sm border border-line bg-white object-cover"
                       />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-ink">
@@ -777,7 +780,7 @@ export default function MyOrderDetail() {
           </section>
 
           {/* Rincian Snapshot Item */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
                 <p className="eyebrow">
@@ -793,7 +796,7 @@ export default function MyOrderDetail() {
             </div>
 
             {order.designReviewNotes ? (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-status-warn">
+              <div className="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-status-warn">
                 <strong>{pick('Catatan Review Desain:', 'Design Review Notes:')}</strong>{' '}
                 {order.designReviewNotes}
               </div>
@@ -803,7 +806,7 @@ export default function MyOrderDetail() {
               {order.items.map((item, idx) => (
                 <article
                   key={`${order.transactionUuid}-item-${idx}`}
-                  className="rounded-2xl border border-line bg-surface p-4"
+                  className="rounded-sm border border-line bg-[#FAFAFA] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -844,7 +847,7 @@ export default function MyOrderDetail() {
                     {item.sizes.map((s) => (
                       <span
                         key={s.sizeCode}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1 text-xs"
+                        className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-white px-2.5 py-1 text-xs"
                       >
                         <span className="font-mono font-semibold text-ink">{s.sizeCode}</span>
                         <span className="tabular-price text-muted">× {s.qty}</span>
@@ -862,7 +865,7 @@ export default function MyOrderDetail() {
                       {item.prints.map((print, pIdx) => (
                         <li
                           key={`${order.transactionUuid}-item-${idx}-print-${pIdx}`}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs"
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-3 py-2 text-xs"
                         >
                           <span>
                             <strong className="text-ink">
@@ -892,7 +895,7 @@ export default function MyOrderDetail() {
                   )}
 
                   {item.productionNotes ? (
-                    <p className="mt-2.5 rounded-xl border border-line bg-white px-3 py-2 text-xs text-muted">
+                    <p className="mt-2.5 rounded-sm border border-line bg-white px-3 py-2 text-xs text-muted">
                       <span className="font-semibold text-ink">
                         {pick('Catatan Produksi: ', 'Production Notes: ')}
                       </span>
@@ -908,7 +911,7 @@ export default function MyOrderDetail() {
         {/* Kolom Kanan: Ringkasan Harga, Pengiriman & Tracking Resi, Foto QC, & Riwayat */}
         <aside className="w-full min-w-0 space-y-6 lg:col-span-5">
           {/* Ringkasan Snapshot Harga */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
               <p className="eyebrow">{pick('Ringkasan Harga', 'Price Summary')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -973,7 +976,7 @@ export default function MyOrderDetail() {
             </dl>
 
             {order.estimatedFinishDate ? (
-              <p className="mt-4 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs text-muted">
+              <p className="mt-4 rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs text-muted">
                 {pick('Estimasi selesai produksi:', 'Estimated completion:')}{' '}
                 <strong className="tabular-price text-ink">
                   {formatLocalizedWibDate(order.estimatedFinishDate, locale)}
@@ -983,7 +986,7 @@ export default function MyOrderDetail() {
           </section>
 
           {/* Pengiriman & Pelacakan Resi */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
               <p className="eyebrow">
                 {order.fulfillmentType === FULFILLMENT_TYPE.SHIP
@@ -1013,7 +1016,7 @@ export default function MyOrderDetail() {
                   </p>
 
                   {order.shippingCourier || order.trackingReceiptNumber ? (
-                    <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+                    <div className="space-y-3 rounded-sm border border-line bg-[#FAFAFA] p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="text-xs text-muted">
@@ -1035,7 +1038,7 @@ export default function MyOrderDetail() {
                       </div>
 
                       {order.trackingReceiptNumber ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-3 py-2">
                           <div className="min-w-0">
                             <p className="text-[11px] text-muted">
                               {pick('Nomor Resi', 'Tracking Number')}
@@ -1081,7 +1084,7 @@ export default function MyOrderDetail() {
                       ) : null}
                     </div>
                   ) : (
-                    <p className="rounded-2xl border border-line bg-surface p-3.5 text-xs text-muted">
+                    <p className="rounded-sm border border-line bg-[#FAFAFA] p-3.5 text-xs text-muted">
                       {pick(
                         'Nomor resi dan kurir akan muncul setelah paket dikirim.',
                         'Courier and tracking number will appear once shipped.'
@@ -1090,7 +1093,7 @@ export default function MyOrderDetail() {
                   )}
                 </>
               ) : (
-                <div className="rounded-2xl border border-line bg-surface p-3.5 text-xs text-muted">
+                <div className="rounded-sm border border-line bg-[#FAFAFA] p-3.5 text-xs text-muted">
                   <p>
                     {pick(
                       'Ambil langsung di workshop YNG Apparel, Batam.',
@@ -1110,7 +1113,7 @@ export default function MyOrderDetail() {
 
           {/* Foto QC (bila tersedia) */}
           {order.qcPhotos.length > 0 ? (
-            <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+            <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
               <div className="border-b border-line pb-4">
                 <p className="eyebrow">Quality Control</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -1124,7 +1127,7 @@ export default function MyOrderDetail() {
                     href={photo.photoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group overflow-hidden rounded-2xl border border-line bg-surface"
+                    className="group overflow-hidden rounded-sm border border-line bg-[#FAFAFA]"
                   >
                     <img
                       src={photo.photoUrl}
@@ -1139,7 +1142,7 @@ export default function MyOrderDetail() {
 
           {/* Riwayat Status */}
           {order.statusHistory.length > 0 ? (
-            <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+            <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
               <div className="border-b border-line pb-4">
                 <p className="eyebrow">{pick('Linimasa', 'Timeline')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -1151,7 +1154,7 @@ export default function MyOrderDetail() {
                 {order.statusHistory.map((entry, idx) => (
                   <li
                     key={`${entry.createdAt}-${idx}`}
-                    className="rounded-2xl border border-line bg-surface px-3.5 py-3 text-xs"
+                    className="rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-3 text-xs"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-ink">

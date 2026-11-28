@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Badge, DesignBadge, PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
@@ -21,6 +22,7 @@ import { useLanguage, type Locale } from '../../context/LanguageContext';
 import { catalogQueryKeys, getCatalogConfig } from '../../services/catalogService';
 import {
   getTrackOrderByUuid,
+  lookupTrackOrder,
   trackerQueryKeys,
   uploadTrackerPaymentProof,
 } from '../../services/trackerService';
@@ -36,10 +38,16 @@ import {
   getLocalizedPrintPositionLabel,
   getLocalizedProductionStatusLabel,
 } from '../../utils/localizedLabels';
+import {
+  buildRecentTrackSummary,
+  getRecentTracks,
+  saveRecentTrack,
+} from '../../utils/recentTracks';
 import { buildWaLink } from '../../utils/whatsapp';
 
 const PROOF_ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PROOF_MAX_BYTES = 5 * 1024 * 1024;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function resolveHistoryStageLabel(
   rawStatus: string,
@@ -64,24 +72,56 @@ export default function TrackDetail() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const isUuidParam = UUID_REGEX.test(uuid);
+
   const lookupCredentials = useMemo(() => {
     const rawState = location.state as {
       lookupCredentials?: { code?: unknown; whatsappLast4?: unknown };
     } | null;
-    const code =
+    const stateCode =
       typeof rawState?.lookupCredentials?.code === 'string'
         ? rawState.lookupCredentials.code
         : null;
-    const whatsappLast4 =
+    const stateLast4 =
       typeof rawState?.lookupCredentials?.whatsappLast4 === 'string'
         ? rawState.lookupCredentials.whatsappLast4
         : null;
-    return code && whatsappLast4 ? { code, whatsappLast4 } : null;
-  }, [location.state]);
+    if (stateCode && stateLast4) {
+      return { code: stateCode, whatsappLast4: stateLast4 };
+    }
+
+    if (!isUuidParam && uuid.trim().length > 0) {
+      const normalizedCode = uuid.trim().toUpperCase();
+      const cached = getRecentTracks().find((entry) => entry.orderCode === normalizedCode);
+      if (cached) {
+        return { code: cached.orderCode, whatsappLast4: cached.phoneLast4 };
+      }
+    }
+
+    return null;
+  }, [isUuidParam, location.state, uuid]);
 
   const orderQuery = useQuery({
     queryKey: trackerQueryKeys.detail(uuid),
-    queryFn: () => getTrackOrderByUuid(uuid),
+    queryFn: () => {
+      if (isUuidParam) {
+        return getTrackOrderByUuid(uuid);
+      }
+      if (lookupCredentials) {
+        return lookupTrackOrder({
+          code: lookupCredentials.code,
+          whatsappLast4: lookupCredentials.whatsappLast4,
+        });
+      }
+      return Promise.reject(
+        new Error(
+          pick(
+            'Kredensial pelacakan tidak ditemukan. Silakan cari ulang kode pesanan.',
+            'Tracking credentials not found. Please look up your order code again.'
+          )
+        )
+      );
+    },
     enabled: uuid.length > 0,
   });
 
@@ -91,6 +131,19 @@ export default function TrackDetail() {
   });
 
   const order = orderQuery.data ?? null;
+
+  useEffect(() => {
+    if (!order) return;
+    const last4 =
+      lookupCredentials?.whatsappLast4 ?? order.customerWhatsappMasked.replace(/\D/g, '').slice(-4);
+    if (/^[0-9]{4}$/.test(last4)) {
+      saveRecentTrack({
+        orderCode: order.orderCode,
+        phoneLast4: last4,
+        summary: buildRecentTrackSummary(order),
+      });
+    }
+  }, [lookupCredentials?.whatsappLast4, order]);
 
   const unverifiedPayments = useMemo<OrderPaymentDto[]>(() => {
     if (!order || order.productionStatus === PRODUCTION_STATUS.CANCELLED) {
@@ -273,7 +326,7 @@ export default function TrackDetail() {
           <Skeleton className="h-3 w-40" />
           <Skeleton className="h-9 w-72" />
         </div>
-        <Skeleton className="h-28 w-full rounded-3xl" />
+        <Skeleton className="h-28 w-full rounded-sm" />
         <div className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-12">
           <div className="w-full min-w-0 space-y-4 lg:col-span-7">
             <CardSkeleton />
@@ -333,17 +386,15 @@ export default function TrackDetail() {
 
   return (
     <div className="w-full space-y-6 pb-10">
-      {/* Header & Identitas Tersamarkan */}
-      <header className="space-y-4 border-b border-line pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <Link
-            to="/track"
-            className="inline-flex min-h-touch items-center text-xs font-semibold text-muted transition-colors hover:text-ink"
-          >
-            {pick('← Lacak Pesanan Lain', '← Track Another Order')}
-          </Link>
-
-          <div className="flex flex-wrap items-center gap-2">
+      <EditorialBackBar
+        fallbackTo="/track"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.track'), to: '/track' },
+          { label: order.orderCode },
+        ]}
+        rightSlot={
+          <>
             <button
               type="button"
               onClick={() =>
@@ -363,9 +414,12 @@ export default function TrackDetail() {
                 {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
               </a>
             ) : null}
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      {/* Header & Identitas Tersamarkan */}
+      <header className="space-y-4 border-b border-line pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="eyebrow">
@@ -380,7 +434,7 @@ export default function TrackDetail() {
                 onClick={() =>
                   void copyToClipboard(order.orderCode, pick('Kode pesanan', 'Order code'))
                 }
-                className="inline-flex min-h-touch items-center rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink"
+                className="inline-flex min-h-touch items-center rounded-sm border border-line bg-[#FAFAFA] px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink"
               >
                 {pick('Salin Kode', 'Copy Code')}
               </button>
@@ -403,7 +457,7 @@ export default function TrackDetail() {
         </div>
 
         {/* Kartu Data Pemesan Tersamarkan */}
-        <div className="grid w-full grid-cols-1 gap-3 rounded-2xl border border-line bg-surface p-4 text-xs sm:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-3 rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs sm:grid-cols-3">
           <div className="min-w-0">
             <p className="text-muted">{pick('Pemesan', 'Customer')}</p>
             <p className="mt-0.5 truncate font-semibold text-ink">{order.customerNameMasked}</p>
@@ -433,7 +487,7 @@ export default function TrackDetail() {
       {order.productionStatus === PRODUCTION_STATUS.CANCELLED ? (
         <div
           role="alert"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
+          className="rounded-sm border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
         >
           <p className="font-semibold">{pick('Pesanan Dibatalkan', 'Order Cancelled')}</p>
           {order.cancelledReason ? (
@@ -445,7 +499,7 @@ export default function TrackDetail() {
       ) : null}
 
       {/* Progres 5 Tahap Produksi */}
-      <section className="w-full rounded-3xl border border-line bg-white p-5 sm:p-6">
+      <section className="w-full rounded-sm border border-line bg-white p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
           <div>
             <p className="eyebrow">{pick('Progres Produksi', 'Production Progress')}</p>
@@ -475,7 +529,7 @@ export default function TrackDetail() {
         {/* Kolom Kiri: Foto QC, Pembayaran & Upload Bukti, Rincian Item */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7">
           {/* Galeri Foto QC */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
                 <p className="eyebrow">Quality Control</p>
@@ -491,7 +545,7 @@ export default function TrackDetail() {
             </div>
 
             {order.qcPhotos.length === 0 ? (
-              <p className="mt-4 rounded-2xl border border-line bg-surface px-4 py-4 text-xs leading-relaxed text-muted">
+              <p className="mt-4 rounded-sm border border-line bg-[#FAFAFA] px-4 py-4 text-xs leading-relaxed text-muted">
                 {pick(
                   'Foto hasil Quality Control belum diunggah. Foto akan muncul di sini setelah tahap Pressing & QC dikerjakan oleh tim workshop.',
                   'Quality Control photos have not been uploaded yet. Photos will appear here once Pressing & QC is completed at our workshop.'
@@ -504,14 +558,14 @@ export default function TrackDetail() {
                     key={`${photo.createdAt}-${idx}`}
                     type="button"
                     onClick={() => setLightboxIndex(idx)}
-                    className="group relative aspect-square w-full overflow-hidden rounded-2xl border border-line bg-surface text-left transition-colors hover:border-ink"
+                    className="group relative aspect-square w-full overflow-hidden rounded-sm border border-line bg-[#FAFAFA] text-left transition-colors hover:border-ink"
                   >
                     <img
                       src={photo.photoUrl}
                       alt={pick(`Foto QC #${idx + 1}`, `QC Photo #${idx + 1}`)}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
-                    <span className="tabular-price absolute bottom-2 left-2 rounded-full bg-ink/80 px-2.5 py-0.5 text-[11px] font-medium text-white">
+                    <span className="tabular-price absolute bottom-2 left-2 rounded-sm bg-ink/80 px-2.5 py-0.5 text-[11px] font-medium text-white">
                       QC #{idx + 1}
                     </span>
                   </button>
@@ -521,7 +575,7 @@ export default function TrackDetail() {
           </section>
 
           {/* Tagihan Pembayaran & Upload Bukti Tagihan Lanjutan */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
                 <p className="eyebrow">{pick('Pembayaran Bertahap', 'Staged Payments')}</p>
@@ -548,7 +602,7 @@ export default function TrackDetail() {
                 return (
                   <div
                     key={payment.paymentUuid}
-                    className="rounded-2xl border border-line bg-surface p-4"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
@@ -582,7 +636,7 @@ export default function TrackDetail() {
                     </div>
 
                     {payment.status === PAYMENT_STATUS.REJECTED && payment.rejectionReason ? (
-                      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-status-err">
+                      <div className="mt-3 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs text-status-err">
                         <strong>{pick('Alasan Penolakan:', 'Rejection Reason:')}</strong>{' '}
                         {payment.rejectionReason}.{' '}
                         {pick(
@@ -598,7 +652,7 @@ export default function TrackDetail() {
                           href={payment.proofImageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="group inline-block overflow-hidden rounded-xl border border-line bg-white"
+                          className="group inline-block overflow-hidden rounded-sm border border-line bg-white"
                         >
                           <img
                             src={payment.proofImageUrl}
@@ -634,7 +688,7 @@ export default function TrackDetail() {
                   {bankAccounts.map((acc) => (
                     <div
                       key={acc.id}
-                      className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+                      className="flex flex-col justify-between gap-3 rounded-sm border border-line bg-[#FAFAFA] p-4"
                     >
                       <div className="space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -676,7 +730,7 @@ export default function TrackDetail() {
                   {qrisAccounts.map((acc) => (
                     <div
                       key={acc.id}
-                      className="flex flex-col justify-between gap-3 rounded-2xl border border-line bg-surface p-4"
+                      className="flex flex-col justify-between gap-3 rounded-sm border border-line bg-[#FAFAFA] p-4"
                     >
                       <div className="space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
@@ -695,7 +749,7 @@ export default function TrackDetail() {
                           href={acc.qrImageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex flex-col items-center rounded-xl border border-line bg-white p-3 transition-colors hover:border-ink"
+                          className="inline-flex flex-col items-center rounded-sm border border-line bg-white p-3 transition-colors hover:border-ink"
                         >
                           <img
                             src={acc.qrImageUrl}
@@ -734,7 +788,7 @@ export default function TrackDetail() {
                 {uploadError ? (
                   <div
                     role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err"
+                    className="rounded-sm border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err"
                   >
                     {uploadError}
                   </div>
@@ -773,10 +827,10 @@ export default function TrackDetail() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod(PAYMENT_METHOD.BANK_TRANSFER)}
-                    className={`min-h-touch w-full rounded-xl border px-3 text-xs font-semibold transition-colors ${
+                    className={`min-h-touch w-full rounded-sm border px-3 text-xs font-semibold transition-colors ${
                       paymentMethod === PAYMENT_METHOD.BANK_TRANSFER
                         ? 'border-ink bg-ink text-white'
-                        : 'border-line bg-surface text-ink hover:border-ink'
+                        : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                     }`}
                   >
                     {pick('Transfer Bank', 'Bank Transfer')}
@@ -784,10 +838,10 @@ export default function TrackDetail() {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod(PAYMENT_METHOD.QRIS)}
-                    className={`min-h-touch w-full rounded-xl border px-3 text-xs font-semibold transition-colors ${
+                    className={`min-h-touch w-full rounded-sm border px-3 text-xs font-semibold transition-colors ${
                       paymentMethod === PAYMENT_METHOD.QRIS
                         ? 'border-ink bg-ink text-white'
-                        : 'border-line bg-surface text-ink hover:border-ink'
+                        : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                     }`}
                   >
                     QRIS
@@ -834,17 +888,17 @@ export default function TrackDetail() {
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     onChange={handleFileChange}
-                    className="mt-1.5 block min-h-touch w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink file:mr-3 file:min-h-[32px] file:rounded-full file:border file:border-line file:bg-white file:px-3.5 file:text-xs file:font-semibold file:text-ink hover:file:border-ink"
+                    className="mt-1.5 block min-h-touch w-full rounded-sm border border-line bg-[#FAFAFA] px-3 py-2 text-xs text-ink file:mr-3 file:min-h-[32px] file:rounded-sm file:border file:border-line file:bg-white file:px-3.5 file:text-xs file:font-semibold file:text-ink hover:file:border-ink"
                   />
                 </div>
 
                 {previewUrl && selectedFile ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-line bg-[#FAFAFA] p-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <img
                         src={previewUrl}
                         alt={pick('Pratinjau bukti pembayaran', 'Payment proof preview')}
-                        className="h-16 w-16 shrink-0 rounded-xl border border-line bg-white object-cover"
+                        className="h-16 w-16 shrink-0 rounded-sm border border-line bg-white object-cover"
                       />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-ink">
@@ -880,7 +934,7 @@ export default function TrackDetail() {
           </section>
 
           {/* Rincian Item */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
                 <p className="eyebrow">
@@ -896,7 +950,7 @@ export default function TrackDetail() {
             </div>
 
             {order.designReviewNotes ? (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-status-warn">
+              <div className="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-status-warn">
                 <strong>{pick('Catatan Desain:', 'Design Notes:')}</strong>{' '}
                 {order.designReviewNotes}
               </div>
@@ -906,7 +960,7 @@ export default function TrackDetail() {
               {order.items.map((item, idx) => (
                 <article
                   key={`${order.transactionUuid}-track-item-${idx}`}
-                  className="rounded-2xl border border-line bg-surface p-4"
+                  className="rounded-sm border border-line bg-[#FAFAFA] p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -947,7 +1001,7 @@ export default function TrackDetail() {
                     {item.sizes.map((s) => (
                       <span
                         key={s.sizeCode}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1 text-xs"
+                        className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-white px-2.5 py-1 text-xs"
                       >
                         <span className="font-mono font-semibold text-ink">{s.sizeCode}</span>
                         <span className="tabular-price text-muted">× {s.qty}</span>
@@ -960,7 +1014,7 @@ export default function TrackDetail() {
                       {item.prints.map((print, pIdx) => (
                         <li
                           key={`${order.transactionUuid}-track-print-${idx}-${pIdx}`}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs"
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-3 py-2 text-xs"
                         >
                           <span>
                             <strong className="text-ink">
@@ -984,7 +1038,7 @@ export default function TrackDetail() {
                   )}
 
                   {item.productionNotes ? (
-                    <p className="mt-2.5 rounded-xl border border-line bg-white px-3 py-2 text-xs text-muted">
+                    <p className="mt-2.5 rounded-sm border border-line bg-white px-3 py-2 text-xs text-muted">
                       <span className="font-semibold text-ink">{pick('Catatan: ', 'Notes: ')}</span>
                       {item.productionNotes}
                     </p>
@@ -998,7 +1052,7 @@ export default function TrackDetail() {
         {/* Kolom Kanan: Ringkasan Tagihan, Kurir & Lacak Resi, Riwayat Status */}
         <aside className="w-full min-w-0 space-y-6 lg:col-span-5">
           {/* Ringkasan Tagihan */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
               <p className="eyebrow">{pick('Ringkasan Biaya', 'Cost Summary')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -1050,7 +1104,7 @@ export default function TrackDetail() {
           </section>
 
           {/* Pengiriman & Lacak Resi Eksternal */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
               <p className="eyebrow">
                 {order.fulfillmentType === FULFILLMENT_TYPE.SHIP
@@ -1076,7 +1130,7 @@ export default function TrackDetail() {
                   </p>
 
                   {order.shippingCourier || order.trackingReceiptNumber ? (
-                    <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+                    <div className="space-y-3 rounded-sm border border-line bg-[#FAFAFA] p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="text-xs text-muted">
@@ -1098,7 +1152,7 @@ export default function TrackDetail() {
                       </div>
 
                       {order.trackingReceiptNumber ? (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-3 py-2">
                           <div className="min-w-0">
                             <p className="text-[11px] text-muted">
                               {pick('Nomor Resi', 'Tracking Number')}
@@ -1144,7 +1198,7 @@ export default function TrackDetail() {
                       ) : null}
                     </div>
                   ) : (
-                    <p className="rounded-2xl border border-line bg-surface p-3.5 text-xs text-muted">
+                    <p className="rounded-sm border border-line bg-[#FAFAFA] p-3.5 text-xs text-muted">
                       {pick(
                         'Nomor resi dan kurir akan tampil di sini setelah pesanan masuk tahap pengiriman.',
                         'Courier and tracking number will appear here once the order enters the shipping stage.'
@@ -1153,7 +1207,7 @@ export default function TrackDetail() {
                   )}
                 </>
               ) : (
-                <div className="rounded-2xl border border-line bg-surface p-3.5 text-xs text-muted">
+                <div className="rounded-sm border border-line bg-[#FAFAFA] p-3.5 text-xs text-muted">
                   <p>
                     {pick(
                       'Ambil langsung di studio YNG Apparel, Batam.',
@@ -1173,7 +1227,7 @@ export default function TrackDetail() {
 
           {/* Riwayat Status */}
           {order.statusHistory.length > 0 ? (
-            <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+            <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
               <div className="border-b border-line pb-4">
                 <p className="eyebrow">{pick('Linimasa', 'Timeline')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
@@ -1185,7 +1239,7 @@ export default function TrackDetail() {
                 {order.statusHistory.map((entry, idx) => (
                   <li
                     key={`${entry.createdAt}-${idx}`}
-                    className="rounded-2xl border border-line bg-surface px-3.5 py-3 text-xs"
+                    className="rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-3 text-xs"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-ink">
@@ -1225,7 +1279,7 @@ export default function TrackDetail() {
       >
         {activeLightboxPhoto ? (
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+            <div className="overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
               <img
                 src={activeLightboxPhoto.photoUrl}
                 alt={pick(

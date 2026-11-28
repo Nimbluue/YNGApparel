@@ -2,7 +2,6 @@ import { PAYMENT_STATUS, type AdminPaymentListItemDto, type PaymentStatus } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { ImageLightboxModal } from '../../components/admin/ImageLightboxModal';
 import { PaymentBadge, ProductionBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -66,9 +65,6 @@ export default function PaymentsQueue() {
 
   const [activeTab, setActiveTab] = useState<PaymentQueueTabKey>('PENDING_WITH_PROOF');
   const [page, setPage] = useState(1);
-  const [actionError, setActionError] = useState<{ message: string; details: string[] } | null>(
-    null
-  );
 
   const [lightboxItem, setLightboxItem] = useState<AdminPaymentListItemDto | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<AdminPaymentListItemDto | null>(null);
@@ -102,13 +98,13 @@ export default function PaymentsQueue() {
       verifyAdminPayment(payment.paymentUuid, { approve: true }),
     onSuccess: async (updated) => {
       setVerifyTarget(null);
-      setActionError(null);
       toast(`Pembayaran #${updated.orderCode} berhasil diverifikasi.`, 'ok');
       await invalidateAfterPaymentAction(updated.orderTransactionUuid);
     },
     onError: (err) => {
       setVerifyTarget(null);
-      setActionError(extractApiError(err, 'Gagal memverifikasi pembayaran.'));
+      const parsed = extractApiError(err, 'Gagal memverifikasi pembayaran.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -119,14 +115,13 @@ export default function PaymentsQueue() {
       setRejectTarget(null);
       setRejectionReason('');
       setRejectFormError(null);
-      setActionError(null);
       toast(`Bukti pembayaran #${updated.orderCode} telah ditolak.`, 'info');
       await invalidateAfterPaymentAction(updated.orderTransactionUuid);
     },
     onError: (err) => {
       const parsed = extractApiError(err, 'Gagal menolak bukti pembayaran.');
       setRejectFormError(parsed.message);
-      setActionError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -152,7 +147,7 @@ export default function PaymentsQueue() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Ruang Produksi · Keuangan</p>
@@ -160,8 +155,7 @@ export default function PaymentsQueue() {
               Antrean Pembayaran
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Periksa bukti transfer atau QRIS pelanggan sebelum pesanan masuk tahap produksi cetak
-              atau pelunasan pengiriman.
+              Verifikasi bukti transfer dan QRIS pelanggan.
             </p>
           </div>
 
@@ -193,7 +187,7 @@ export default function PaymentsQueue() {
                   setActiveTab(tab.key);
                   setPage(1);
                 }}
-                className={`inline-flex min-h-touch shrink-0 items-center rounded-full border px-4 py-2 font-display text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`inline-flex min-h-touch shrink-0 items-center rounded-sm border px-4 py-2 font-display text-xs font-semibold whitespace-nowrap transition-colors ${
                   isActive
                     ? 'border-ink bg-ink text-white'
                     : 'border-line bg-white text-ink hover:border-ink'
@@ -206,17 +200,8 @@ export default function PaymentsQueue() {
         </div>
       </section>
 
-      {actionError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={actionError.message}
-          details={actionError.details}
-          onDismiss={() => setActionError(null)}
-        />
-      ) : null}
-
       {paymentsQuery.isLoading ? (
-        <div className="flex min-h-60 items-center justify-center rounded-2xl border border-line bg-white p-10">
+        <div className="flex min-h-60 items-center justify-center rounded-sm border border-line bg-white p-10">
           <Spinner label="Memuat antrean pembayaran..." />
         </div>
       ) : paymentsQuery.isError ? (
@@ -238,7 +223,7 @@ export default function PaymentsQueue() {
             {items.map((item) => (
               <article
                 key={item.paymentUuid}
-                className="w-full min-w-0 rounded-2xl border border-line bg-white p-4 sm:p-6"
+                className="w-full min-w-0 rounded-sm border border-line bg-white p-4 sm:p-6"
               >
                 <div className="grid w-full grid-cols-1 gap-5 md:grid-cols-12 md:items-center">
                   {/* Info Order & Pembayaran */}
@@ -250,7 +235,7 @@ export default function PaymentsQueue() {
                       >
                         #{item.orderCode}
                       </Link>
-                      <span className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs font-semibold text-ink">
+                      <span className="rounded-sm border border-line bg-[#FAFAFA] px-2.5 py-0.5 text-xs font-semibold text-ink">
                         {item.paymentStageLabel}
                       </span>
                       <PaymentBadge
@@ -286,7 +271,7 @@ export default function PaymentsQueue() {
                     </div>
 
                     {item.rejectionReason ? (
-                      <div className="rounded-xl border border-red-200 bg-red-50/70 px-3 py-2 text-xs text-status-err">
+                      <div className="rounded-sm border border-red-200 bg-red-50/70 px-3 py-2 text-xs text-status-err">
                         <span className="font-semibold">Alasan penolakan:</span>{' '}
                         {item.rejectionReason}
                       </div>
@@ -299,19 +284,19 @@ export default function PaymentsQueue() {
                       <button
                         type="button"
                         onClick={() => setLightboxItem(item)}
-                        className="group relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-line bg-surface p-2 transition-colors hover:border-ink"
+                        className="group relative flex w-full items-center justify-center overflow-hidden rounded-sm border border-line bg-[#FAFAFA] p-2 transition-colors hover:border-ink"
                       >
                         <img
                           src={item.proofImageUrl}
                           alt={`Bukti bayar #${item.orderCode}`}
-                          className="h-36 w-full rounded-lg object-cover"
+                          className="h-36 w-full rounded-sm object-cover"
                         />
-                        <span className="absolute right-3 bottom-3 rounded-full bg-ink/85 px-3 py-1 text-[11px] font-semibold text-white">
+                        <span className="absolute right-3 bottom-3 rounded-sm bg-ink/85 px-3 py-1 text-[11px] font-semibold text-white">
                           Perbesar ↗
                         </span>
                       </button>
                     ) : (
-                      <div className="flex h-36 w-full items-center justify-center rounded-xl border border-dashed border-line-strong bg-surface p-4 text-center text-xs text-muted">
+                      <div className="flex h-36 w-full items-center justify-center rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4 text-center text-xs text-muted">
                         Pelanggan belum mengunggah bukti transfer.
                       </div>
                     )}
@@ -344,7 +329,7 @@ export default function PaymentsQueue() {
 
                     <Link
                       to={`/admin/orders/${item.orderTransactionUuid}`}
-                      className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-line-strong px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface md:w-auto md:min-w-[160px]"
+                      className="inline-flex min-h-touch w-full items-center justify-center rounded-sm border border-line-strong px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] md:w-auto md:min-w-[160px]"
                     >
                       Detail Order →
                     </Link>
@@ -355,7 +340,7 @@ export default function PaymentsQueue() {
           </div>
 
           {meta && meta.totalPages > 1 ? (
-            <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-4 sm:flex-row">
+            <div className="flex flex-col items-center justify-between gap-3 rounded-sm border border-line bg-white px-5 py-4 sm:flex-row">
               <p className="text-xs text-muted tabular-nums">
                 Halaman {meta.page} dari {meta.totalPages} · Total {meta.total} tagihan
               </p>

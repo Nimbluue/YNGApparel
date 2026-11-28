@@ -5,8 +5,8 @@ export default function NotFound() {
   const { pick } = useLanguage();
 
   return (
-    <div className="mx-auto max-w-2xl rounded-3xl border border-line bg-surface p-6 py-12 sm:p-12">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-muted">
+    <div className="mx-auto max-w-2xl rounded-sm border border-line bg-[#FAFAFA] p-6 py-12 sm:p-12">
+      <span className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-white px-3 py-1 text-xs font-medium text-muted">
         <span className="tabular-price font-semibold text-ink">404</span> ·{' '}
         {pick('Tidak Ditemukan', 'Not Found')}
       </span>

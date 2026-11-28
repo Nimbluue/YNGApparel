@@ -65,6 +65,8 @@ function createTestEnvironment() {
         base_price: 65000,
         image_path: null,
         mockup_template: 'tee-short',
+        category_id: null,
+        collection_id: null,
         sort_order: 1,
         is_active: true,
         created_at: now,

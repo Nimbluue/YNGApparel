@@ -1,4 +1,6 @@
 import type {
+  PublicCatalogCategoryDto,
+  PublicCatalogCollectionDto,
   PublicCatalogConfigDto,
   PublicFabricDto,
   PublicGarmentModelDto,
@@ -27,6 +29,8 @@ export const modelSlugParamSchema = z
   .strict();
 
 export interface CatalogController {
+  listCategories: RequestHandler;
+  listCollections: RequestHandler;
   listModels: RequestHandler;
   getModelBySlug: RequestHandler;
   listFabrics: RequestHandler;
@@ -43,6 +47,22 @@ export function createCatalogController(
   service: CatalogService = catalogService
 ): CatalogController {
   return {
+    listCategories: asyncHandler(async (_req, res) => {
+      const data = await service.listCategories();
+      return sendSuccess<PublicCatalogCategoryDto[]>(res, {
+        message: 'Daftar kategori katalog berhasil dimuat.',
+        data,
+      });
+    }),
+
+    listCollections: asyncHandler(async (_req, res) => {
+      const data = await service.listCollections();
+      return sendSuccess<PublicCatalogCollectionDto[]>(res, {
+        message: 'Daftar koleksi katalog berhasil dimuat.',
+        data,
+      });
+    }),
+
     listModels: asyncHandler(async (_req, res) => {
       const data = await service.listModels();
       return sendSuccess<PublicGarmentModelDto[]>(res, {

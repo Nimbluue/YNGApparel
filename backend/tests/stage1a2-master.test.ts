@@ -116,6 +116,43 @@ function createInMemoryMasterRepo() {
   const now = () => new Date().toISOString();
 
   const repo: MasterRepository = {
+    async listCategories() {
+      return [];
+    },
+    async findCategoryById() {
+      return null;
+    },
+    async createCategory() {
+      throw new AppError('Not implemented in mock.', 500);
+    },
+    async updateCategory() {
+      return null;
+    },
+    async deactivateCategory() {
+      return null;
+    },
+    async reorderCategories() {
+      return [];
+    },
+    async listCollections() {
+      return [];
+    },
+    async findCollectionById() {
+      return null;
+    },
+    async createCollection() {
+      throw new AppError('Not implemented in mock.', 500);
+    },
+    async updateCollection() {
+      return null;
+    },
+    async deactivateCollection() {
+      return null;
+    },
+    async reorderCollections() {
+      return [];
+    },
+
     async listModels(includeInactive) {
       const list = [...models.values()]
         .filter((m) => includeInactive || m.is_active)
@@ -127,7 +164,12 @@ function createInMemoryMasterRepo() {
           [...(modelFabrics.get(m.id) ?? new Set<number>())].sort((a, b) => a - b)
         );
       }
-      return { models: list.map((m) => ({ ...m })), fabricIdsByModel };
+      return {
+        models: list.map((m) => ({ ...m })),
+        fabricIdsByModel,
+        categoriesById: new Map(),
+        collectionsById: new Map(),
+      };
     },
 
     async findModelById(id) {
@@ -153,6 +195,8 @@ function createInMemoryMasterRepo() {
         base_price: input.basePrice,
         image_path: input.imagePath ?? null,
         mockup_template: input.mockupTemplate ?? null,
+        category_id: input.categoryId ?? null,
+        collection_id: input.collectionId ?? null,
         sort_order: input.sortOrder ?? 0,
         is_active: input.isActive ?? true,
         created_at: now(),
@@ -181,6 +225,9 @@ function createInMemoryMasterRepo() {
         image_path: patch.imagePath !== undefined ? patch.imagePath : current.image_path,
         mockup_template:
           patch.mockupTemplate !== undefined ? patch.mockupTemplate : current.mockup_template,
+        category_id: patch.categoryId !== undefined ? patch.categoryId : current.category_id,
+        collection_id:
+          patch.collectionId !== undefined ? patch.collectionId : current.collection_id,
         sort_order: patch.sortOrder ?? current.sort_order,
         is_active: patch.isActive ?? current.is_active,
         updated_at: now(),

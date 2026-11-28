@@ -69,7 +69,7 @@ export function Modal({
 
       <div
         ref={dialogRef}
-        className={`relative w-full rounded-t-2xl border border-line bg-white shadow-lg sm:rounded-2xl ${SIZE_CLASSES[size]} max-h-[90vh] overflow-y-auto`}
+        className={`relative w-full rounded-t-sm border border-line bg-white shadow-lg sm:rounded-sm ${SIZE_CLASSES[size]} max-h-[90vh] overflow-y-auto`}
       >
         {(title || description) && (
           <div className="flex items-start justify-between border-b border-line p-5">
@@ -89,7 +89,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               aria-label="Tutup dialog"
-              className="ml-4 inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full border border-line text-muted transition-colors hover:border-ink hover:bg-surface hover:text-ink"
+              className="ml-4 inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-ink hover:bg-surface hover:text-ink"
             >
               ✕
             </button>

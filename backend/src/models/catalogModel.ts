@@ -2,6 +2,8 @@ import type { QueryResult, QueryResultRow } from 'pg';
 import { query } from '../config/database.js';
 import type {
   AppSettingRow,
+  CatalogCategoryRow,
+  CatalogCollectionRow,
   FabricColorRow,
   FabricRow,
   GarmentModelRow,
@@ -48,14 +50,20 @@ export interface PricingReferenceData {
 
 export interface ActiveModelDetailResult {
   model: GarmentModelRow;
+  category: CatalogCategoryRow | null;
+  collection: CatalogCollectionRow | null;
   fabrics: FabricRow[];
   colorsByFabric: Map<number, FabricColorRow[]>;
 }
 
 export interface CatalogRepository {
+  listActiveCategories(): Promise<CatalogCategoryRow[]>;
+  listActiveCollections(): Promise<CatalogCollectionRow[]>;
   listActiveModels(): Promise<{
     models: GarmentModelRow[];
     fabricIdsByModel: Map<number, number[]>;
+    categoriesById: Map<string, CatalogCategoryRow>;
+    collectionsById: Map<string, CatalogCollectionRow>;
   }>;
   findActiveModelDetailBySlug(slug: string): Promise<ActiveModelDetailResult | null>;
   listActiveFabrics(): Promise<{
@@ -74,8 +82,12 @@ export interface CatalogRepository {
 
 const defaultExecutor: SqlQueryExecutor = { query };
 
+const CATEGORY_COLUMNS =
+  'id, name, slug, description, size_chart_image_path, sort_order, is_active, created_at, updated_at';
+const COLLECTION_COLUMNS =
+  'id, name, slug, description, status, sort_order, is_active, created_at, updated_at';
 const MODEL_COLUMNS =
-  'id, slug, name, description, base_price, image_path, mockup_template, sort_order, is_active, created_at, updated_at';
+  'id, slug, name, description, base_price, image_path, mockup_template, category_id, collection_id, sort_order, is_active, created_at, updated_at';
 const FABRIC_COLUMNS =
   'id, code, name, description, gsm_weight, thickness_level, comfort_level, additional_price, image_path, macro_image_path, sort_order, is_active, created_at, updated_at';
 const FABRIC_COLUMNS_ALIASED =
@@ -98,6 +110,36 @@ function groupColorsByFabric(rows: readonly FabricColorRow[]): Map<number, Fabri
 }
 
 export const catalogModel: CatalogRepository = {
+  async listActiveCategories() {
+    const result = await query<CatalogCategoryRow>(
+      `SELECT c.id, c.name, c.slug, c.description, c.size_chart_image_path, c.sort_order,
+              c.is_active,
+              COUNT(gm.id) FILTER (WHERE gm.is_active = TRUE)::int AS active_model_count,
+              c.created_at, c.updated_at
+       FROM catalog_categories c
+       LEFT JOIN garment_models gm ON gm.category_id = c.id
+       WHERE c.is_active = TRUE
+       GROUP BY c.id
+       ORDER BY c.sort_order ASC, c.name ASC`
+    );
+    return result.rows;
+  },
+
+  async listActiveCollections() {
+    const result = await query<CatalogCollectionRow>(
+      `SELECT col.id, col.name, col.slug, col.description, col.status, col.sort_order,
+              col.is_active,
+              COUNT(gm.id) FILTER (WHERE gm.is_active = TRUE)::int AS active_model_count,
+              col.created_at, col.updated_at
+       FROM catalog_collections col
+       LEFT JOIN garment_models gm ON gm.collection_id = col.id
+       WHERE col.is_active = TRUE AND col.status <> 'ARCHIVED'
+       GROUP BY col.id
+       ORDER BY col.sort_order ASC, col.name ASC`
+    );
+    return result.rows;
+  },
+
   async listActiveModels() {
     const modelsResult = await query<GarmentModelRow>(
       `SELECT ${MODEL_COLUMNS}
@@ -107,24 +149,67 @@ export const catalogModel: CatalogRepository = {
     );
 
     const fabricIdsByModel = new Map<number, number[]>();
+    const categoriesById = new Map<string, CatalogCategoryRow>();
+    const collectionsById = new Map<string, CatalogCollectionRow>();
+
     if (modelsResult.rows.length > 0) {
       const modelIds = modelsResult.rows.map((row) => row.id);
-      const relResult = await query<{ model_id: number; fabric_id: number }>(
-        `SELECT mf.model_id, mf.fabric_id
-         FROM model_fabrics mf
-         INNER JOIN fabrics f ON f.id = mf.fabric_id
-         WHERE mf.model_id = ANY($1::bigint[]) AND f.is_active = TRUE
-         ORDER BY f.sort_order ASC, f.id ASC`,
-        [modelIds]
-      );
+      const categoryIds = [
+        ...new Set(
+          modelsResult.rows
+            .map((row) => row.category_id)
+            .filter((cid): cid is string => Boolean(cid))
+        ),
+      ];
+      const collectionIds = [
+        ...new Set(
+          modelsResult.rows
+            .map((row) => row.collection_id)
+            .filter((cid): cid is string => Boolean(cid))
+        ),
+      ];
+
+      const [relResult, categoriesRes, collectionsRes] = await Promise.all([
+        query<{ model_id: number; fabric_id: number }>(
+          `SELECT mf.model_id, mf.fabric_id
+           FROM model_fabrics mf
+           INNER JOIN fabrics f ON f.id = mf.fabric_id
+           WHERE mf.model_id = ANY($1::bigint[]) AND f.is_active = TRUE
+           ORDER BY f.sort_order ASC, f.id ASC`,
+          [modelIds]
+        ),
+        categoryIds.length > 0
+          ? query<CatalogCategoryRow>(
+              `SELECT ${CATEGORY_COLUMNS}
+               FROM catalog_categories
+               WHERE id = ANY($1::uuid[]) AND is_active = TRUE`,
+              [categoryIds]
+            )
+          : Promise.resolve({ rows: [] as CatalogCategoryRow[] }),
+        collectionIds.length > 0
+          ? query<CatalogCollectionRow>(
+              `SELECT ${COLLECTION_COLUMNS}
+               FROM catalog_collections
+               WHERE id = ANY($1::uuid[]) AND is_active = TRUE AND status <> 'ARCHIVED'`,
+              [collectionIds]
+            )
+          : Promise.resolve({ rows: [] as CatalogCollectionRow[] }),
+      ]);
+
       for (const rel of relResult.rows) {
         const list = fabricIdsByModel.get(rel.model_id) ?? [];
         list.push(rel.fabric_id);
         fabricIdsByModel.set(rel.model_id, list);
       }
+      for (const cat of categoriesRes.rows) {
+        categoriesById.set(cat.id, cat);
+      }
+      for (const col of collectionsRes.rows) {
+        collectionsById.set(col.id, col);
+      }
     }
 
-    return { models: modelsResult.rows, fabricIdsByModel };
+    return { models: modelsResult.rows, fabricIdsByModel, categoriesById, collectionsById };
   },
 
   async findActiveModelDetailBySlug(slug: string) {
@@ -140,14 +225,34 @@ export const catalogModel: CatalogRepository = {
       return null;
     }
 
-    const fabricsResult = await query<FabricRow>(
-      `SELECT ${FABRIC_COLUMNS_ALIASED}
-       FROM fabrics f
-       INNER JOIN model_fabrics mf ON mf.fabric_id = f.id
-       WHERE mf.model_id = $1 AND f.is_active = TRUE
-       ORDER BY f.sort_order ASC, f.id ASC`,
-      [model.id]
-    );
+    const [fabricsResult, categoryRes, collectionRes] = await Promise.all([
+      query<FabricRow>(
+        `SELECT ${FABRIC_COLUMNS_ALIASED}
+         FROM fabrics f
+         INNER JOIN model_fabrics mf ON mf.fabric_id = f.id
+         WHERE mf.model_id = $1 AND f.is_active = TRUE
+         ORDER BY f.sort_order ASC, f.id ASC`,
+        [model.id]
+      ),
+      model.category_id
+        ? query<CatalogCategoryRow>(
+            `SELECT ${CATEGORY_COLUMNS}
+             FROM catalog_categories
+             WHERE id = $1 AND is_active = TRUE
+             LIMIT 1`,
+            [model.category_id]
+          )
+        : Promise.resolve({ rows: [] as CatalogCategoryRow[] }),
+      model.collection_id
+        ? query<CatalogCollectionRow>(
+            `SELECT ${COLLECTION_COLUMNS}
+             FROM catalog_collections
+             WHERE id = $1 AND is_active = TRUE AND status <> 'ARCHIVED'
+             LIMIT 1`,
+            [model.collection_id]
+          )
+        : Promise.resolve({ rows: [] as CatalogCollectionRow[] }),
+    ]);
 
     let colorsByFabric = new Map<number, FabricColorRow[]>();
     if (fabricsResult.rows.length > 0) {
@@ -162,7 +267,13 @@ export const catalogModel: CatalogRepository = {
       colorsByFabric = groupColorsByFabric(colorsResult.rows);
     }
 
-    return { model, fabrics: fabricsResult.rows, colorsByFabric };
+    return {
+      model,
+      category: categoryRes.rows[0] ?? null,
+      collection: collectionRes.rows[0] ?? null,
+      fabrics: fabricsResult.rows,
+      colorsByFabric,
+    };
   },
 
   async listActiveFabrics() {

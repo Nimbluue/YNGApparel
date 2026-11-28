@@ -1,6 +1,8 @@
+import { ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { uploadCatalogImage } from '../../services/adminMasterService';
 import { extractApiError } from '../../utils/apiError';
+import { IconTooltip } from '../ui/IconTooltip';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -8,7 +10,7 @@ const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 interface CatalogImageFieldProps {
   id: string;
   label: string;
-  folder: 'models' | 'fabrics' | 'qris';
+  folder: 'models' | 'fabrics' | 'qris' | 'size-charts';
   pathValue: string | null;
   existingUrl: string | null;
   onChange: (nextPath: string | null, nextPreviewUrl: string | null) => void;
@@ -86,8 +88,14 @@ export default function CatalogImageField({
     onChange(null, null);
   }
 
+  const uploadTooltipLabel = uploading
+    ? 'Mengunggah gambar...'
+    : pathValue
+      ? 'Ganti Gambar'
+      : 'Unggah Gambar';
+
   return (
-    <div className="space-y-2 rounded-2xl border border-line bg-surface/50 p-3.5">
+    <div className="space-y-2 rounded-sm border border-line bg-[#FAFAFA] p-3.5">
       <div className="flex items-center justify-between gap-2">
         <label htmlFor={id} className="block text-sm font-medium text-ink">
           {label}
@@ -98,7 +106,7 @@ export default function CatalogImageField({
       {helperText ? <p className="text-xs text-neutral-600">{helperText}</p> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line-strong bg-white">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line-strong bg-white">
           {effectivePreviewUrl ? (
             <img src={effectivePreviewUrl} alt={label} className="h-full w-full object-contain" />
           ) : (
@@ -117,25 +125,29 @@ export default function CatalogImageField({
             disabled={disabled || uploading}
           />
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
+          <div className="flex flex-wrap items-center gap-2">
+            <IconTooltip
+              label={uploadTooltipLabel}
               disabled={disabled || uploading}
-              className="btn-secondary px-4 py-2"
+              onClick={() => inputRef.current?.click()}
+              className="h-11 w-11 border border-neutral-300 bg-white hover:border-ink"
             >
-              {uploading ? 'Mengunggah...' : pathValue ? 'Ganti Gambar' : 'Unggah Gambar'}
-            </button>
+              {uploading ? (
+                <Loader2 size={18} strokeWidth={1.5} aria-hidden="true" className="animate-spin" />
+              ) : (
+                <ImagePlus size={18} strokeWidth={1.5} aria-hidden="true" />
+              )}
+            </IconTooltip>
 
             {pathValue ? (
-              <button
-                type="button"
-                onClick={handleClear}
+              <IconTooltip
+                label="Hapus Gambar"
                 disabled={disabled || uploading}
-                className="inline-flex min-h-touch items-center justify-center rounded-full border border-status-err px-4 py-2 text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white disabled:opacity-40"
+                onClick={handleClear}
+                className="h-11 w-11 border border-line bg-white text-muted hover:border-[#DC2626] hover:bg-red-50/40 hover:text-[#DC2626]"
               >
-                Hapus Gambar
-              </button>
+                <Trash2 size={18} strokeWidth={1.5} aria-hidden="true" />
+              </IconTooltip>
             ) : null}
           </div>
 

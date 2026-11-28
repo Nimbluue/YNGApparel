@@ -19,7 +19,6 @@ import {
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -134,8 +133,6 @@ export default function ManualOrder() {
   const [noAutoCancel, setNoAutoCancel] = useState(true);
   const [estimatedFinishDate, setEstimatedFinishDate] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
-
-  const [formError, setFormError] = useState<{ message: string; details: string[] } | null>(null);
 
   // Katalog aktif
   const modelsQuery = useQuery({
@@ -367,7 +364,7 @@ export default function ManualOrder() {
         ),
       }));
       const parsed = extractApiError(err, 'Gagal mengunggah file desain.');
-      setFormError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     }
   }
 
@@ -383,20 +380,23 @@ export default function ManualOrder() {
       navigate(`/admin/orders/${created.transactionUuid}`);
     },
     onError: (err: unknown) => {
-      setFormError(extractApiError(err, 'Gagal membuat order manual. Periksa kembali isian Anda.'));
+      const parsed = extractApiError(
+        err,
+        'Gagal membuat order manual. Periksa kembali isian Anda.'
+      );
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setFormError(null);
 
     if (customerName.trim().length < 2) {
-      setFormError({ message: 'Nama pelanggan minimal 2 karakter.', details: [] });
+      toast('Nama pelanggan minimal 2 karakter.', 'err');
       return;
     }
     if (customerWhatsapp.trim().length < 8) {
-      setFormError({ message: 'Nomor WhatsApp pelanggan tidak valid.', details: [] });
+      toast('Nomor WhatsApp pelanggan tidak valid.', 'err');
       return;
     }
 
@@ -406,10 +406,7 @@ export default function ManualOrder() {
       trimmedPostal &&
       !/^[0-9]{5}$/.test(trimmedPostal)
     ) {
-      setFormError({
-        message: 'Kode pos harus 5 digit angka (atau kosongkan sementara).',
-        details: [],
-      });
+      toast('Kode pos harus 5 digit angka (atau kosongkan sementara).', 'err');
       return;
     }
 
@@ -417,24 +414,15 @@ export default function ManualOrder() {
     for (let idx = 0; idx < items.length; idx += 1) {
       const item = items[idx]!;
       if (item.modelId === null || item.fabricId === null) {
-        setFormError({
-          message: `Item #${idx + 1}: Model dan Bahan pakaian wajib dipilih.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Model dan Bahan pakaian wajib dipilih.`, 'err');
         return;
       }
       if (!item.isCustomColor && item.fabricColorId === null) {
-        setFormError({
-          message: `Item #${idx + 1}: Pilih warna preset atau centang Warna Custom.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Pilih warna preset atau centang Warna Custom.`, 'err');
         return;
       }
       if (item.isCustomColor && !item.customColorName.trim()) {
-        setFormError({
-          message: `Item #${idx + 1}: Nama warna custom wajib diisi.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Nama warna custom wajib diisi.`, 'err');
         return;
       }
 
@@ -442,33 +430,29 @@ export default function ManualOrder() {
         .map(([sizeIdStr, qty]) => ({ sizeId: Number(sizeIdStr), qty }))
         .filter((s) => Number.isInteger(s.qty) && s.qty > 0);
       if (sizes.length === 0) {
-        setFormError({
-          message: `Item #${idx + 1}: Minimal 1 ukuran dengan jumlah > 0 harus diisi.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Minimal 1 ukuran dengan jumlah > 0 harus diisi.`, 'err');
         return;
       }
 
       if (item.prints.some((p) => p.uploading)) {
-        setFormError({
-          message: `Item #${idx + 1}: Tunggu hingga unggahan file desain selesai.`,
-          details: [],
-        });
+        toast(`Item #${idx + 1}: Tunggu hingga unggahan file desain selesai.`, 'err');
         return;
       }
 
-      const prints = item.prints.map((p) => {
+      const prints: AdminCreateManualOrderItemDto['prints'] = [];
+      for (const p of item.prints) {
         if (p.printSizeId === null) {
-          throw new Error(`Item #${idx + 1}: Ukuran sablon pada semua titik wajib dipilih.`);
+          toast(`Item #${idx + 1}: Ukuran sablon pada semua titik wajib dipilih.`, 'err');
+          return;
         }
-        return {
+        prints.push({
           printSizeId: p.printSizeId,
           printPosition: p.printPosition,
           fileRef: p.fileRef,
           fileName: p.fileName,
           notes: p.notes.trim() || null,
-        };
-      });
+        });
+      }
 
       builtItems.push({
         modelId: item.modelId,
@@ -485,10 +469,7 @@ export default function ManualOrder() {
     }
 
     if (subtotalAmount > 0 && parsedDiscount > subtotalAmount) {
-      setFormError({
-        message: 'Nominal diskon tidak boleh melebihi subtotal pesanan.',
-        details: [],
-      });
+      toast('Nominal diskon tidak boleh melebihi subtotal pesanan.', 'err');
       return;
     }
 
@@ -531,7 +512,7 @@ export default function ManualOrder() {
 
   if (catalogLoading) {
     return (
-      <div className="flex min-h-72 items-center justify-center rounded-2xl border border-line bg-white p-10">
+      <div className="flex min-h-72 items-center justify-center rounded-sm border border-line bg-white p-10">
         <Spinner label="Memuat katalog aktif untuk form order manual..." />
       </div>
     );
@@ -553,7 +534,7 @@ export default function ManualOrder() {
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <Link to="/admin/kanban" className="hover:text-ink hover:underline">
             Kanban
@@ -573,8 +554,7 @@ export default function ManualOrder() {
               Buat Order Manual
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-              Catat pesanan dari WhatsApp, Instagram DM, atau walk-in workshop tanpa wajib akun
-              pelanggan. Harga dan snapshot item dikalkulasi otomatis dari katalog aktif.
+              Catat pesanan dari WhatsApp, Instagram DM, atau walk-in.
             </p>
           </div>
           <Link to="/admin/orders" className="btn-secondary shrink-0 text-xs">
@@ -583,15 +563,6 @@ export default function ManualOrder() {
         </div>
       </section>
 
-      {formError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={formError.message}
-          details={formError.details}
-          onDismiss={() => setFormError(null)}
-        />
-      ) : null}
-
       <form
         onSubmit={handleSubmit}
         className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-12"
@@ -599,9 +570,9 @@ export default function ManualOrder() {
         {/* Kolom Kiri — Pelanggan & Daftar Item */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7 xl:col-span-8">
           {/* 1. Sumber & Data Pelanggan */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 space-y-4">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-4">
             <div>
-              <p className="eyebrow">01 · Data Pemesan</p>
+              <p className="eyebrow">Data Pemesan</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 Sumber Order &amp; Kontak Pelanggan
               </h2>
@@ -697,13 +668,13 @@ export default function ManualOrder() {
               </div>
             ) : null}
 
-            <details className="rounded-xl border border-line bg-surface p-3.5">
+            <details className="rounded-sm border border-line bg-[#FAFAFA] p-3.5">
               <summary className="cursor-pointer font-display text-xs font-semibold text-ink">
-                Tautkan ke Akun Website Pelanggan (Opsional — biarkan kosong jika tanpa akun)
+                Tautkan ke Akun Pelanggan (Opsional)
               </summary>
               <div className="mt-3">
                 <Input
-                  label="User UUID Pelanggan"
+                  label="ID Akun Pelanggan"
                   placeholder="UUID akun user terdaftar (opsional)"
                   value={userUuid}
                   onChange={(e) => setUserUuid(e.target.value)}
@@ -713,10 +684,10 @@ export default function ManualOrder() {
           </section>
 
           {/* 2. Rincian Item Kustomisasi */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6 space-y-5">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="eyebrow">02 · Spesifikasi Item</p>
+                <p className="eyebrow">Spesifikasi Item</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                   Item Pesanan ({items.length})
                 </h2>
@@ -750,14 +721,14 @@ export default function ManualOrder() {
                 return (
                   <article
                     key={item.localId}
-                    className="rounded-2xl border border-line bg-surface p-4 sm:p-5 space-y-4"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4 sm:p-5 space-y-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
                       <div className="flex items-center gap-2">
                         <span className="font-display text-sm font-bold text-ink">
                           Item #{idx + 1}
                         </span>
-                        <span className="rounded-full border border-line bg-white px-2.5 py-0.5 font-mono text-xs text-ink tabular-nums">
+                        <span className="rounded-sm border border-line bg-white px-2.5 py-0.5 font-mono text-xs text-ink tabular-nums">
                           {itemTotalQty} pcs
                         </span>
                       </div>
@@ -908,7 +879,7 @@ export default function ManualOrder() {
                           return (
                             <label
                               key={sz.id}
-                              className="flex flex-col gap-1 rounded-xl border border-line bg-white p-2.5 text-xs"
+                              className="flex flex-col gap-1 rounded-sm border border-line bg-white p-2.5 text-xs"
                             >
                               <span className="font-mono font-bold text-ink">
                                 {sz.code}
@@ -948,7 +919,7 @@ export default function ManualOrder() {
                     <div className="space-y-2.5 border-t border-line pt-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-ink">
-                          Titik Sablon ({item.prints.length})
+                          Desain Sablon ({item.prints.length})
                         </span>
                         <div className="flex flex-wrap items-center gap-3">
                           <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-ink">
@@ -971,7 +942,7 @@ export default function ManualOrder() {
                             size="sm"
                             onClick={() => handleAddPrintSpot(item.localId)}
                           >
-                            + Titik Sablon
+                            + Tambah Desain
                           </Button>
                         </div>
                       </div>
@@ -979,7 +950,7 @@ export default function ManualOrder() {
                       {item.prints.map((spot) => (
                         <div
                           key={spot.localId}
-                          className="rounded-xl border border-line bg-white p-3 space-y-2.5"
+                          className="rounded-sm border border-line bg-white p-3 space-y-2.5"
                         >
                           <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
                             <Select
@@ -1043,7 +1014,7 @@ export default function ManualOrder() {
                                     void handleUploadSpotFile(item.localId, spot.localId, f);
                                   }
                                 }}
-                                className="block w-full text-xs text-muted file:mr-3 file:min-h-touch file:rounded-full file:border file:border-line-strong file:bg-surface file:px-3.5 file:text-xs file:font-semibold file:text-ink"
+                                className="block w-full text-xs text-muted file:mr-3 file:min-h-touch file:rounded-sm file:border file:border-line-strong file:bg-[#FAFAFA] file:px-3.5 file:text-xs file:font-semibold file:text-ink"
                               />
                               {spot.fileName ? (
                                 <p className="mt-1 truncate font-mono text-[11px] text-status-ok">
@@ -1062,7 +1033,7 @@ export default function ManualOrder() {
                               }
                               className="self-start text-xs font-semibold text-status-err hover:underline sm:self-center"
                             >
-                              Hapus Titik
+                              Hapus
                             </button>
                           </div>
                         </div>
@@ -1090,9 +1061,9 @@ export default function ManualOrder() {
 
         {/* Kolom Kanan — Ringkasan Tagihan, Skema Bayar & Submit */}
         <aside className="w-full min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-span-5 xl:col-span-4">
-          <section className="rounded-2xl border border-ink bg-white p-5 space-y-4">
+          <section className="rounded-sm border border-ink bg-white p-5 space-y-4">
             <div>
-              <p className="eyebrow">03 · Tagihan &amp; Pembayaran</p>
+              <p className="eyebrow">Tagihan &amp; Pembayaran</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 Ringkasan Order Manual
               </h2>
@@ -1149,10 +1120,10 @@ export default function ManualOrder() {
                 <button
                   type="button"
                   onClick={() => setPaymentScheme(PAYMENT_SCHEME.FULL)}
-                  className={`min-h-touch rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                  className={`min-h-touch rounded-sm border px-3 py-2 text-xs font-semibold transition-colors ${
                     effectiveScheme === PAYMENT_SCHEME.FULL
                       ? 'border-ink bg-ink text-white'
-                      : 'border-line bg-surface text-ink hover:border-ink'
+                      : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                   }`}
                 >
                   Lunas (100%)
@@ -1161,10 +1132,10 @@ export default function ManualOrder() {
                   type="button"
                   disabled={!dpEligible}
                   onClick={() => setPaymentScheme(PAYMENT_SCHEME.DP)}
-                  className={`min-h-touch rounded-xl border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                  className={`min-h-touch rounded-sm border px-3 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                     effectiveScheme === PAYMENT_SCHEME.DP
                       ? 'border-ink bg-ink text-white'
-                      : 'border-line bg-surface text-ink hover:border-ink'
+                      : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                   }`}
                 >
                   DP {dpPercent}%
@@ -1218,7 +1189,7 @@ export default function ManualOrder() {
                   className="mt-0.5 h-4 w-4 accent-ink"
                 />
                 <span>
-                  <strong className="block">Pembayaran awal sudah diterima (VERIFIED)</strong>
+                  <strong className="block">Pembayaran awal sudah diterima</strong>
                   <span className="text-muted">
                     Tandai lunas/DP langsung terverifikasi agar tidak menunggu bukti transfer.
                   </span>
@@ -1226,7 +1197,7 @@ export default function ManualOrder() {
               </label>
 
               {paymentReceived ? (
-                <div className="grid w-full grid-cols-1 gap-2.5 rounded-xl border border-line bg-surface p-3">
+                <div className="grid w-full grid-cols-1 gap-2.5 rounded-sm border border-line bg-[#FAFAFA] p-3">
                   <Select
                     label="Metode Diterima"
                     value={paymentMethod}

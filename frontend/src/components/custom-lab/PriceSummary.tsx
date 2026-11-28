@@ -28,7 +28,6 @@ interface PriceSummaryProps {
   submitCartLabel?: string;
   onAddToCart: () => void;
   onAskWhatsApp: () => void;
-  actionFeedback: string | null;
   layout?: 'sidebar' | 'inline';
 }
 
@@ -50,7 +49,6 @@ export function PriceSummary({
   submitCartLabel,
   onAddToCart,
   onAskWhatsApp,
-  actionFeedback,
   layout = 'sidebar',
 }: PriceSummaryProps) {
   const { locale, pick } = useLanguage();
@@ -80,34 +78,13 @@ export function PriceSummary({
     serverItem?.fabricAdditionalPrice ?? localEstimate.fabricAdditionalPrice;
   const printSpotsTotal = serverItem?.printSpotsTotal ?? localEstimate.printSpotsTotal;
 
-  const syncStatusBadge = quoteError ? (
-    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-status-err">
-      {pick('Validasi server', 'Server validation')}
-    </span>
-  ) : isQuotePending ? (
-    <span className="inline-flex items-center rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs font-medium text-muted">
-      {pick('Menghitung server...', 'Calculating on server...')}
-    </span>
-  ) : serverQuote ? (
-    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-status-ok">
-      {pick('Harga resmi server', 'Official server price')}
-    </span>
-  ) : (
-    <span className="inline-flex items-center rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs font-medium text-muted">
-      {pick('Estimasi sementara', 'Live estimate')}
-    </span>
-  );
-
   const summaryBody = (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
-        <div>
-          <p className="eyebrow">{pick('Ringkasan Harga', 'Price Summary')}</p>
-          <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-            {modelName ?? pick('Belum pilih model', 'No model selected')}
-          </h2>
-        </div>
-        {syncStatusBadge}
+      <div className="border-b border-line pb-4">
+        <p className="eyebrow">{pick('Ringkasan Harga', 'Price Summary')}</p>
+        <h2 className="mt-1 font-display text-lg font-semibold text-ink">
+          {modelName ?? pick('Belum pilih model', 'No model selected')}
+        </h2>
       </div>
 
       <dl className="space-y-2.5 text-sm">
@@ -120,23 +97,20 @@ export function PriceSummary({
           <dd className="text-right font-medium text-ink">{colorSummary ?? '—'}</dd>
         </div>
         <div className="flex items-start justify-between gap-3">
-          <dt className="text-muted">{pick('Titik Sablon', 'Print Spots')}</dt>
+          <dt className="text-muted">{pick('Desain Sablon', 'Print Design')}</dt>
           <dd className="text-right font-medium text-ink">
             {printSpotsCount > 0 ? (
               <>
-                <span className="tabular-price">{printSpotsCount}</span> {pick('titik', 'spots')}
+                <span className="tabular-price">{printSpotsCount}</span> {pick('desain', 'prints')}
               </>
             ) : (
-              <>
-                {pick('Polos', 'Plain')} (<span className="tabular-price">0</span>{' '}
-                {pick('titik', 'spots')})
-              </>
+              pick('Polos', 'Plain')
             )}
           </dd>
         </div>
       </dl>
 
-      <div className="space-y-2 rounded-2xl border border-line bg-surface p-4 text-xs">
+      <div className="space-y-2 rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted">{pick('Harga dasar model', 'Model base price')}</span>
           <span className="tabular-price font-medium text-ink">{formatRupiah(basePrice)}</span>
@@ -200,7 +174,7 @@ export function PriceSummary({
             type="button"
             onClick={() => onChangePaymentScheme(PAYMENT_SCHEME.FULL)}
             aria-pressed={effectiveScheme === PAYMENT_SCHEME.FULL}
-            className={`flex min-h-touch flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition-colors ${
+            className={`flex min-h-touch flex-col items-start justify-center rounded-sm border px-3 py-2.5 text-left transition-colors ${
               effectiveScheme === PAYMENT_SCHEME.FULL
                 ? 'border-ink bg-ink text-white'
                 : 'border-line bg-white text-ink hover:border-ink'
@@ -221,7 +195,7 @@ export function PriceSummary({
             disabled={!activeDpEligible}
             onClick={() => onChangePaymentScheme(PAYMENT_SCHEME.DP)}
             aria-pressed={effectiveScheme === PAYMENT_SCHEME.DP}
-            className={`flex min-h-touch flex-col items-start justify-center rounded-xl border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+            className={`flex min-h-touch flex-col items-start justify-center rounded-sm border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
               effectiveScheme === PAYMENT_SCHEME.DP
                 ? 'border-ink bg-ink text-white'
                 : 'border-line bg-white text-ink hover:border-ink'
@@ -239,7 +213,7 @@ export function PriceSummary({
         </div>
 
         {!activeDpEligible ? (
-          <p className="rounded-xl border border-line bg-surface px-3 py-2 text-xs text-muted">
+          <p className="rounded-sm border border-line bg-[#FAFAFA] px-3 py-2 text-xs text-muted">
             {pick(
               <>
                 Skema {dpLabel} terkunci. Tambah{' '}
@@ -255,7 +229,7 @@ export function PriceSummary({
             )}
           </p>
         ) : effectiveScheme === PAYMENT_SCHEME.DP ? (
-          <p className="rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink">
+          <p className="rounded-sm border border-line bg-[#FAFAFA] px-3 py-2 text-xs text-ink">
             {pick(
               <>
                 Bayar awal <strong className="tabular-price">{formatRupiah(activeDpAmount)}</strong>
@@ -290,15 +264,15 @@ export function PriceSummary({
       {quoteError ? (
         <p
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err"
+          className="rounded-sm border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err"
         >
           {quoteError}
         </p>
       ) : !isReadyForServerQuote ? (
-        <p className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs text-muted">
+        <p className="rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs text-muted">
           {pick(
-            'Lengkapi pilihan bahan, warna, jumlah ukuran, dan ukuran sablon untuk menghitung harga resmi server.',
-            'Complete fabric, color, size quantities, and print size to calculate the official server quote.'
+            'Lengkapi bahan, warna, ukuran, dan desain untuk melihat total akhir.',
+            'Complete fabric, color, sizes, and print options to see final total.'
           )}
         </p>
       ) : null}
@@ -309,7 +283,11 @@ export function PriceSummary({
             {pick('Total', 'Total')} (
             <span className="tabular-price text-ink">{activeTotalQty} pcs</span>)
           </span>
-          <span className="tabular-price text-xl font-bold text-ink">
+          <span
+            className={`tabular-price text-xl font-bold text-ink transition-opacity ${
+              isQuotePending ? 'opacity-65' : ''
+            }`}
+          >
             {formatRupiah(activeSubtotal)}
           </span>
         </div>
@@ -350,15 +328,6 @@ export function PriceSummary({
           {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
         </button>
       </div>
-
-      {actionFeedback ? (
-        <p
-          role="status"
-          className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs leading-relaxed text-ink"
-        >
-          {actionFeedback}
-        </p>
-      ) : null}
     </div>
   );
 
@@ -370,14 +339,14 @@ export function PriceSummary({
             'Ringkasan harga dan skema pembayaran',
             'Price summary and payment scheme'
           )}
-          className="rounded-2xl border border-line bg-surface/60 p-5 sm:p-6"
+          className="rounded-sm border border-line bg-[#FAFAFA] p-5 sm:p-6"
         >
           {summaryBody}
         </section>
       ) : (
         /* Desktop sticky sidebar */
         <aside className="hidden lg:block">
-          <div className="sticky top-28 rounded-3xl border border-line bg-white p-6 shadow-sm">
+          <div className="sticky top-24 rounded-sm border border-line bg-white p-6 shadow-sm">
             {summaryBody}
           </div>
         </aside>
@@ -391,12 +360,12 @@ export function PriceSummary({
           aria-modal="true"
           aria-label={pick('Rincian harga Custom Lab', 'Custom Lab price breakdown')}
         >
-          <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border-t border-line bg-white p-5 pb-28">
+          <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-sm border-t border-line bg-white p-5 pb-28">
             <div className="mb-3 flex justify-end">
               <button
                 type="button"
                 onClick={() => setMobileExpanded(false)}
-                className="inline-flex min-h-touch items-center rounded-full border border-line px-4 text-xs font-semibold text-ink"
+                className="inline-flex min-h-touch items-center rounded-sm border border-line px-4 text-xs font-semibold text-ink"
               >
                 {pick('Tutup Rincian', 'Close Breakdown')}
               </button>
@@ -430,7 +399,7 @@ export function PriceSummary({
             <button
               type="button"
               onClick={() => setMobileExpanded((prev) => !prev)}
-              className="inline-flex min-h-touch items-center rounded-full border border-line-strong bg-white px-3.5 text-xs font-semibold text-ink"
+              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-3.5 text-xs font-semibold text-ink"
             >
               {mobileExpanded ? pick('Tutup', 'Close') : pick('Rincian', 'Details')}
             </button>
@@ -438,7 +407,7 @@ export function PriceSummary({
               type="button"
               onClick={onAddToCart}
               disabled={isSubmittingCart}
-              className="inline-flex min-h-touch items-center rounded-full bg-ink px-4 text-xs font-semibold text-white disabled:opacity-45"
+              className="inline-flex min-h-touch items-center rounded-sm bg-ink px-4 text-xs font-semibold text-white disabled:opacity-45"
             >
               {isSubmittingCart
                 ? pick('Menyimpan...', 'Saving...')

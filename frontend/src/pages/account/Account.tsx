@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AccountOrdersTab } from '../../components/account/AccountOrdersTab';
 import { AccountWishlistTab } from '../../components/account/AccountWishlistTab';
 import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -523,6 +524,11 @@ export default function Account() {
 
   return (
     <div className="account-page space-y-8">
+      <EditorialBackBar
+        fallbackTo="/"
+        breadcrumbs={[{ label: t('breadcrumb.home'), to: '/' }, { label: t('breadcrumb.account') }]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <div>
           <p className="eyebrow">{pick('Ruang Pelanggan', 'Customer Account')}</p>
@@ -851,10 +857,7 @@ export default function Account() {
                   onChange={(event) =>
                     setAddressForm((prev) => ({ ...prev, fullAddress: event.target.value }))
                   }
-                  placeholder={pick(
-                    'Nama jalan, nomor rumah, RT/RW, patokan',
-                    'Street name, house/unit number, landmarks'
-                  )}
+                  placeholder={pick('Nama jalan, no., RT/RW, patokan', 'Street, unit, landmarks')}
                   className="input-sharp mt-1.5"
                   disabled={savingAddress || isAddressLimitReached}
                 />
@@ -917,8 +920,8 @@ export default function Account() {
                     return (
                       <article
                         key={addr.addressUuid}
-                        className={`flex min-w-0 flex-col justify-between rounded-2xl border p-4 ${
-                          addr.isDefault ? 'border-ink bg-white' : 'border-line bg-surface'
+                        className={`flex min-w-0 flex-col justify-between rounded-sm border p-4 ${
+                          addr.isDefault ? 'border-ink bg-white' : 'border-line bg-[#FAFAFA]'
                         }`}
                       >
                         <div className="min-w-0 space-y-1.5 break-words">
@@ -927,7 +930,7 @@ export default function Account() {
                               {addr.label}
                             </h3>
                             {addr.isDefault ? (
-                              <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
+                              <span className="rounded-sm bg-ink px-2.5 py-0.5 text-xs font-medium text-white">
                                 {pick('Utama', 'Default')}
                               </span>
                             ) : null}
@@ -956,7 +959,7 @@ export default function Account() {
                                 type="button"
                                 onClick={() => void handleDeleteAddress(addr)}
                                 disabled={isBusy}
-                                className="inline-flex min-h-touch flex-1 items-center justify-center rounded-full border border-status-err bg-status-err px-3 py-2 font-display text-xs font-semibold text-white disabled:opacity-40"
+                                className="inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border border-status-err bg-status-err px-3 py-2 font-display text-xs font-semibold text-white disabled:opacity-40"
                               >
                                 {isBusy
                                   ? pick('Menghapus...', 'Deleting...')
@@ -995,7 +998,7 @@ export default function Account() {
                                 type="button"
                                 onClick={() => setConfirmDeleteUuid(addr.addressUuid)}
                                 disabled={isBusy}
-                                className="inline-flex min-h-touch flex-1 items-center justify-center rounded-full border border-status-err px-3 py-2 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white disabled:opacity-40 sm:flex-none"
+                                className="inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border border-status-err px-3 py-2 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white disabled:opacity-40 sm:flex-none"
                               >
                                 {pick('Hapus', 'Delete')}
                               </button>
@@ -1100,7 +1103,7 @@ export default function Account() {
             </form>
           </section>
 
-          <section className="rounded-2xl border border-red-200 bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-red-200 bg-white p-5 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-lg font-semibold text-status-err">
               {pick('Nonaktifkan Akun', 'Deactivate Account')}
             </h2>
@@ -1143,14 +1146,14 @@ export default function Account() {
                       setDeactivateFeedback(null);
                       setShowDeactivateConfirm(true);
                     }}
-                    className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-status-err px-5 py-2.5 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white sm:w-auto"
+                    className="inline-flex min-h-touch w-full items-center justify-center rounded-sm border border-status-err px-5 py-2.5 font-display text-xs font-semibold text-status-err transition-colors hover:bg-status-err hover:text-white sm:w-auto"
                   >
                     {pick('Nonaktifkan Akun Saya', 'Deactivate My Account')}
                   </button>
                 ) : (
                   <form
                     onSubmit={(event) => void handleDeactivateSubmit(event)}
-                    className="space-y-4 rounded-2xl border border-red-200 bg-red-50/40 p-4"
+                    className="space-y-4 rounded-sm border border-red-200 bg-red-50/40 p-4"
                     noValidate
                   >
                     <label className="flex min-h-touch cursor-pointer items-start gap-2.5 text-sm">
@@ -1192,7 +1195,7 @@ export default function Account() {
                       <button
                         type="submit"
                         disabled={deactivating}
-                        className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-status-err bg-status-err px-5 py-2.5 font-display text-xs font-semibold text-white disabled:opacity-40 sm:w-auto"
+                        className="inline-flex min-h-touch w-full items-center justify-center rounded-sm border border-status-err bg-status-err px-5 py-2.5 font-display text-xs font-semibold text-white disabled:opacity-40 sm:w-auto"
                       >
                         {deactivating
                           ? pick('Memproses...', 'Processing...')

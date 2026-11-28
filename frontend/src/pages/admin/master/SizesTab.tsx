@@ -1,9 +1,7 @@
 import type { SizeDto } from '@yng/shared';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import {
-  ActiveStatusBadge,
-  AdminFeedbackBanner,
-} from '../../../components/admin/AdminFeedbackBanner';
+import { ActiveStatusBadge } from '../../../components/admin/AdminFeedbackBanner';
+import { useToast } from '../../../components/ui/toastContext';
 import {
   createSize,
   deactivateSize,
@@ -25,6 +23,7 @@ function parseNonNegativeInt(raw: string): number | null {
 }
 
 export default function SizesTab({ includeInactive }: SizesTabProps) {
+  const { toast } = useToast();
   const [sizes, setSizes] = useState<SizeDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -35,12 +34,6 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
   const [extraCharge, setExtraCharge] = useState('0');
   const [sortOrder, setSortOrder] = useState('0');
 
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
-
   const loadSizes = useCallback(async () => {
     setLoading(true);
     try {
@@ -48,11 +41,11 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
       setSizes(data);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat daftar ukuran.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, toast]);
 
   useEffect(() => {
     void loadSizes();
@@ -67,30 +60,23 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
 
     const normalizedCode = code.trim().toUpperCase();
     const parsedExtra = parseNonNegativeInt(extraCharge);
     const parsedSort = parseNonNegativeInt(sortOrder);
 
     if (!/^[A-Za-z0-9_-]{1,10}$/.test(normalizedCode)) {
-      setFeedback({
-        variant: 'error',
-        message: 'Kode ukuran harus 1–10 karakter (huruf, angka, _ atau -).',
-      });
+      toast('Kode ukuran harus 1–10 karakter (huruf, angka, _ atau -).', 'err');
       return;
     }
 
     if (parsedExtra === null) {
-      setFeedback({
-        variant: 'error',
-        message: 'Biaya tambahan harus bilangan bulat rupiah (>= 0).',
-      });
+      toast('Biaya ekstra harus berupa angka bulat (minimal 0).', 'err');
       return;
     }
 
     if (parsedSort === null) {
-      setFeedback({ variant: 'error', message: 'Urutan harus bilangan bulat (>= 0).' });
+      toast('Urutan harus berupa angka bulat (minimal 0).', 'err');
       return;
     }
 
@@ -102,20 +88,20 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
           extraCharge: parsedExtra,
           sortOrder: parsedSort,
         });
-        setFeedback({ variant: 'success', message: `Ukuran "${updated.code}" diperbarui.` });
+        toast(`Ukuran "${updated.code}" diperbarui.`, 'ok');
       } else {
         const created = await createSize({
           code: normalizedCode,
           extraCharge: parsedExtra,
           sortOrder: parsedSort,
         });
-        setFeedback({ variant: 'success', message: `Ukuran "${created.code}" ditambahkan.` });
+        toast(`Ukuran "${created.code}" ditambahkan.`, 'ok');
       }
       resetForm();
       await loadSizes();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data ukuran.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -123,22 +109,18 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
 
   async function handleToggleActive(size: SizeDto) {
     setBusyId(size.id);
-    setFeedback(null);
     try {
       if (size.isActive) {
         await deactivateSize(size.id);
-        setFeedback({ variant: 'success', message: `Ukuran "${size.code}" dinonaktifkan.` });
+        toast(`Ukuran "${size.code}" dinonaktifkan.`, 'ok');
       } else {
         await updateSize(size.id, { isActive: true });
-        setFeedback({
-          variant: 'success',
-          message: `Ukuran "${size.code}" diaktifkan kembali.`,
-        });
+        toast(`Ukuran "${size.code}" diaktifkan kembali.`, 'ok');
       }
       await loadSizes();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status ukuran.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyId(null);
     }
@@ -146,15 +128,6 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
 
   return (
     <div className="space-y-6">
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
-
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <h2 className="font-display text-base font-semibold text-ink">
@@ -261,7 +234,6 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      setFeedback(null);
                       setEditingId(size.id);
                       setCode(size.code);
                       setExtraCharge(String(size.extraCharge));
@@ -275,7 +247,7 @@ export default function SizesTab({ includeInactive }: SizesTabProps) {
                     type="button"
                     onClick={() => void handleToggleActive(size)}
                     disabled={busyId === size.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       size.isActive
                         ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
                         : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'

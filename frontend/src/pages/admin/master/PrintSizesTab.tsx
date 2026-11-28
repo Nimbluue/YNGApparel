@@ -1,9 +1,7 @@
 import type { PrintSizeDto } from '@yng/shared';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import {
-  ActiveStatusBadge,
-  AdminFeedbackBanner,
-} from '../../../components/admin/AdminFeedbackBanner';
+import { ActiveStatusBadge } from '../../../components/admin/AdminFeedbackBanner';
+import { useToast } from '../../../components/ui/toastContext';
 import {
   createPrintSize,
   deactivatePrintSize,
@@ -45,6 +43,7 @@ function parseNonNegativeInt(raw: string): number | null {
 }
 
 export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
+  const { toast } = useToast();
   const [printSizes, setPrintSizes] = useState<PrintSizeDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -53,12 +52,6 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<PrintSizeFormState>(INITIAL_FORM);
 
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
-
   const loadPrintSizes = useCallback(async () => {
     setLoading(true);
     try {
@@ -66,11 +59,11 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
       setPrintSizes(data);
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat daftar ukuran sablon.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, toast]);
 
   useEffect(() => {
     void loadPrintSizes();
@@ -83,7 +76,6 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFeedback(null);
 
     const code = form.code.trim().toUpperCase();
     const name = form.name.trim();
@@ -94,33 +86,27 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
     const sortOrder = parseNonNegativeInt(form.sortOrder);
 
     if (!/^[A-Za-z0-9_-]{1,20}$/.test(code)) {
-      setFeedback({
-        variant: 'error',
-        message: 'Kode sablon harus 1–20 karakter (huruf, angka, _ atau -).',
-      });
+      toast('Kode sablon harus 1–20 karakter (huruf, angka, _ atau -).', 'err');
       return;
     }
 
     if (!name || !dimensionsCm) {
-      setFeedback({ variant: 'error', message: 'Nama dan label dimensi cm wajib diisi.' });
+      toast('Nama dan label dimensi cm wajib diisi.', 'err');
       return;
     }
 
     if (!Number.isFinite(widthCm) || widthCm <= 0 || !Number.isFinite(heightCm) || heightCm <= 0) {
-      setFeedback({ variant: 'error', message: 'Lebar dan tinggi (cm) harus lebih dari 0.' });
+      toast('Lebar dan tinggi (cm) harus lebih dari 0.', 'err');
       return;
     }
 
     if (pricePerSpot === null) {
-      setFeedback({
-        variant: 'error',
-        message: 'Harga per titik harus bilangan bulat rupiah (>= 0).',
-      });
+      toast('Harga sablon harus berupa angka bulat (minimal 0).', 'err');
       return;
     }
 
     if (sortOrder === null) {
-      setFeedback({ variant: 'error', message: 'Urutan harus bilangan bulat (>= 0).' });
+      toast('Urutan harus berupa angka bulat (minimal 0).', 'err');
       return;
     }
 
@@ -138,23 +124,17 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
       if (editingId !== null) {
         const updated = await updatePrintSize(editingId, payload);
-        setFeedback({
-          variant: 'success',
-          message: `Ukuran sablon "${updated.name}" diperbarui.`,
-        });
+        toast(`Ukuran sablon "${updated.name}" diperbarui.`, 'ok');
       } else {
         const created = await createPrintSize(payload);
-        setFeedback({
-          variant: 'success',
-          message: `Ukuran sablon "${created.name}" ditambahkan.`,
-        });
+        toast(`Ukuran sablon "${created.name}" ditambahkan.`, 'ok');
       }
 
       resetForm();
       await loadPrintSizes();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan data ukuran sablon.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -162,22 +142,18 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
   async function handleToggleActive(ps: PrintSizeDto) {
     setBusyId(ps.id);
-    setFeedback(null);
     try {
       if (ps.isActive) {
         await deactivatePrintSize(ps.id);
-        setFeedback({ variant: 'success', message: `Ukuran sablon "${ps.name}" dinonaktifkan.` });
+        toast(`Ukuran sablon "${ps.name}" dinonaktifkan.`, 'ok');
       } else {
         await updatePrintSize(ps.id, { isActive: true });
-        setFeedback({
-          variant: 'success',
-          message: `Ukuran sablon "${ps.name}" diaktifkan kembali.`,
-        });
+        toast(`Ukuran sablon "${ps.name}" diaktifkan kembali.`, 'ok');
       }
       await loadPrintSizes();
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal mengubah status ukuran sablon.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setBusyId(null);
     }
@@ -185,15 +161,6 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
   return (
     <div className="space-y-6">
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
-
       <section className="card-sharp p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
           <h2 className="font-display text-base font-semibold text-ink">
@@ -297,7 +264,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
 
             <div>
               <label htmlFor="ps-price" className="block text-sm font-medium text-ink">
-                Harga / Titik (Rp)
+                Harga / Desain (Rp)
               </label>
               <input
                 id="ps-price"
@@ -383,7 +350,6 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      setFeedback(null);
                       setEditingId(ps.id);
                       setForm({
                         code: ps.code,
@@ -403,7 +369,7 @@ export default function PrintSizesTab({ includeInactive }: PrintSizesTabProps) {
                     type="button"
                     onClick={() => void handleToggleActive(ps)}
                     disabled={busyId === ps.id}
-                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-full border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
+                    className={`inline-flex min-h-touch flex-1 items-center justify-center rounded-sm border px-3 py-2 font-display text-xs font-semibold transition-colors disabled:opacity-40 ${
                       ps.isActive
                         ? 'border-status-err text-status-err hover:bg-status-err hover:text-white'
                         : 'border-status-ok text-status-ok hover:bg-status-ok hover:text-white'

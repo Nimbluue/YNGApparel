@@ -13,7 +13,7 @@ interface EmptyStateProps {
 export function EmptyState({ title, description, action, className = '' }: EmptyStateProps) {
   return (
     <div
-      className={`rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center ${className}`}
+      className={`rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] px-6 py-12 text-center ${className}`}
     >
       <p className="eyebrow">Belum ada data</p>
       <p className="mt-2 font-display text-xl font-semibold text-ink">{title}</p>

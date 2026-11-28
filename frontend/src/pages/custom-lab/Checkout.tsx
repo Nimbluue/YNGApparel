@@ -13,6 +13,7 @@ import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { useToast } from '../../components/ui/toastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -36,6 +37,7 @@ import {
   getLocalizedPrintPositionLabel,
 } from '../../utils/localizedLabels';
 import { formatWhatsApp, normalizeWhatsApp } from '../../utils/phone';
+import { buildRecentTrackSummary, saveRecentTrack } from '../../utils/recentTracks';
 
 interface ShippingAddressFormState {
   recipientName: string;
@@ -215,6 +217,14 @@ export default function Checkout() {
       idempotencyKey: string;
     }) => createOrder(payload, idempotencyKey),
     onSuccess: async (order) => {
+      const phoneLast4 = order.customerWhatsapp.replace(/\D/g, '').slice(-4);
+      if (/^[0-9]{4}$/.test(phoneLast4)) {
+        saveRecentTrack({
+          orderCode: order.orderCode,
+          phoneLast4,
+          summary: buildRecentTrackSummary(order),
+        });
+      }
       queryClient.setQueryData(orderQueryKeys.detail(order.transactionUuid), order);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: cartQueryKeys.items }),
@@ -470,28 +480,28 @@ export default function Checkout() {
 
   return (
     <div className="w-full space-y-6 pb-10">
+      <EditorialBackBar
+        fallbackTo="/keranjang"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.cart'), to: '/keranjang' },
+          { label: t('breadcrumb.checkout') },
+        ]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
           <p className="eyebrow">YNG Studio · {pick('Checkout Pesanan', 'Order Checkout')}</p>
           <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl">
             {pick('Konfirmasi Pengiriman & Pembayaran', 'Confirm Delivery & Payment')}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {pick(
-              'Harga final dan syarat DP dihitung ulang dan dikunci otomatis oleh server saat pesanan dibuat.',
-              'Final pricing and deposit eligibility are recalculated and locked by the server when placing the order.'
-            )}
-          </p>
         </div>
-        <Link to="/keranjang" className="btn-secondary">
-          {pick('Kembali ke Keranjang', 'Back to Bag')}
-        </Link>
       </header>
 
       {checkoutSummary.hasUnavailable ? (
         <div
           role="alert"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
+          className="rounded-sm border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
         >
           {pick(
             <>
@@ -515,7 +525,7 @@ export default function Checkout() {
       {formError ? (
         <div
           role="alert"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
+          className="rounded-sm border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
         >
           {formError}
         </div>
@@ -527,12 +537,10 @@ export default function Checkout() {
       >
         {/* Kolom Kiri: Pengiriman, Pembayaran, & Rincian Item */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7">
-          {/* 01. Metode Pengiriman / Pengambilan */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          {/* Metode Pengiriman / Pengambilan */}
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">
-                {pick('01 · Pengiriman / Pengambilan', '01 · Delivery / Pickup')}
-              </p>
+              <p className="eyebrow">{pick('Pengiriman', 'Delivery')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 {pick('Pilih Metode Penerimaan Pesanan', 'Choose Fulfillment Method')}
               </h2>
@@ -542,10 +550,10 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={() => setFulfillmentType(FULFILLMENT_TYPE.SHIP)}
-                className={`flex min-h-touch w-full flex-col items-start rounded-2xl border p-4 text-left transition-colors ${
+                className={`flex min-h-touch w-full flex-col items-start rounded-sm border p-4 text-left transition-colors ${
                   fulfillmentType === FULFILLMENT_TYPE.SHIP
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-surface text-ink hover:border-ink'
+                    : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                 }`}
               >
                 <span className="font-display text-sm font-semibold">
@@ -566,10 +574,10 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={() => setFulfillmentType(FULFILLMENT_TYPE.PICKUP)}
-                className={`flex min-h-touch w-full flex-col items-start rounded-2xl border p-4 text-left transition-colors ${
+                className={`flex min-h-touch w-full flex-col items-start rounded-sm border p-4 text-left transition-colors ${
                   fulfillmentType === FULFILLMENT_TYPE.PICKUP
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-surface text-ink hover:border-ink'
+                    : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                 }`}
               >
                 <span className="font-display text-sm font-semibold">
@@ -595,7 +603,7 @@ export default function Checkout() {
                     <button
                       type="button"
                       onClick={() => setAddressMode('saved')}
-                      className={`inline-flex min-h-touch items-center rounded-full border px-4 text-xs font-semibold transition-colors ${
+                      className={`inline-flex min-h-touch items-center rounded-sm border px-4 text-xs font-semibold transition-colors ${
                         addressMode === 'saved'
                           ? 'border-ink bg-ink text-white'
                           : 'border-line bg-white text-ink hover:border-ink'
@@ -606,7 +614,7 @@ export default function Checkout() {
                     <button
                       type="button"
                       onClick={() => setAddressMode('new')}
-                      className={`inline-flex min-h-touch items-center rounded-full border px-4 text-xs font-semibold transition-colors ${
+                      className={`inline-flex min-h-touch items-center rounded-sm border px-4 text-xs font-semibold transition-colors ${
                         addressMode === 'new'
                           ? 'border-ink bg-ink text-white'
                           : 'border-line bg-white text-ink hover:border-ink'
@@ -626,9 +634,9 @@ export default function Checkout() {
                           key={addr.addressUuid}
                           type="button"
                           onClick={() => setSelectedAddressUuid(addr.addressUuid)}
-                          className={`w-full rounded-2xl border p-4 text-left transition-colors ${
+                          className={`w-full rounded-sm border p-4 text-left transition-colors ${
                             active
-                              ? 'border-ink bg-surface ring-1 ring-ink'
+                              ? 'border-ink bg-[#FAFAFA] ring-1 ring-ink'
                               : 'border-line bg-white hover:border-ink'
                           }`}
                         >
@@ -659,15 +667,14 @@ export default function Checkout() {
                     <p className="text-xs text-muted">
                       {pick(
                         <>
-                          Alamat disalin sebagai snapshot pesanan ini. Kelola buku alamat permanen
-                          di{' '}
+                          Kelola alamat tersimpan di{' '}
                           <Link to="/akun" className="font-semibold text-ink underline">
                             Akun Saya
                           </Link>
                           .
                         </>,
                         <>
-                          Address is copied as a snapshot for this order. Manage saved addresses in{' '}
+                          Manage saved addresses in{' '}
                           <Link to="/akun" className="font-semibold text-ink underline">
                             My Account
                           </Link>
@@ -828,8 +835,8 @@ export default function Checkout() {
                           setShippingForm((prev) => ({ ...prev, fullAddress: e.target.value }))
                         }
                         placeholder={pick(
-                          'Nama jalan, nomor rumah/ruko, RT/RW, patokan',
-                          'Street name, house/unit number, landmarks'
+                          'Nama jalan, no., RT/RW, patokan',
+                          'Street, unit, landmarks'
                         )}
                         className="input-sharp mt-1.5 min-h-[88px] resize-y py-2"
                       />
@@ -839,7 +846,7 @@ export default function Checkout() {
               </div>
             ) : (
               <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-line bg-surface p-4 text-xs leading-relaxed text-muted">
+                <div className="rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs leading-relaxed text-muted">
                   <p className="font-semibold text-ink">
                     {pick('Pengambilan Langsung di Studio Batam', 'Direct Pickup at Batam Studio')}
                   </p>
@@ -899,10 +906,10 @@ export default function Checkout() {
             )}
           </section>
 
-          {/* 02. Skema Pembayaran (Dynamic DP Gatekeeper) */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          {/* Skema Pembayaran */}
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">{pick('02 · Skema Pembayaran', '02 · Payment Scheme')}</p>
+              <p className="eyebrow">{pick('Pembayaran', 'Payment')}</p>
               <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                 {pick('Pilih Pembayaran Lunas atau DP', 'Choose Full Payment or Deposit')}{' '}
                 <span className="tabular-price">{checkoutSummary.dpPercent}%</span>
@@ -913,10 +920,10 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={() => setPaymentScheme(PAYMENT_SCHEME.FULL)}
-                className={`flex min-h-touch w-full flex-col justify-between rounded-2xl border p-4 text-left transition-colors ${
+                className={`flex min-h-touch w-full flex-col justify-between rounded-sm border p-4 text-left transition-colors ${
                   paymentScheme === PAYMENT_SCHEME.FULL
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-surface text-ink hover:border-ink'
+                    : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                 }`}
               >
                 <div className="w-full">
@@ -949,12 +956,12 @@ export default function Checkout() {
                     setPaymentScheme(PAYMENT_SCHEME.DP);
                   }
                 }}
-                className={`flex min-h-touch w-full flex-col justify-between rounded-2xl border p-4 text-left transition-colors ${
+                className={`flex min-h-touch w-full flex-col justify-between rounded-sm border p-4 text-left transition-colors ${
                   !checkoutSummary.dpEligible
-                    ? 'cursor-not-allowed border-line bg-surface/70 opacity-60'
+                    ? 'cursor-not-allowed border-line bg-[#FAFAFA]/70 opacity-60'
                     : paymentScheme === PAYMENT_SCHEME.DP
                       ? 'border-ink bg-ink text-white'
-                      : 'border-line bg-surface text-ink hover:border-ink'
+                      : 'border-line bg-[#FAFAFA] text-ink hover:border-ink'
                 }`}
               >
                 <div className="w-full">
@@ -1015,11 +1022,11 @@ export default function Checkout() {
             </div>
           </section>
 
-          {/* 03. Rincian Item Terpilih */}
-          <section className="rounded-3xl border border-line bg-white p-5 sm:p-6">
+          {/* Rincian Item Terpilih */}
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">{pick('03 · Rincian Item', '03 · Item Details')}</p>
+                <p className="eyebrow">{pick('Rincian Item', 'Items')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                   {pick('Item yang Akan Diproduksi', 'Items for Production')} (
                   {selectedItems.length})
@@ -1044,7 +1051,7 @@ export default function Checkout() {
                 return (
                   <article
                     key={item.cartItemUuid}
-                    className="rounded-2xl border border-line bg-surface p-4"
+                    className="rounded-sm border border-line bg-[#FAFAFA] p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -1090,7 +1097,7 @@ export default function Checkout() {
                         {pricing.sizes.map((s) => (
                           <span
                             key={s.sizeId}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 py-1 text-xs"
+                            className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-white px-2.5 py-1 text-xs"
                           >
                             <span className="font-mono font-semibold text-ink">{s.sizeCode}</span>
                             <span className="tabular-price text-muted">× {s.qty}</span>
@@ -1136,7 +1143,7 @@ export default function Checkout() {
                     )}
 
                     {item.config.productionNotes ? (
-                      <p className="mt-2 rounded-lg border border-line bg-white px-3 py-2 text-xs text-muted">
+                      <p className="mt-2 rounded-sm border border-line bg-white px-3 py-2 text-xs text-muted">
                         <span className="font-semibold text-ink">
                           {pick('Catatan: ', 'Notes: ')}
                         </span>
@@ -1152,11 +1159,10 @@ export default function Checkout() {
 
         {/* Kolom Kanan: Ringkasan Tagihan Sticky */}
         <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-5">
-          <div className="w-full space-y-5 rounded-3xl border border-line bg-white p-5 sm:p-6">
+          <div className="w-full space-y-5 rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="border-b border-line pb-4">
-              <p className="eyebrow">{pick('Ringkasan Tagihan', 'Invoice Summary')}</p>
-              <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                {pick('Total Produksi Terkunci', 'Locked Production Total')}
+              <h2 className="font-display text-lg font-semibold text-ink">
+                {pick('Ringkasan Tagihan', 'Order Summary')}
               </h2>
             </div>
 
@@ -1215,14 +1221,11 @@ export default function Checkout() {
               ) : null}
             </dl>
 
-            <div className="rounded-2xl border border-line bg-surface p-4 text-xs leading-relaxed text-muted">
-              <p className="font-semibold text-ink">
-                {pick('Langkah setelah Buat Pesanan:', 'Next step after placing order:')}
-              </p>
-              <p className="mt-1">
+            <div className="rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs leading-relaxed text-muted">
+              <p>
                 {pick(
-                  'Anda akan diarahkan ke halaman detail pesanan untuk melihat rekening bank/QRIS resmi studio dan mengunggah bukti pembayaran awal.',
-                  'You will be taken to the order detail page to view studio bank/QRIS accounts and upload your initial payment proof.'
+                  'Rekening bank/QRIS dan unggah bukti pembayaran tersedia pada halaman detail pesanan.',
+                  'Studio bank/QRIS accounts and payment proof upload appear on the order detail page.'
                 )}
               </p>
               {configQuery.data?.productionEstimateText ? (

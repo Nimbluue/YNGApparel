@@ -12,7 +12,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
 import { AdminOrderActionPanels } from '../../components/admin/AdminOrderActionPanels';
 import { ImageLightboxModal } from '../../components/admin/ImageLightboxModal';
 import { getOrderNextStepGuide, isImageFileName } from '../../components/admin/adminOrderHelpers';
@@ -53,9 +52,6 @@ export default function AdminOrderDetail() {
   const { toast } = useToast();
   const qcFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [detailError, setDetailError] = useState<{ message: string; details: string[] } | null>(
-    null
-  );
   const [lightbox, setLightbox] = useState<LightboxState | null>(null);
   const [downloadingSpk, setDownloadingSpk] = useState(false);
 
@@ -99,13 +95,13 @@ export default function AdminOrderDetail() {
       verifyAdminPayment(payment.paymentUuid, { approve: true }),
     onSuccess: async () => {
       setVerifyTarget(null);
-      setDetailError(null);
       toast('Pembayaran berhasil diverifikasi.', 'ok');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
       setVerifyTarget(null);
-      setDetailError(extractApiError(err, 'Gagal memverifikasi pembayaran.'));
+      const parsed = extractApiError(err, 'Gagal memverifikasi pembayaran.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -116,14 +112,13 @@ export default function AdminOrderDetail() {
       setRejectTarget(null);
       setRejectionReason('');
       setRejectFormError(null);
-      setDetailError(null);
       toast('Bukti pembayaran ditolak.', 'info');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
       const parsed = extractApiError(err, 'Gagal menolak bukti pembayaran.');
       setRejectFormError(parsed.message);
-      setDetailError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -132,13 +127,13 @@ export default function AdminOrderDetail() {
     onSuccess: async (uploaded) => {
       setSelectedQcFiles([]);
       setQcSelectionError(null);
-      setDetailError(null);
       if (qcFileInputRef.current) qcFileInputRef.current.value = '';
       toast(`${uploaded.length} foto QC berhasil diunggah.`, 'ok');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
-      setDetailError(extractApiError(err, 'Gagal mengunggah foto QC.'));
+      const parsed = extractApiError(err, 'Gagal mengunggah foto QC.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -146,13 +141,13 @@ export default function AdminOrderDetail() {
     mutationFn: (photoId: number) => deleteAdminOrderQcPhoto(uuid ?? '', photoId),
     onSuccess: async () => {
       setDeleteQcTargetId(null);
-      setDetailError(null);
       toast('Foto QC berhasil dihapus.', 'info');
       if (uuid) await invalidateOrderQueries(uuid);
     },
     onError: (err) => {
       setDeleteQcTargetId(null);
-      setDetailError(extractApiError(err, 'Gagal menghapus foto QC.'));
+      const parsed = extractApiError(err, 'Gagal menghapus foto QC.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -160,12 +155,12 @@ export default function AdminOrderDetail() {
     mutationFn: (toStatus: ProductionStatus) =>
       transitionAdminOrderStatus(uuid ?? '', { toStatus }),
     onSuccess: async (updated) => {
-      setDetailError(null);
       await handleOrderUpdated(updated);
       toast('Pesanan berhasil dipindahkan ke tahap berikutnya.', 'ok');
     },
     onError: (err) => {
-      setDetailError(extractApiError(err, 'Gagal memindahkan tahap produksi pesanan.'));
+      const parsed = extractApiError(err, 'Gagal memindahkan tahap produksi pesanan.');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -175,7 +170,8 @@ export default function AdminOrderDetail() {
       await downloadAdminOrderSpkPdf(order.transactionUuid, order.orderCode);
       toast(`SPK-${order.orderCode}.pdf berhasil diunduh.`, 'ok');
     } catch (err) {
-      setDetailError(extractApiError(err, 'Gagal mengunduh SPK PDF pesanan.'));
+      const parsed = extractApiError(err, 'Gagal mengunduh SPK PDF pesanan.');
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setDownloadingSpk(false);
     }
@@ -245,7 +241,7 @@ export default function AdminOrderDetail() {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="flex min-h-72 items-center justify-center rounded-2xl border border-line bg-white p-10">
+      <div className="flex min-h-72 items-center justify-center rounded-sm border border-line bg-white p-10">
         <Spinner label="Memuat detail order admin..." />
       </div>
     );
@@ -273,7 +269,7 @@ export default function AdminOrderDetail() {
   return (
     <div className="w-full min-w-0 space-y-6">
       {/* Header Atas Detail Order */}
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <Link to="/admin/kanban" className="hover:text-ink hover:underline">
             Kanban
@@ -320,7 +316,7 @@ export default function AdminOrderDetail() {
               to={`/track/${order.transactionUuid}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-touch items-center rounded-full border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+              className="inline-flex min-h-touch items-center rounded-sm border border-line-strong bg-white px-4 font-display text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
             >
               Live Tracker ↗
             </Link>
@@ -329,7 +325,7 @@ export default function AdminOrderDetail() {
       </section>
 
       {/* Kartu Panduan "Langkah Selanjutnya" */}
-      <section className="rounded-2xl border border-ink bg-white p-5 sm:p-6">
+      <section className="rounded-sm border border-ink bg-white p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             <div>
@@ -342,17 +338,17 @@ export default function AdminOrderDetail() {
                 {nextStepGuide.checklist.map((item) => (
                   <li
                     key={item.id}
-                    className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs ${
+                    className={`flex items-center gap-2.5 rounded-sm border px-3 py-2 text-xs ${
                       item.done
                         ? 'border-emerald-200 bg-emerald-50/60 text-status-ok'
                         : item.required
                           ? 'border-amber-200 bg-amber-50/60 text-ink'
-                          : 'border-line bg-surface text-muted'
+                          : 'border-line bg-[#FAFAFA] text-muted'
                     }`}
                   >
                     <span
                       aria-hidden="true"
-                      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold ${
+                      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm font-mono text-[11px] font-bold ${
                         item.done
                           ? 'bg-status-ok text-white'
                           : item.required
@@ -395,21 +391,12 @@ export default function AdminOrderDetail() {
         </div>
       </section>
 
-      {detailError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={detailError.message}
-          details={detailError.details}
-          onDismiss={() => setDetailError(null)}
-        />
-      ) : null}
-
       {/* Grid Utama 12 Kolom */}
       <div className="grid w-full grid-cols-1 items-start gap-8 lg:grid-cols-12">
         {/* Kolom Kiri — Informasi Lengkap Order */}
         <div className="w-full min-w-0 space-y-6 lg:col-span-7 xl:col-span-8">
           {/* 1. Data Pelanggan & Pengiriman (Unmasked) */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="eyebrow">Data Pelanggan &amp; Tujuan</p>
@@ -442,7 +429,7 @@ export default function AdminOrderDetail() {
                   <button
                     type="button"
                     onClick={() => void handleCopyText('Nomor WhatsApp', order.customerWhatsapp)}
-                    className="rounded-full border border-line px-2.5 py-0.5 text-[11px] font-semibold text-ink hover:border-ink"
+                    className="rounded-sm border border-line px-2.5 py-0.5 text-[11px] font-semibold text-ink hover:border-ink"
                   >
                     Salin
                   </button>
@@ -505,20 +492,20 @@ export default function AdminOrderDetail() {
             </div>
 
             {order.adminNotes ? (
-              <div className="mt-4 rounded-xl border border-line bg-surface p-3 text-xs text-ink">
+              <div className="mt-4 rounded-sm border border-line bg-[#FAFAFA] p-3 text-xs text-ink">
                 <span className="font-semibold">Catatan Admin Internal:</span> {order.adminNotes}
               </div>
             ) : null}
 
             {order.designReviewNotes ? (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-ink">
+              <div className="mt-3 rounded-sm border border-amber-200 bg-amber-50/60 p-3 text-xs text-ink">
                 <span className="font-semibold">Catatan Review Desain:</span>{' '}
                 {order.designReviewNotes}
               </div>
             ) : null}
 
             {order.cancelledReason ? (
-              <div className="mt-3 rounded-xl border border-red-200 bg-red-50/70 p-3 text-xs text-status-err">
+              <div className="mt-3 rounded-sm border border-red-200 bg-red-50/70 p-3 text-xs text-status-err">
                 <p className="font-semibold">Pesanan Dibatalkan: {order.cancelledReason}</p>
                 <p className="mt-1 tabular-nums">
                   Refund tercatat: {formatRupiah(order.refundedAmount)} ·{' '}
@@ -529,7 +516,7 @@ export default function AdminOrderDetail() {
           </section>
 
           {/* 2. Rincian Item & File Desain */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="eyebrow">Spesifikasi Produksi</p>
@@ -546,7 +533,7 @@ export default function AdminOrderDetail() {
               {order.items.map((item, idx) => (
                 <article
                   key={item.id}
-                  className="rounded-xl border border-line bg-surface p-4 space-y-3"
+                  className="rounded-sm border border-line bg-[#FAFAFA] p-4 space-y-3"
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -582,7 +569,7 @@ export default function AdminOrderDetail() {
                     {item.sizes.map((sz) => (
                       <span
                         key={sz.sizeCode}
-                        className="rounded-lg border border-line bg-white px-2.5 py-1 font-mono text-xs text-ink tabular-nums"
+                        className="rounded-sm border border-line bg-white px-2.5 py-1 font-mono text-xs text-ink tabular-nums"
                       >
                         {sz.sizeCode}: <strong>{sz.qty}</strong>
                         {sz.lockedExtraCharge > 0
@@ -593,7 +580,7 @@ export default function AdminOrderDetail() {
                   </div>
 
                   {item.productionNotes ? (
-                    <p className="rounded-lg border border-line bg-white px-3 py-2 text-xs text-ink">
+                    <p className="rounded-sm border border-line bg-white px-3 py-2 text-xs text-ink">
                       <span className="font-semibold">Catatan Item:</span> {item.productionNotes}
                     </p>
                   ) : null}
@@ -611,7 +598,7 @@ export default function AdminOrderDetail() {
                           return (
                             <div
                               key={print.id}
-                              className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white p-3"
+                              className="flex items-center justify-between gap-3 rounded-sm border border-line bg-white p-3"
                             >
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-ink">
@@ -641,7 +628,7 @@ export default function AdminOrderDetail() {
                                         subtitle: `${item.modelName} (${print.printSizeCode})`,
                                       })
                                     }
-                                    className="rounded-full border border-line-strong px-2.5 py-1 text-[11px] font-semibold text-ink hover:border-ink"
+                                    className="rounded-sm border border-line-strong px-2.5 py-1 text-[11px] font-semibold text-ink hover:border-ink"
                                   >
                                     Pratinjau
                                   </button>
@@ -651,7 +638,7 @@ export default function AdminOrderDetail() {
                                     href={print.designFileUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="rounded-full bg-ink px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-neutral-800"
+                                    className="rounded-sm bg-ink px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-neutral-800"
                                   >
                                     Unduh ↗
                                   </a>
@@ -669,7 +656,7 @@ export default function AdminOrderDetail() {
           </section>
 
           {/* 3. Rincian Tagihan & Daftar Pembayaran */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <p className="eyebrow">Tagihan &amp; Mutasi</p>
             <h2 className="mt-1 font-display text-xl font-semibold text-ink">
               Ringkasan Keuangan &amp; Pembayaran
@@ -720,7 +707,7 @@ export default function AdminOrderDetail() {
               {order.payments.map((payment) => (
                 <div
                   key={payment.paymentUuid}
-                  className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-sm border border-line bg-[#FAFAFA] p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -799,7 +786,7 @@ export default function AdminOrderDetail() {
           </section>
 
           {/* 4. Foto Hasil QC (Multi Upload & Hapus) */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="eyebrow">Quality Control</p>
@@ -809,7 +796,7 @@ export default function AdminOrderDetail() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-dashed border-line-strong bg-surface p-4">
+            <div className="mt-4 rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4">
               <label
                 htmlFor="qc-upload-input"
                 className="block font-display text-xs font-semibold text-ink"
@@ -824,7 +811,7 @@ export default function AdminOrderDetail() {
                   multiple
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleSelectQcFiles}
-                  className="block w-full text-xs text-muted file:mr-3 file:min-h-touch file:rounded-full file:border file:border-line-strong file:bg-white file:px-4 file:font-display file:text-xs file:font-semibold file:text-ink hover:file:border-ink"
+                  className="block w-full text-xs text-muted file:mr-3 file:min-h-touch file:rounded-sm file:border file:border-line-strong file:bg-white file:px-4 file:font-display file:text-xs file:font-semibold file:text-ink hover:file:border-ink"
                 />
                 <Button
                   type="button"
@@ -850,7 +837,7 @@ export default function AdminOrderDetail() {
                   {selectedQcFiles.map((file) => (
                     <span
                       key={`${file.name}-${file.size}`}
-                      className="rounded-full border border-line bg-white px-3 py-1 font-mono text-[11px] text-ink"
+                      className="rounded-sm border border-line bg-white px-3 py-1 font-mono text-[11px] text-ink"
                     >
                       {file.name} ({Math.max(1, Math.round(file.size / 1024))} KB)
                     </span>
@@ -866,7 +853,7 @@ export default function AdminOrderDetail() {
                 {order.qcPhotos.map((photo, index) => (
                   <div
                     key={photo.id}
-                    className="group overflow-hidden rounded-xl border border-line bg-surface"
+                    className="group overflow-hidden rounded-sm border border-line bg-[#FAFAFA]"
                   >
                     <button
                       type="button"
@@ -904,7 +891,7 @@ export default function AdminOrderDetail() {
           </section>
 
           {/* 5. Riwayat Status Produksi */}
-          <section className="rounded-2xl border border-line bg-white p-5 sm:p-6">
+          <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <p className="eyebrow">Audit Log</p>
             <h2 className="mt-1 font-display text-xl font-semibold text-ink">
               Riwayat Status ({order.statusHistory.length})

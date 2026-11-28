@@ -1,10 +1,12 @@
 import { USER_ROLE, type ValidationErrorItem, type ValidationErrorPayload } from '@yng/shared';
+import { Eye, EyeOff } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { AuthEditorialShell } from '../../components/auth/AuthEditorialShell';
+import { EditorialButton } from '../../components/ui/EditorialButton';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { ApiClientError } from '../../services/api';
-import { BRAND_LOGO_MAIN_URL } from '../../utils/brandAssets';
 import type { AuthRedirectState } from './Login';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -33,17 +35,20 @@ function isLikelyIndonesianWhatsApp(raw: string): boolean {
 
 export default function Register() {
   const { user, isGuest, checked, register } = useAuth();
-  const { pick } = useLanguage();
+  const { t, pick } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
   const routeState = (location.state as AuthRedirectState | null) ?? null;
+  const preservedState = routeState?.from ? { from: routeState.from } : undefined;
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrorItem[]>([]);
@@ -121,17 +126,20 @@ export default function Register() {
         password,
       });
 
-      navigate('/login', {
-        replace: true,
-        state: {
-          from: routeState?.from,
-          registeredMessage: pick(
-            'Pendaftaran berhasil. Silakan masuk dengan akun Anda.',
-            'Registration succeeded. Please sign in with your new account.'
-          ),
-          registeredEmail: created.email,
-        },
-      });
+      navigate(
+        { pathname: '/login', search: location.search },
+        {
+          replace: true,
+          state: {
+            from: routeState?.from,
+            registeredMessage: pick(
+              'Pendaftaran berhasil. Silakan masuk dengan akun Anda.',
+              'Registration succeeded. Please sign in with your new account.'
+            ),
+            registeredEmail: created.email,
+          },
+        }
+      );
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
         setErrorMessage(err.message);
@@ -147,169 +155,110 @@ export default function Register() {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
-      <aside className="flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 sm:p-10">
-        <div className="space-y-6">
-          <div className="flex items-center gap-3.5">
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-16 sm:w-16">
-              <img
-                src={BRAND_LOGO_MAIN_URL}
-                alt="YNG Apparel Studio"
-                className="h-full w-full scale-110 object-cover object-center"
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="font-display text-base font-semibold text-ink">YNG Apparel</p>
-              <p className="text-xs text-muted">
-                {pick('Ruang Pelanggan · Batam', 'Customer Lounge · Batam')}
-              </p>
-            </div>
-          </div>
+    <AuthEditorialShell
+      mode="register"
+      heading={t('auth.registerHeading')}
+      subheading={t('auth.registerSubheading')}
+      redirectState={preservedState}
+      footer={
+        <p>
+          {t('auth.hasAccount')}{' '}
+          <Link
+            to={{ pathname: '/login', search: location.search }}
+            state={preservedState}
+            className="font-semibold text-ink underline decoration-neutral-300 underline-offset-4 transition-colors hover:decoration-ink"
+          >
+            {t('auth.loginLink')}
+          </Link>
+        </p>
+      }
+    >
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="mb-5 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-status-err"
+        >
+          <p className="font-medium">{errorMessage}</p>
+          {fieldErrors.length > 1 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
+              {fieldErrors.map((item, index) => (
+                <li key={`${item.field}-${index}`}>{item.message}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
-          <h2 className="font-display text-2xl font-semibold leading-snug text-ink sm:text-3xl">
-            {pick(
-              'Mulai dari satu rancangan, wujudkan bersama tim.',
-              'Start from a single garment design, produce at team scale.'
-            )}
-          </h2>
-          <p className="text-sm leading-relaxed text-muted">
-            {pick(
-              'Daftar sekali untuk menyimpan alamat pengiriman, keranjang Custom Lab, dan memantau status pesanan.',
-              'Register once to save shipping addresses, Custom Lab configurations, and track your order status.'
-            )}
-          </p>
-
-          <ul className="space-y-2 border-t border-line pt-4 text-xs text-ink">
-            <li className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>
-                {pick(
-                  'Simulasi harga transparan dengan perhitungan server',
-                  'Transparent pricing simulation verified by the server'
-                )}
-              </span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>
-                {pick(
-                  'Skema DP atau Lunas fleksibel sesuai jumlah pesanan',
-                  'Flexible Deposit or Full Payment scheme based on quantity'
-                )}
-              </span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true" />
-              <span>
-                {pick(
-                  'Konsultasi bahan & warna custom langsung via WhatsApp',
-                  'Direct fabric & custom color consultation via WhatsApp'
-                )}
-              </span>
-            </li>
-          </ul>
+      <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4" noValidate>
+        <div>
+          <label htmlFor="register-fullname" className="block text-sm font-medium text-ink">
+            {pick('Nama Lengkap', 'Full Name')}
+          </label>
+          <input
+            id="register-fullname"
+            name="fullName"
+            type="text"
+            autoComplete="name"
+            required
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
+            placeholder="Budi Santoso"
+            className="input-sharp mt-1.5"
+            disabled={submitting}
+          />
         </div>
 
-        <p className="mt-8 font-editorial text-2xl italic text-ink">@yng.apparel.official</p>
-      </aside>
+        <div>
+          <label htmlFor="register-email" className="block text-sm font-medium text-ink">
+            Email
+          </label>
+          <input
+            id="register-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="budi@email.com"
+            className="input-sharp mt-1.5"
+            disabled={submitting}
+          />
+        </div>
 
-      <section className="rounded-3xl border border-line bg-white p-6 sm:p-10">
-        <p className="eyebrow">{pick('Registrasi Akun', 'Account Registration')}</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-ink sm:text-4xl">
-          {pick('Daftar Akun', 'Create Account')}
-        </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          {pick(
-            'Isi data diri dan nomor WhatsApp aktif untuk mempermudah konfirmasi produksi.',
-            'Provide your details and an active WhatsApp number for smooth production updates.'
-          )}
-        </p>
+        <div>
+          <label htmlFor="register-whatsapp" className="block text-sm font-medium text-ink">
+            {pick('Nomor WhatsApp', 'WhatsApp Number')}
+          </label>
+          <input
+            id="register-whatsapp"
+            name="whatsapp"
+            type="tel"
+            autoComplete="tel"
+            required
+            value={whatsapp}
+            onChange={(event) => setWhatsapp(event.target.value)}
+            placeholder="081234567890"
+            className="input-sharp mt-1.5 font-mono"
+            disabled={submitting}
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            {pick(
+              'Contoh: 081234567890 atau 6281234567890 (otomatis dinormalisasi ke format 62).',
+              'Example: 081234567890 or 6281234567890 (auto-normalized to 62 format).'
+            )}
+          </p>
+        </div>
 
-        {errorMessage ? (
-          <div
-            role="alert"
-            className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-status-err"
-          >
-            <p className="font-medium">{errorMessage}</p>
-            {fieldErrors.length > 1 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
-                {fieldErrors.map((item, index) => (
-                  <li key={`${item.field}-${index}`}>{item.message}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-
-        <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-4" noValidate>
-          <div>
-            <label htmlFor="register-fullname" className="block text-sm font-medium text-ink">
-              {pick('Nama Lengkap', 'Full Name')}
-            </label>
-            <input
-              id="register-fullname"
-              name="fullName"
-              type="text"
-              autoComplete="name"
-              required
-              value={fullName}
-              onChange={(event) => setFullName(event.target.value)}
-              placeholder="Budi Santoso"
-              className="input-sharp mt-1.5"
-              disabled={submitting}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="register-email" className="block text-sm font-medium text-ink">
-              Email
-            </label>
-            <input
-              id="register-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="budi@email.com"
-              className="input-sharp mt-1.5"
-              disabled={submitting}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="register-whatsapp" className="block text-sm font-medium text-ink">
-              {pick('Nomor WhatsApp', 'WhatsApp Number')}
-            </label>
-            <input
-              id="register-whatsapp"
-              name="whatsapp"
-              type="tel"
-              autoComplete="tel"
-              required
-              value={whatsapp}
-              onChange={(event) => setWhatsapp(event.target.value)}
-              placeholder="081234567890"
-              className="input-sharp mt-1.5 font-mono"
-              disabled={submitting}
-            />
-            <p className="mt-1.5 text-xs text-muted">
-              {pick(
-                'Contoh: 081234567890 atau 6281234567890 (otomatis dinormalisasi ke format 62).',
-                'Example: 081234567890 or 6281234567890 (auto-normalized to 62 format).'
-              )}
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="register-password" className="block text-sm font-medium text-ink">
-              Password
-            </label>
+        <div>
+          <label htmlFor="register-password" className="block text-sm font-medium text-ink">
+            Password
+          </label>
+          <div className="relative mt-1.5">
             <input
               id="register-password"
               name="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               required
               value={password}
@@ -318,50 +267,68 @@ export default function Register() {
                 'Minimal 8 karakter (maks 72 byte)',
                 'Minimum 8 characters (max 72 bytes)'
               )}
-              className="input-sharp mt-1.5"
+              className="input-sharp pr-12"
               disabled={submitting}
             />
-          </div>
-
-          <div>
-            <label
-              htmlFor="register-confirm-password"
-              className="block text-sm font-medium text-ink"
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+              aria-pressed={showPassword}
+              className="absolute right-1.5 top-1/2 flex h-9 w-9 min-h-0 -translate-y-1/2 items-center justify-center rounded-sm text-neutral-500 transition-colors hover:text-ink focus:outline-none focus-visible:ring-1 focus-visible:ring-ink"
             >
-              {pick('Konfirmasi Password', 'Confirm Password')}
-            </label>
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              ) : (
+                <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="register-confirm-password" className="block text-sm font-medium text-ink">
+            {pick('Konfirmasi Password', 'Confirm Password')}
+          </label>
+          <div className="relative mt-1.5">
             <input
               id="register-confirm-password"
               name="confirmPassword"
-              type="password"
+              type={showConfirmPassword ? 'text' : 'password'}
               autoComplete="new-password"
               required
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder={pick('Ulangi password', 'Repeat password')}
-              className="input-sharp mt-1.5"
+              className="input-sharp pr-12"
               disabled={submitting}
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              aria-label={showConfirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+              aria-pressed={showConfirmPassword}
+              className="absolute right-1.5 top-1/2 flex h-9 w-9 min-h-0 -translate-y-1/2 items-center justify-center rounded-sm text-neutral-500 transition-colors hover:text-ink focus:outline-none focus-visible:ring-1 focus-visible:ring-ink"
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              ) : (
+                <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              )}
+            </button>
           </div>
-
-          <button type="submit" className="btn-primary mt-2 w-full" disabled={submitting}>
-            {submitting
-              ? pick('Mendaftarkan...', 'Creating account...')
-              : pick('Daftar Sekarang', 'Create Account')}
-          </button>
-        </form>
-
-        <div className="mt-8 border-t border-line pt-5 text-sm text-muted">
-          {pick('Sudah punya akun?', 'Already have an account?')}{' '}
-          <Link
-            to="/login"
-            state={routeState?.from ? { from: routeState.from } : undefined}
-            className="font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-          >
-            {pick('Masuk di sini', 'Sign in here')}
-          </Link>
         </div>
-      </section>
-    </div>
+
+        <EditorialButton
+          type="submit"
+          variant="primary"
+          fullWidth
+          loading={submitting}
+          className="mt-2"
+        >
+          {submitting ? t('auth.registerSubmitting') : t('auth.registerSubmit')}
+        </EditorialButton>
+      </form>
+    </AuthEditorialShell>
   );
 }

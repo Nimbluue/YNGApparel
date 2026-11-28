@@ -1,4 +1,5 @@
 import type {
+  CollectionStatus,
   DesignStatus,
   FulfillmentType,
   OrderSource,
@@ -87,7 +88,112 @@ export interface ChangePasswordRequestDto {
   newPassword: string;
 }
 
-export type CatalogImageFolder = 'models' | 'fabrics' | 'qris' | 'logs' | 'ready';
+export type CatalogImageFolder = 'models' | 'fabrics' | 'qris' | 'logs' | 'ready' | 'size-charts';
+
+export interface CatalogCategorySummaryDto {
+  id: string;
+  name: string;
+  slug: string;
+  sizeChartImageUrl: string | null;
+}
+
+export interface CatalogCategoryDto {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  sizeChartImagePath: string | null;
+  sizeChartImageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  activeModelCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CatalogCategory = CatalogCategoryDto;
+
+export interface PublicCatalogCategoryDto {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  sizeChartImageUrl: string | null;
+  sortOrder: number;
+  activeModelCount: number;
+}
+
+export interface CreateCatalogCategoryDto {
+  name: string;
+  slug: string;
+  description?: string | null;
+  sizeChartImagePath?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateCatalogCategoryDto {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  sizeChartImagePath?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface CatalogCollectionSummaryDto {
+  id: string;
+  name: string;
+  slug: string;
+  status: CollectionStatus;
+}
+
+export interface CatalogCollectionDto {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: CollectionStatus;
+  sortOrder: number;
+  isActive: boolean;
+  activeModelCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CatalogCollection = CatalogCollectionDto;
+
+export interface PublicCatalogCollectionDto {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: CollectionStatus;
+  sortOrder: number;
+  activeModelCount: number;
+}
+
+export interface CreateCatalogCollectionDto {
+  name: string;
+  slug: string;
+  description?: string | null;
+  status?: CollectionStatus;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateCatalogCollectionDto {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  status?: CollectionStatus;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface ReorderCatalogEntitiesDto {
+  items: Array<{ id: string; sortOrder: number }>;
+}
 
 export interface CatalogImageUploadDto {
   path: string;
@@ -175,6 +281,10 @@ export interface GarmentModelDto {
   imagePath: string | null;
   imageUrl: string | null;
   mockupTemplate: string | null;
+  categoryId: string | null;
+  collectionId: string | null;
+  category: CatalogCategorySummaryDto | null;
+  collection: CatalogCollectionSummaryDto | null;
   sortOrder: number;
   isActive: boolean;
   fabricIds: number[];
@@ -189,6 +299,8 @@ export interface CreateGarmentModelDto {
   basePrice: Rupiah;
   imagePath?: string | null;
   mockupTemplate?: string | null;
+  categoryId?: string | null;
+  collectionId?: string | null;
   sortOrder?: number;
   isActive?: boolean;
 }
@@ -200,6 +312,8 @@ export interface UpdateGarmentModelDto {
   basePrice?: Rupiah;
   imagePath?: string | null;
   mockupTemplate?: string | null;
+  categoryId?: string | null;
+  collectionId?: string | null;
   sortOrder?: number;
   isActive?: boolean;
 }
@@ -410,6 +524,10 @@ export interface PublicGarmentModelDto {
   basePrice: Rupiah;
   imageUrl: string | null;
   mockupTemplate: string | null;
+  categoryId: string | null;
+  collectionId: string | null;
+  category: CatalogCategorySummaryDto | null;
+  collection: CatalogCollectionSummaryDto | null;
   sortOrder: number;
   fabricIds: number[];
 }

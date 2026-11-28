@@ -3,6 +3,7 @@ import { PAYMENT_SCHEME, type CartItemDto, type UpsertCartItemRequestDto } from 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/ui/Badge';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
@@ -275,23 +276,26 @@ export default function Cart() {
 
   return (
     <div className="w-full space-y-6 pb-8">
+      <EditorialBackBar
+        fallbackTo="/katalog"
+        breadcrumbs={[
+          { label: t('breadcrumb.home'), to: '/' },
+          { label: t('breadcrumb.catalog'), to: '/katalog' },
+          { label: t('breadcrumb.cart') },
+        ]}
+      />
+
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
         <div className="min-w-0">
-          <p className="eyebrow">YNG Studio · {pick('Keranjang Custom Lab', 'Studio Bag')}</p>
+          <p className="eyebrow">YNG Studio · {pick('Tas Produksi', 'Studio Bag')}</p>
           <h1 className="mt-2 font-display text-2xl font-semibold text-ink sm:text-3xl">
             {pick('Keranjang Konfigurasi', 'Saved Configurations')}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {pick(
-              'Harga dihitung ulang otomatis dari katalog server setiap keranjang dibuka.',
-              'Pricing is automatically recalculated from the server catalog each time you open your bag.'
-            )}
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {summary ? (
-            <span className="inline-flex min-h-touch items-center rounded-full border border-line bg-surface px-4 text-xs font-medium text-ink">
+            <span className="inline-flex min-h-touch items-center rounded-sm border border-line bg-[#FAFAFA] px-4 text-xs font-medium text-ink">
               {pick('Kapasitas:', 'Capacity:')}{' '}
               <span className="tabular-price ml-1.5 font-semibold">
                 {summary.totalItems}/{summary.maxItems}
@@ -306,10 +310,10 @@ export default function Cart() {
 
       {items.length === 0 ? (
         <EmptyState
-          title={pick('Keranjang Custom Lab masih kosong', 'Your Custom Lab bag is empty')}
+          title={pick('Keranjang masih kosong', 'Your bag is empty')}
           description={pick(
-            'Rancang model, pilih bahan dan warna, atur matriks ukuran serta titik sablon di Custom Lab untuk menambahkannya ke sini.',
-            'Pick a model, fabric, color, size matrix, and print spots in Custom Lab to add configurations here.'
+            'Rancang model, bahan, warna, dan ukuran di Custom Lab untuk menambahkannya ke sini.',
+            'Configure model, fabric, color, and sizes in Custom Lab to add items here.'
           )}
           action={
             <Link to="/custom-lab" className="btn-primary">
@@ -322,17 +326,17 @@ export default function Cart() {
           {summary && summary.unavailableItemCount > 0 ? (
             <div
               role="alert"
-              className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
+              className="rounded-sm border border-red-200 bg-red-50 px-4 py-3.5 text-xs leading-relaxed text-status-err sm:text-sm"
             >
               {pick(
                 <>
                   Terdapat <strong className="tabular-price">{summary.unavailableItemCount}</strong>{' '}
-                  item yang tidak lagi tersedia karena perubahan master katalog. Perbarui
-                  konfigurasi atau hapus item tersebut sebelum checkout.
+                  item tidak tersedia karena perubahan ketersediaan produk. Perbarui atau hapus item
+                  tersebut sebelum checkout.
                 </>,
                 <>
                   <strong className="tabular-price">{summary.unavailableItemCount}</strong> item(s)
-                  are no longer available due to catalog updates. Edit or remove them before
+                  are unavailable due to product availability updates. Edit or remove them before
                   checkout.
                 </>
               )}
@@ -342,7 +346,7 @@ export default function Cart() {
           <div className="grid w-full grid-cols-1 items-start gap-6 lg:grid-cols-12">
             {/* Daftar Item Keranjang */}
             <div className="w-full min-w-0 space-y-4 lg:col-span-8">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-[#FAFAFA] px-4 py-3">
                 <p className="text-xs font-medium text-ink">
                   {pick('Dipilih:', 'Selected:')}{' '}
                   <span className="tabular-price font-semibold">
@@ -358,7 +362,7 @@ export default function Cart() {
                     type="button"
                     disabled={availableItemUuids.length === 0}
                     onClick={() => checkAll(availableItemUuids)}
-                    className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-40"
+                    className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-3.5 text-xs font-semibold text-ink transition-colors hover:border-ink disabled:opacity-40"
                   >
                     {pick('Pilih Semua', 'Select All')}
                   </button>
@@ -366,7 +370,7 @@ export default function Cart() {
                     type="button"
                     disabled={checkedItems.size === 0}
                     onClick={() => uncheckAll()}
-                    className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-3.5 text-xs font-semibold text-muted transition-colors hover:border-ink hover:text-ink disabled:opacity-40"
+                    className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-3.5 text-xs font-semibold text-muted transition-colors hover:border-ink hover:text-ink disabled:opacity-40"
                   >
                     {pick('Kosongkan Pilihan', 'Clear Selection')}
                   </button>
@@ -387,13 +391,13 @@ export default function Cart() {
                 return (
                   <article
                     key={item.cartItemUuid}
-                    className={`rounded-2xl border bg-white p-4 sm:p-5 ${
+                    className={`rounded-sm border bg-white p-4 sm:p-5 ${
                       item.isAvailable ? 'border-line' : 'border-red-200 bg-red-50/30'
                     }`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3.5">
                       <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <label className="inline-flex min-h-touch min-w-touch shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface">
+                        <label className="inline-flex min-h-touch min-w-touch shrink-0 cursor-pointer items-center justify-center rounded-sm border border-line bg-[#FAFAFA]">
                           <input
                             type="checkbox"
                             disabled={!item.isAvailable}
@@ -457,7 +461,7 @@ export default function Cart() {
                     </div>
 
                     {!item.isAvailable && item.warnings.length > 0 ? (
-                      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err">
+                      <div className="mt-3 rounded-sm border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-status-err">
                         {item.warnings.map((warning) => (
                           <p key={warning}>{warning}</p>
                         ))}
@@ -474,7 +478,7 @@ export default function Cart() {
                           ? pricing.sizes.map((s) => (
                               <span
                                 key={s.sizeId}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs"
+                                className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-[#FAFAFA] px-3 py-1.5 text-xs"
                               >
                                 <span className="font-mono font-semibold text-ink">
                                   {s.sizeCode}
@@ -488,7 +492,7 @@ export default function Cart() {
                           : item.config.sizes.map((s) => (
                               <span
                                 key={s.sizeId}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs"
+                                className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-[#FAFAFA] px-3 py-1.5 text-xs"
                               >
                                 <span className="font-mono font-semibold text-ink">
                                   {sizeCodeMap.get(s.sizeId) ?? `#${s.sizeId}`}
@@ -499,10 +503,10 @@ export default function Cart() {
                       </div>
                     </div>
 
-                    {/* Rincian Titik Sablon & Desain */}
+                    {/* Rincian Desain Sablon */}
                     <div className="mt-4 space-y-2">
                       <p className="text-xs font-semibold text-ink">
-                        {pick('Titik Sablon', 'Print Spots')} ({item.config.prints.length})
+                        {pick('Desain Sablon', 'Print Design')} ({item.config.prints.length})
                       </p>
                       {item.config.prints.length === 0 ? (
                         <p className="text-xs text-muted">
@@ -515,7 +519,7 @@ export default function Cart() {
                             return (
                               <li
                                 key={`${item.cartItemUuid}-spot-${spotIdx}`}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-xs"
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-[#FAFAFA] px-3 py-2 text-xs"
                               >
                                 <div className="min-w-0">
                                   <span className="font-medium text-ink">
@@ -553,7 +557,7 @@ export default function Cart() {
                     </div>
 
                     {item.config.productionNotes ? (
-                      <div className="mt-3 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-xs text-muted">
+                      <div className="mt-3 rounded-sm border border-line bg-[#FAFAFA] px-3.5 py-2.5 text-xs text-muted">
                         <span className="font-semibold text-ink">
                           {pick('Catatan: ', 'Notes: ')}
                         </span>
@@ -567,21 +571,21 @@ export default function Cart() {
                         <button
                           type="button"
                           onClick={() => openQuickEdit(item)}
-                          className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+                          className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
                         >
                           {pick('Ubah Qty / Catatan', 'Edit Qty / Notes')}
                         </button>
                       ) : null}
                       <Link
                         to={`/custom-lab?edit=${encodeURIComponent(item.cartItemUuid)}`}
-                        className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+                        className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
                       >
                         {pick('Edit di Custom Lab', 'Edit in Custom Lab')}
                       </Link>
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(item)}
-                        className="inline-flex min-h-touch items-center rounded-full border border-line bg-white px-4 text-xs font-semibold text-status-err transition-colors hover:border-status-err hover:bg-red-50"
+                        className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-status-err transition-colors hover:border-status-err hover:bg-red-50"
                       >
                         {pick('Hapus', 'Remove')}
                       </button>
@@ -592,12 +596,11 @@ export default function Cart() {
             </div>
 
             {/* Ringkasan Keranjang & Gatekeeper DP */}
-            <aside className="w-full min-w-0 lg:sticky lg:top-28 lg:col-span-4">
-              <div className="w-full space-y-5 rounded-3xl border border-line bg-white p-5 sm:p-6">
+            <aside className="w-full min-w-0 lg:sticky lg:top-24 lg:col-span-4">
+              <div className="w-full space-y-5 rounded-sm border border-line bg-white p-5 sm:p-6">
                 <div className="border-b border-line pb-4">
-                  <p className="eyebrow">{pick('Ringkasan Keranjang', 'Bag Summary')}</p>
-                  <h2 className="mt-1 font-display text-lg font-semibold text-ink">
-                    {pick('Estimasi Tagihan Server', 'Server Quote Summary')}
+                  <h2 className="font-display text-lg font-semibold text-ink">
+                    {pick('Ringkasan Pesanan', 'Order Summary')}
                   </h2>
                 </div>
 
@@ -625,7 +628,7 @@ export default function Cart() {
                 </dl>
 
                 {/* Status Gatekeeper DP Dinamis */}
-                <div className="space-y-2.5 rounded-2xl border border-line bg-surface p-4 text-xs">
+                <div className="space-y-2.5 rounded-sm border border-line bg-[#FAFAFA] p-4 text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-ink">
                       {pick('Kelayakan Pembayaran DP', 'Deposit Eligibility')}
@@ -723,10 +726,6 @@ export default function Cart() {
         open={Boolean(editingItem)}
         onClose={() => setEditingItem(null)}
         title={pick('Ubah Kuantitas & Catatan', 'Edit Quantity & Notes')}
-        description={pick(
-          'Perubahan akan dihitung ulang langsung oleh server.',
-          'Changes will be recalculated automatically by the server.'
-        )}
         size="md"
       >
         {editingItem ? (
@@ -741,7 +740,7 @@ export default function Cart() {
                   return (
                     <label
                       key={size.id}
-                      className="flex flex-col gap-1 rounded-xl border border-line bg-surface p-2.5 text-xs"
+                      className="flex flex-col gap-1 rounded-sm border border-line bg-[#FAFAFA] p-2.5 text-xs"
                     >
                       <span className="font-mono font-semibold text-ink">{size.code}</span>
                       <input
@@ -757,7 +756,7 @@ export default function Cart() {
                             [size.id]: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
                           }));
                         }}
-                        className="input-sharp tabular-price bg-white"
+                        className="input-sharp tabular-price no-spinner bg-white"
                       />
                     </label>
                   );
@@ -834,7 +833,7 @@ export default function Cart() {
                 deleteMutation.mutate(deleteTarget.cartItemUuid);
               }
             }}
-            className="inline-flex min-h-touch items-center justify-center rounded-full bg-status-err px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
+            className="inline-flex min-h-touch items-center justify-center rounded-sm bg-status-err px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-45"
           >
             {deleteMutation.isPending
               ? pick('Menghapus...', 'Removing...')

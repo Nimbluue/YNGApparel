@@ -32,7 +32,6 @@ import {
 import { extractApiError } from '../../utils/apiError';
 import { formatRupiah } from '../../utils/formatRupiah';
 import { openWaLink } from '../../utils/whatsapp';
-import { AdminFeedbackBanner } from './AdminFeedbackBanner';
 import {
   buildAdminWaTemplates,
   getTotalVerifiedPaid,
@@ -54,7 +53,6 @@ function resolveInitialCourier(courier: string | null): CourierCode {
 
 export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPanelsProps) {
   const { toast } = useToast();
-  const [panelError, setPanelError] = useState<{ message: string; details: string[] } | null>(null);
 
   const isTerminal =
     order.productionStatus === PRODUCTION_STATUS.COMPLETED ||
@@ -121,13 +119,13 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
   );
 
   async function handleMutationSuccess(updated: AdminOrderDetailDto, successMessage: string) {
-    setPanelError(null);
     await onUpdated(updated);
     toast(successMessage, 'ok');
   }
 
   function handleMutationError(err: unknown, fallback: string) {
-    setPanelError(extractApiError(err, fallback));
+    const parsed = extractApiError(err, fallback);
+    toast(parsed.message, 'err', { details: parsed.details });
   }
 
   const transitionMutation = useMutation({
@@ -200,7 +198,7 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
     onError: (err) => {
       const parsed = extractApiError(err, 'Gagal membatalkan pesanan.');
       setCancelFormError(parsed.message);
-      setPanelError(parsed);
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -216,10 +214,7 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
   function handleReviewDesign(targetStatus: DesignStatus) {
     const trimmedNotes = designReviewNotes.trim();
     if (targetStatus === DESIGN_STATUS.NEED_REVISION && trimmedNotes.length < 3) {
-      setPanelError({
-        message: 'Catatan revisi desain wajib diisi minimal 3 karakter saat meminta revisi.',
-        details: [],
-      });
+      toast('Catatan revisi desain wajib diisi minimal 3 karakter saat meminta revisi.', 'err');
       return;
     }
     designMutation.mutate({
@@ -232,10 +227,7 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
     event.preventDefault();
     const parsedCost = Number(shippingCostInput);
     if (!Number.isInteger(parsedCost) || parsedCost < 0) {
-      setPanelError({
-        message: 'Ongkos kirim harus berupa bilangan bulat rupiah minimal 0.',
-        details: [],
-      });
+      toast('Ongkos kirim harus berupa bilangan bulat rupiah minimal 0.', 'err');
       return;
     }
     shippingCostMutation.mutate({
@@ -248,10 +240,7 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
     event.preventDefault();
     const trimmedReceipt = trackingReceiptNumber.trim();
     if (!TRACKING_RECEIPT_REGEX.test(trimmedReceipt)) {
-      setPanelError({
-        message: 'Nomor resi harus 4–40 karakter alfanumerik atau tanda hubung (-).',
-        details: [],
-      });
+      toast('Nomor resi harus 4–40 karakter alfanumerik atau tanda hubung (-).', 'err');
       return;
     }
     shipmentMutation.mutate({
@@ -265,10 +254,7 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
     event.preventDefault();
     const parsedDiscount = Number(discountAmountInput);
     if (!Number.isInteger(parsedDiscount) || parsedDiscount < 0) {
-      setPanelError({
-        message: 'Nominal diskon harus berupa bilangan bulat rupiah minimal 0.',
-        details: [],
-      });
+      toast('Nominal diskon harus berupa bilangan bulat rupiah minimal 0.', 'err');
       return;
     }
     discountMutation.mutate({
@@ -289,10 +275,7 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
     event.preventDefault();
     const trimmedPostal = editPostalCode.trim();
     if (trimmedPostal && !/^[0-9]{5}$/.test(trimmedPostal)) {
-      setPanelError({
-        message: 'Kode pos harus terdiri dari 5 digit angka.',
-        details: [],
-      });
+      toast('Kode pos harus terdiri dari 5 digit angka.', 'err');
       return;
     }
 
@@ -350,15 +333,6 @@ export function AdminOrderActionPanels({ order, onUpdated }: AdminOrderActionPan
 
   return (
     <div className="w-full min-w-0 space-y-5">
-      {panelError ? (
-        <AdminFeedbackBanner
-          variant="error"
-          message={panelError.message}
-          details={panelError.details}
-          onDismiss={() => setPanelError(null)}
-        />
-      ) : null}
-
       {/* 1. Panel Transisi Status Produksi */}
       <section className="rounded-2xl border border-line bg-white p-5">
         <p className="eyebrow">Alur Produksi</p>

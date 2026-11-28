@@ -1,6 +1,6 @@
 import type { AppSettingKey, AppSettingsMapDto, UpdateAppSettingsDto } from '@yng/shared';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { AdminFeedbackBanner } from '../../components/admin/AdminFeedbackBanner';
+import { useToast } from '../../components/ui/toastContext';
 import { getSettings, updateSettings } from '../../services/adminMasterService';
 import { extractApiError } from '../../utils/apiError';
 
@@ -30,8 +30,8 @@ const NUMERIC_RULES: Readonly<
   dpi_ok_min: { label: 'Ambang DPI Aman Minimum', min: 50, max: 1200 },
   dpi_warn_min: { label: 'Ambang DPI Peringatan Minimum', min: 10, max: 1200 },
   max_design_file_mb: { label: 'Batas File Desain (MB)', min: 1, max: 50 },
-  signed_url_expiry_seconds: { label: 'Masa Berlaku Signed URL (detik)', min: 60, max: 86400 },
-  temp_upload_ttl_hours: { label: 'TTL File Sementara tmp/ (jam)', min: 1, max: 168 },
+  signed_url_expiry_seconds: { label: 'Masa Aktif Tautan File (detik)', min: 60, max: 86400 },
+  temp_upload_ttl_hours: { label: 'Batas Simpan File Sementara (jam)', min: 1, max: 168 },
 };
 
 function mapToFormStrings(settings: AppSettingsMapDto): SettingsFormStrings {
@@ -59,17 +59,12 @@ function parseStrictInt(raw: string): number | null {
 }
 
 export default function Settings() {
+  const { toast } = useToast();
   const [initialSettings, setInitialSettings] = useState<AppSettingsMapDto | null>(null);
   const [form, setForm] = useState<SettingsFormStrings | null>(null);
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  const [feedback, setFeedback] = useState<{
-    variant: 'error' | 'success';
-    message: string;
-    details?: string[];
-  } | null>(null);
 
   const applyResponse = useCallback((settings: AppSettingsMapDto, updatedList: string[]) => {
     setInitialSettings(settings);
@@ -101,11 +96,11 @@ export default function Settings() {
       );
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal memuat pengaturan aplikasi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setLoading(false);
     }
-  }, [applyResponse]);
+  }, [applyResponse, toast]);
 
   useEffect(() => {
     void loadSettings();
@@ -118,17 +113,13 @@ export default function Settings() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form || !initialSettings) return;
-    setFeedback(null);
 
     const storeName = form.store_name.trim();
     const adminWa = form.admin_whatsapp.trim();
     const prodEstimate = form.production_estimate_text.trim();
 
     if (!storeName || !adminWa || !prodEstimate) {
-      setFeedback({
-        variant: 'error',
-        message: 'Nama toko, WhatsApp admin, dan teks estimasi produksi tidak boleh kosong.',
-      });
+      toast('Nama toko, WhatsApp admin, dan teks estimasi produksi tidak boleh kosong.', 'err');
       return;
     }
 
@@ -137,10 +128,10 @@ export default function Settings() {
       const rule = NUMERIC_RULES[key];
       const parsed = parseStrictInt(form[key]);
       if (parsed === null || parsed < rule.min || parsed > rule.max) {
-        setFeedback({
-          variant: 'error',
-          message: `${rule.label} harus berupa bilangan bulat antara ${rule.min} sampai ${rule.max}.`,
-        });
+        toast(
+          `${rule.label} harus berupa bilangan bulat antara ${rule.min} sampai ${rule.max}.`,
+          'err'
+        );
         return;
       }
       parsedNumeric[key] = parsed;
@@ -149,10 +140,7 @@ export default function Settings() {
     const dpiOkMin = parsedNumeric.dpi_ok_min ?? initialSettings.dpi_ok_min;
     const dpiWarnMin = parsedNumeric.dpi_warn_min ?? initialSettings.dpi_warn_min;
     if (dpiOkMin <= dpiWarnMin) {
-      setFeedback({
-        variant: 'error',
-        message: 'Nilai Ambang DPI Aman harus lebih besar daripada Ambang DPI Peringatan.',
-      });
+      toast('Nilai Ambang DPI Aman harus lebih besar daripada Ambang DPI Peringatan.', 'err');
       return;
     }
 
@@ -171,10 +159,7 @@ export default function Settings() {
     }
 
     if (Object.keys(patch).length === 0) {
-      setFeedback({
-        variant: 'success',
-        message: 'Tidak ada perubahan pengaturan yang perlu disimpan.',
-      });
+      toast('Tidak ada perubahan pengaturan yang perlu disimpan.', 'info');
       return;
     }
 
@@ -185,13 +170,10 @@ export default function Settings() {
         updated.settings,
         updated.items.map((item) => item.updatedAt)
       );
-      setFeedback({
-        variant: 'success',
-        message: 'Pengaturan aplikasi berhasil disimpan secara atomik.',
-      });
+      toast('Pengaturan toko berhasil disimpan.', 'ok');
     } catch (err: unknown) {
       const parsed = extractApiError(err, 'Gagal menyimpan pengaturan aplikasi.');
-      setFeedback({ variant: 'error', message: parsed.message, details: parsed.details });
+      toast(parsed.message, 'err', { details: parsed.details });
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +181,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-line bg-white p-5 sm:p-7">
+      <section className="rounded-sm border border-line bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="eyebrow">Ruang Produksi · Konfigurasi</p>
@@ -207,8 +189,7 @@ export default function Settings() {
               Pengaturan Toko
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">
-              Nilai pengaturan (persentase DP, minimal qty DP, batas bayar, dan DPI Guard) akan
-              dibaca dari server dan di-snapshot ke setiap order baru.
+              Atur identitas toko, ketentuan DP, batas bayar, dan standar file desain.
             </p>
           </div>
           {lastUpdatedLabel ? (
@@ -220,15 +201,6 @@ export default function Settings() {
         </div>
       </section>
 
-      {feedback ? (
-        <AdminFeedbackBanner
-          variant={feedback.variant}
-          message={feedback.message}
-          details={feedback.details}
-          onDismiss={() => setFeedback(null)}
-        />
-      ) : null}
-
       {loading || !form ? (
         <div className="card-sharp p-6 text-center text-sm text-muted">
           Memuat pengaturan aplikasi...
@@ -237,7 +209,7 @@ export default function Settings() {
         <form onSubmit={(event) => void handleSubmit(event)} className="space-y-6" noValidate>
           <section className="card-sharp p-4 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
-              <span className="tabular-price text-muted">01</span> · Identitas &amp; Operasional
+              Identitas &amp; Operasional
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
@@ -291,7 +263,7 @@ export default function Settings() {
 
           <section className="card-sharp p-4 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
-              <span className="tabular-price text-muted">02</span> · Aturan DP &amp; Siklus Order
+              Aturan DP &amp; Siklus Order
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
@@ -365,8 +337,7 @@ export default function Settings() {
 
           <section className="card-sharp p-4 sm:p-6">
             <h2 className="border-b border-line pb-3 font-display text-base font-semibold text-ink">
-              <span className="tabular-price text-muted">03</span> · Unggahan Desain, DPI Guard
-              &amp; Storage
+              Desain &amp; File
             </h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
@@ -422,7 +393,7 @@ export default function Settings() {
 
               <div>
                 <label htmlFor="set-signed-expiry" className="block text-sm font-medium text-ink">
-                  Kedaluwarsa Signed URL (detik)
+                  Masa Aktif Tautan File (detik)
                 </label>
                 <input
                   id="set-signed-expiry"
@@ -439,7 +410,7 @@ export default function Settings() {
 
               <div>
                 <label htmlFor="set-tmp-ttl" className="block text-sm font-medium text-ink">
-                  TTL File Sementara tmp/ (jam)
+                  Batas Simpan File Sementara (jam)
                 </label>
                 <input
                   id="set-tmp-ttl"
@@ -464,7 +435,6 @@ export default function Settings() {
               type="button"
               onClick={() => {
                 if (initialSettings) {
-                  setFeedback(null);
                   setForm(mapToFormStrings(initialSettings));
                 }
               }}

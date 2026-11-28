@@ -2,6 +2,8 @@ import { USER_ROLE } from '@yng/shared';
 import { Router, type RequestHandler } from 'express';
 import {
   createAdminMasterController,
+  createCategoryBodySchema,
+  createCollectionBodySchema,
   createFabricBodySchema,
   createFabricColorBodySchema,
   createModelBodySchema,
@@ -11,7 +13,10 @@ import {
   fabricColorParamsSchema,
   idParamSchema,
   listMasterQuerySchema,
+  reorderCatalogEntitiesBodySchema,
   replaceModelFabricsBodySchema,
+  updateCategoryBodySchema,
+  updateCollectionBodySchema,
   updateFabricBodySchema,
   updateFabricColorBodySchema,
   updateModelBodySchema,
@@ -21,6 +26,7 @@ import {
   updateSizeBodySchema,
   uploadImageBodySchema,
   uploadImageQuerySchema,
+  uuidParamSchema,
 } from '../controllers/adminMasterController.js';
 import {
   adminOrderUuidParamSchema,
@@ -94,9 +100,78 @@ export function createAdminRouter(
     masterController.uploadImage
   );
 
+  // Master: Kategori pakaian & size chart
+  router.get(
+    '/categories',
+    validate({ query: listMasterQuerySchema }),
+    masterController.listCategories
+  );
+  router.post(
+    '/categories',
+    validate({ body: createCategoryBodySchema }),
+    masterController.createCategory
+  );
+  router.patch(
+    '/categories/reorder',
+    validate({ body: reorderCatalogEntitiesBodySchema }),
+    masterController.reorderCategories
+  );
+  router.patch(
+    '/categories/:id',
+    validate({ params: uuidParamSchema, body: updateCategoryBodySchema }),
+    masterController.updateCategory
+  );
+  router.put(
+    '/categories/:id',
+    validate({ params: uuidParamSchema, body: updateCategoryBodySchema }),
+    masterController.updateCategory
+  );
+  router.delete(
+    '/categories/:id',
+    validate({ params: uuidParamSchema }),
+    masterController.deactivateCategory
+  );
+
+  // Master: Koleksi / Series
+  router.get(
+    '/collections',
+    validate({ query: listMasterQuerySchema }),
+    masterController.listCollections
+  );
+  router.post(
+    '/collections',
+    validate({ body: createCollectionBodySchema }),
+    masterController.createCollection
+  );
+  router.patch(
+    '/collections/reorder',
+    validate({ body: reorderCatalogEntitiesBodySchema }),
+    masterController.reorderCollections
+  );
+  router.patch(
+    '/collections/:id',
+    validate({ params: uuidParamSchema, body: updateCollectionBodySchema }),
+    masterController.updateCollection
+  );
+  router.put(
+    '/collections/:id',
+    validate({ params: uuidParamSchema, body: updateCollectionBodySchema }),
+    masterController.updateCollection
+  );
+  router.delete(
+    '/collections/:id',
+    validate({ params: uuidParamSchema }),
+    masterController.deactivateCollection
+  );
+
   // Master: Model pakaian & relasi bahan
   router.get('/models', validate({ query: listMasterQuerySchema }), masterController.listModels);
   router.post('/models', validate({ body: createModelBodySchema }), masterController.createModel);
+  router.patch(
+    '/models/:id',
+    validate({ params: idParamSchema, body: updateModelBodySchema }),
+    masterController.updateModel
+  );
   router.put(
     '/models/:id',
     validate({ params: idParamSchema, body: updateModelBodySchema }),

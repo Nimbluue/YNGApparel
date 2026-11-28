@@ -8,6 +8,7 @@ import {
   type PublicCatalogConfigDto,
   type UpsertCartItemRequestDto,
 } from '@yng/shared';
+import { Ruler } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ColorPicker } from '../../components/custom-lab/ColorPicker';
@@ -19,6 +20,7 @@ import {
 } from '../../components/custom-lab/printSpotHelpers';
 import { SizeMatrix } from '../../components/custom-lab/SizeMatrix';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { EditorialBackBar } from '../../components/ui/EditorialBackBar';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Modal } from '../../components/ui/Modal';
 import { CardSkeleton, Skeleton } from '../../components/ui/Skeleton';
@@ -48,6 +50,8 @@ import { getLocalizedPrintPositionLabel } from '../../utils/localizedLabels';
 import { estimateCustomLabPricing, resolveActivePaymentScheme } from '../../utils/pricing';
 import { rememberViewedModel } from '../../utils/recentlyViewed';
 import { openWaLink } from '../../utils/whatsapp';
+
+type IncompleteSection = 'fabric' | 'color' | 'size' | 'print';
 
 const DRAFT_STORAGE_KEY = 'yng_custom_lab_draft_v1';
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
@@ -180,12 +184,42 @@ export default function CustomLab() {
     {}
   );
   const [uploadingSpotKey, setUploadingSpotKey] = useState<string | null>(null);
-  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [highlightedSection, setHighlightedSection] = useState<IncompleteSection | null>(null);
   const [catalogModalOpen, setCatalogModalOpen] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(
+    () => readInitialDraft().productionNotes.trim().length > 0
+  );
 
   const hydratedEditUuidRef = useRef<string | null>(null);
   const quoteRequestIdRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const fabricSectionRef = useRef<HTMLElement>(null);
+  const colorSectionRef = useRef<HTMLElement>(null);
+  const sizeSectionRef = useRef<HTMLElement>(null);
+  const printSectionRef = useRef<HTMLElement>(null);
+  const highlightTimerRef = useRef<number | null>(null);
+
+  const focusIncompleteSection = useCallback((section: IncompleteSection) => {
+    const refMap: Record<IncompleteSection, HTMLElement | null> = {
+      fabric: fabricSectionRef.current,
+      color: colorSectionRef.current,
+      size: sizeSectionRef.current,
+      print: printSectionRef.current,
+    };
+    const targetEl = refMap[section];
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setHighlightedSection(section);
+    if (highlightTimerRef.current !== null) {
+      window.clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedSection(null);
+      highlightTimerRef.current = null;
+    }, 1800);
+  }, []);
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKeys.models,
@@ -240,9 +274,9 @@ export default function CustomLab() {
     }
 
     hydratedEditUuidRef.current = editCartItemUuid;
+    setNotesExpanded(Boolean(targetItem.config.productionNotes?.trim()));
     setServerQuote(null);
     setQuoteError(null);
-    setActionFeedback(null);
     setDraft({
       modelId: targetItem.modelId,
       fabricId: targetItem.fabricId,
@@ -303,6 +337,9 @@ export default function CustomLab() {
     () => availableFabrics.find((f) => f.id === draft.fabricId) ?? null,
     [availableFabrics, draft.fabricId]
   );
+
+  const activeCategory = modelDetailQuery.data?.category ?? selectedModel?.category ?? null;
+  const sizeChartImageUrl = activeCategory?.sizeChartImageUrl ?? null;
 
   // Sinkronkan draft ke sessionStorage agar tidak hilang saat Guest pindah ke /login
   useEffect(() => {
@@ -529,11 +566,13 @@ export default function CustomLab() {
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current);
+      }
     };
   }, []);
 
   const handleSelectModel = useCallback((modelId: number) => {
-    setActionFeedback(null);
     setServerQuote(null);
     setQuoteError(null);
     setCatalogModalOpen(false);
@@ -552,7 +591,6 @@ export default function CustomLab() {
   }, []);
 
   const handleSelectFabric = useCallback((fabricId: number) => {
-    setActionFeedback(null);
     setServerQuote(null);
     setQuoteError(null);
     setDraft((prev) => ({
@@ -570,7 +608,6 @@ export default function CustomLab() {
     setServerQuote(null);
     setQuoteError(null);
     setUploadFeedbackBySpotKey({});
-    setActionFeedback(null);
     setDraft({
       ...DEFAULT_DRAFT,
       modelId: models[0]?.id ?? null,
@@ -585,7 +622,6 @@ export default function CustomLab() {
   }, [models, pick, toast]);
 
   const handleAddSpot = useCallback(() => {
-    setActionFeedback(null);
     setDraft((prev) => ({
       ...prev,
       prints: [
@@ -606,7 +642,6 @@ export default function CustomLab() {
 
   const handleUpdateSpot = useCallback(
     (key: string, patch: Partial<Omit<PrintSpotDraft, 'key'>>) => {
-      setActionFeedback(null);
       setDraft((prev) => ({
         ...prev,
         prints: prev.prints.map((spot) => (spot.key === key ? { ...spot, ...patch } : spot)),
@@ -616,7 +651,6 @@ export default function CustomLab() {
   );
 
   const handleRemoveSpot = useCallback((key: string) => {
-    setActionFeedback(null);
     setUploadFeedbackBySpotKey((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -652,8 +686,8 @@ export default function CustomLab() {
       setUploadFeedbackBySpotKey((prev) => ({
         ...prev,
         [spotKey]: pick(
-          `File "${result.fileName}" berhasil diunggah ke storage.`,
-          `File "${result.fileName}" uploaded to storage.`
+          `File "${result.fileName}" berhasil diunggah.`,
+          `File "${result.fileName}" uploaded.`
         ),
       }));
       toast(pick('File desain berhasil diunggah.', 'Design file uploaded successfully.'), 'ok');
@@ -767,7 +801,6 @@ export default function CustomLab() {
       setServerQuote(null);
       setQuoteError(null);
       setUploadFeedbackBySpotKey({});
-      setActionFeedback(null);
       toast(
         editCartItemUuid
           ? pick(
@@ -787,8 +820,7 @@ export default function CustomLab() {
         err,
         pick('Gagal menyimpan item ke keranjang.', 'Failed to save item to bag.')
       );
-      setActionFeedback(parsed.message);
-      toast(parsed.message, 'err');
+      toast(parsed.message, 'err', { details: parsed.details });
     },
   });
 
@@ -807,36 +839,97 @@ export default function CustomLab() {
     }
 
     if (uploadingSpotKey) {
-      const msg = pick(
-        'Tunggu proses unggah file desain selesai terlebih dahulu.',
-        'Please wait for the design file upload to finish.'
+      toast(
+        pick(
+          'Tunggu proses unggah file desain selesai terlebih dahulu.',
+          'Please wait for the design file upload to finish.'
+        ),
+        'warn'
       );
-      setActionFeedback(msg);
-      toast(msg, 'warn');
+      focusIncompleteSection('print');
       return;
     }
 
-    if (!quotePayload || !quotePayload.items[0]) {
-      const msg = pick(
-        'Lengkapi model, bahan, warna, jumlah ukuran (> 0), dan ukuran sablon terlebih dahulu.',
-        'Complete model, fabric, color, size quantities (> 0), and print sizes first.'
+    if (!selectedModel) {
+      toast(
+        pick('Pilih model pakaian terlebih dahulu.', 'Please select a garment model first.'),
+        'warn'
       );
-      setActionFeedback(msg);
-      toast(msg, 'warn');
+      return;
+    }
+
+    if (!selectedFabric) {
+      toast(pick('Pilih jenis bahan terlebih dahulu.', 'Please select a fabric first.'), 'warn');
+      focusIncompleteSection('fabric');
+      return;
+    }
+
+    const customColorHexTrimmed = draft.customColorHex.trim();
+    const isColorMissing = draft.isCustomColor
+      ? draft.customColorName.trim().length < 2 ||
+        (customColorHexTrimmed.length > 0 && !HEX_COLOR_REGEX.test(customColorHexTrimmed))
+      : draft.fabricColorId === null;
+
+    if (isColorMissing) {
+      toast(
+        pick(
+          'Pilih warna pakaian atau isi nama warna custom terlebih dahulu.',
+          'Please select a garment color or enter a valid custom color first.'
+        ),
+        'warn'
+      );
+      focusIncompleteSection('color');
+      return;
+    }
+
+    if (localEstimate.totalQty <= 0) {
+      toast(
+        pick(
+          'Isi minimal 1 pcs pada matriks ukuran terlebih dahulu.',
+          'Enter at least 1 pcs in the size matrix first.'
+        ),
+        'warn'
+      );
+      focusIncompleteSection('size');
       return;
     }
 
     for (let i = 0; i < draft.prints.length; i += 1) {
       const spot = draft.prints[i]!;
-      if (!spot.needsDesignHelp && !spot.fileRef) {
-        const msg = pick(
-          `Titik sablon #${i + 1}: unggah file desain atau centang "Bantu desainkan saya (Gratis)".`,
-          `Print spot #${i + 1}: upload a design file or select "Request free design help".`
+      if (spot.printSizeId === null) {
+        toast(
+          pick(
+            `Desain #${i + 1}: pilih ukuran sablon terlebih dahulu.`,
+            `Print #${i + 1}: select a print size first.`
+          ),
+          'warn'
         );
-        setActionFeedback(msg);
-        toast(msg, 'warn');
+        focusIncompleteSection('print');
         return;
       }
+      if (!spot.needsDesignHelp && !spot.fileRef) {
+        toast(
+          pick(
+            `Desain #${i + 1}: unggah file desain atau centang "Bantu desainkan (Gratis)".`,
+            `Print #${i + 1}: upload a design file or select "Request free design help".`
+          ),
+          'warn'
+        );
+        focusIncompleteSection('print');
+        return;
+      }
+    }
+
+    if (!quotePayload || !quotePayload.items[0]) {
+      toast(
+        pick(
+          'Lengkapi konfigurasi bahan, warna, dan ukuran terlebih dahulu.',
+          'Please complete fabric, color, and size configuration first.'
+        ),
+        'warn'
+      );
+      focusIncompleteSection('size');
+      return;
     }
 
     const baseItem = quotePayload.items[0];
@@ -861,9 +954,21 @@ export default function CustomLab() {
       ...(trimmedNotes ? { productionNotes: trimmedNotes } : { productionNotes: null }),
     };
 
-    setActionFeedback(null);
     saveCartMutation.mutate(payload);
-  }, [draft, isGuest, navigate, pick, quotePayload, saveCartMutation, toast, uploadingSpotKey]);
+  }, [
+    draft,
+    focusIncompleteSection,
+    isGuest,
+    localEstimate.totalQty,
+    navigate,
+    pick,
+    quotePayload,
+    saveCartMutation,
+    selectedFabric,
+    selectedModel,
+    toast,
+    uploadingSpotKey,
+  ]);
 
   const handleAskWhatsApp = useCallback(() => {
     const sizeText = sizes
@@ -929,11 +1034,11 @@ export default function CustomLab() {
     return (
       <div className="grid gap-8 lg:grid-cols-2 xl:gap-12">
         <div className="space-y-4">
-          <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+          <Skeleton className="aspect-[4/5] w-full rounded-sm" />
           <div className="flex gap-2.5 overflow-hidden">
-            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
-            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
-            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-xl sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-sm sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-sm sm:w-24" />
+            <Skeleton className="aspect-[4/5] w-20 shrink-0 rounded-sm sm:w-24" />
           </div>
         </div>
         <div className="space-y-5">
@@ -994,12 +1099,33 @@ export default function CustomLab() {
   const formattedIndex = String(selectedModelIndex + 1).padStart(2, '0');
   const formattedTotal = String(models.length).padStart(2, '0');
 
+  const labBreadcrumbs = [
+    { label: t('breadcrumb.home'), to: '/' },
+    { label: t('breadcrumb.catalog'), to: '/katalog' },
+    ...(activeCategory
+      ? [
+          {
+            label: activeCategory.name,
+            to: `/katalog?kategori=${encodeURIComponent(activeCategory.slug)}`,
+          },
+        ]
+      : []),
+    { label: selectedModel?.name ?? t('breadcrumb.customLab') },
+  ];
+
   return (
     <div className="pb-28 lg:pb-12">
+      <EditorialBackBar
+        fallbackTo="/katalog"
+        breadcrumbs={labBreadcrumbs}
+        mobileContext={selectedModel?.name ?? t('breadcrumb.customLab')}
+        className="mb-6"
+      />
+
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start xl:gap-12">
         {/* Kolom Kiri PDP: Galeri Model Aktif & Thumbnail Strip (sticky di desktop) */}
         <div className="min-w-0 space-y-4 lg:sticky lg:top-24">
-          <div className="aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line bg-surface">
+          <div className="aspect-[4/5] w-full overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
             {selectedModel?.imageUrl ? (
               <img
                 src={selectedModel.imageUrl}
@@ -1041,14 +1167,12 @@ export default function CustomLab() {
 
           <div className="space-y-2.5 pt-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-ink">
-                {pick('Model Pakaian', 'Garment Models')}
-              </p>
+              <p className="text-xs font-semibold text-ink">{pick('Model', 'Model')}</p>
               {models.length > 1 ? (
                 <button
                   type="button"
                   onClick={() => setCatalogModalOpen(true)}
-                  className="inline-flex min-h-touch items-center rounded-full px-3 text-xs font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
+                  className="inline-flex min-h-touch items-center rounded-sm px-3 text-xs font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
                 >
                   {pick('Lihat Semua Model', 'Browse All Models')}
                 </button>
@@ -1071,7 +1195,7 @@ export default function CustomLab() {
                     className="group w-20 shrink-0 text-left sm:w-24"
                   >
                     <div
-                      className={`aspect-[4/5] w-full overflow-hidden rounded-xl border bg-surface transition-colors ${
+                      className={`aspect-[4/5] w-full overflow-hidden rounded-sm border bg-[#FAFAFA] transition-colors ${
                         isSelected
                           ? 'border-ink ring-1 ring-ink'
                           : 'border-line group-hover:border-line-strong'
@@ -1122,7 +1246,7 @@ export default function CustomLab() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface"
+                  className="inline-flex min-h-touch items-center rounded-sm border border-line bg-white px-4 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
                 >
                   {pick('Reset', 'Reset')}
                 </button>
@@ -1139,7 +1263,7 @@ export default function CustomLab() {
                 <span className="tabular-price">{formatRupiah(selectedModel?.basePrice ?? 0)}</span>{' '}
                 <span className="text-xs font-normal text-muted">/ pcs</span>
               </p>
-              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
+              <span className="rounded-sm border border-line bg-[#FAFAFA] px-3 py-1 text-xs font-medium text-muted">
                 {pick('Estimasi', 'Lead time')} {config.productionEstimateText}
               </span>
             </div>
@@ -1147,32 +1271,21 @@ export default function CustomLab() {
             {selectedModel?.description ? (
               <p className="mt-3 text-sm leading-relaxed text-muted">{selectedModel.description}</p>
             ) : null}
-            <p className="mt-2 text-xs text-muted">
-              {pick(
-                'Seluruh rincian harga divalidasi dan dihitung langsung oleh server.',
-                'All pricing breakdowns are validated and calculated directly on the server.'
-              )}
-            </p>
           </header>
 
-          {/* 01 · Bahan Pakaian (kompatibel dari model_fabrics) */}
+          {/* Bahan Pakaian */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={fabricSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'fabric'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-fabric-heading"
           >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2
-                id="step-fabric-heading"
-                className="font-display text-base font-semibold text-ink"
-              >
-                <span className="tabular-price mr-1.5 text-muted">01</span>{' '}
-                {pick('Pilih Bahan', 'Select Fabric')}
-              </h2>
-              <span className="text-xs text-muted">
-                {pick('Kompatibel untuk', 'Compatible with')}{' '}
-                {selectedModel?.name ?? pick('model terpilih', 'selected model')}
-              </span>
-            </div>
+            <h2 id="step-fabric-heading" className="font-display text-base font-semibold text-ink">
+              {pick('Bahan', 'Fabric')}
+            </h2>
 
             {modelDetailQuery.isLoading ? (
               <div className="grid gap-2.5 sm:grid-cols-2">
@@ -1193,7 +1306,7 @@ export default function CustomLab() {
                 retry={() => void modelDetailQuery.refetch()}
               />
             ) : availableFabrics.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-line-strong bg-surface p-4 text-sm text-muted">
+              <p className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4 text-sm text-muted">
                 {pick(
                   'Belum ada bahan aktif yang terhubung dengan model ini.',
                   'No active fabrics are linked to this model yet.'
@@ -1209,10 +1322,10 @@ export default function CustomLab() {
                       type="button"
                       onClick={() => handleSelectFabric(fabric.id)}
                       aria-pressed={isSelected}
-                      className={`flex flex-col justify-between rounded-2xl border p-3.5 text-left transition-colors ${
+                      className={`flex flex-col justify-between rounded-sm border p-3.5 text-left transition-colors ${
                         isSelected
                           ? 'border-ink bg-ink text-white'
-                          : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                          : 'border-line bg-white text-ink hover:border-line-strong hover:bg-[#FAFAFA]'
                       }`}
                     >
                       <div className="space-y-1">
@@ -1220,10 +1333,10 @@ export default function CustomLab() {
                           <p className="font-display text-sm font-semibold">{fabric.name}</p>
                           {fabric.gsmWeight ? (
                             <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] ${
+                              className={`shrink-0 rounded-sm px-2 py-0.5 font-mono text-[11px] ${
                                 isSelected
                                   ? 'bg-neutral-800 text-neutral-200'
-                                  : 'bg-surface text-muted'
+                                  : 'bg-[#FAFAFA] text-muted'
                               }`}
                             >
                               {fabric.gsmWeight} GSM
@@ -1264,23 +1377,19 @@ export default function CustomLab() {
             )}
           </section>
 
-          {/* 02 · Warna (Preset per bahan atau Warna Custom) */}
+          {/* Warna */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={colorSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'color'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-color-heading"
           >
-            <div>
-              <h2 id="step-color-heading" className="font-display text-base font-semibold text-ink">
-                <span className="tabular-price mr-1.5 text-muted">02</span>{' '}
-                {pick('Pilih Warna Bahan', 'Select Fabric Color')}
-              </h2>
-              <p className="mt-1 text-xs text-muted">
-                {pick(
-                  'Pilih preset stok bahan atau ajukan warna custom untuk konfirmasi via WhatsApp.',
-                  'Choose an in-stock preset color or request a custom shade via WhatsApp.'
-                )}
-              </p>
-            </div>
+            <h2 id="step-color-heading" className="font-display text-base font-semibold text-ink">
+              {pick('Warna', 'Color')}
+            </h2>
 
             <ColorPicker
               colors={selectedFabric?.colors ?? []}
@@ -1290,7 +1399,6 @@ export default function CustomLab() {
               customColorHex={draft.customColorHex}
               disabled={!selectedFabric}
               onSelectPresetColor={(colorId) => {
-                setActionFeedback(null);
                 setDraft((prev) => ({
                   ...prev,
                   isCustomColor: false,
@@ -1300,7 +1408,6 @@ export default function CustomLab() {
                 }));
               }}
               onSelectCustomColor={() => {
-                setActionFeedback(null);
                 setDraft((prev) => ({
                   ...prev,
                   isCustomColor: true,
@@ -1308,44 +1415,61 @@ export default function CustomLab() {
                 }));
               }}
               onChangeCustomColorName={(value) => {
-                setActionFeedback(null);
                 setDraft((prev) => ({ ...prev, customColorName: value }));
               }}
               onChangeCustomColorHex={(value) => {
-                setActionFeedback(null);
                 setDraft((prev) => ({ ...prev, customColorHex: value }));
               }}
             />
           </section>
 
-          {/* 03 · Matriks Ukuran */}
+          {/* Matriks Ukuran */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={sizeSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'size'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-size-heading"
           >
-            <div>
-              <h2 id="step-size-heading" className="font-display text-base font-semibold text-ink">
-                <span className="tabular-price mr-1.5 text-muted">03</span>{' '}
-                {pick('Jumlah per Ukuran', 'Size Matrix')}
-              </h2>
-              <p className="mt-1 text-xs text-muted">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <h2
+                  id="step-size-heading"
+                  className="font-display text-base font-semibold text-ink"
+                >
+                  {pick('Ukuran', 'Size')}
+                </h2>
+                {sizeChartImageUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => setSizeGuideOpen(true)}
+                    className="inline-flex items-center gap-1.5 border border-line bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.1em] text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA] focus:outline-none focus-visible:ring-1 focus-visible:ring-ink"
+                  >
+                    <Ruler size={13} strokeWidth={1.5} aria-hidden="true" />
+                    <span>{t('lab.sizeGuide')}</span>
+                  </button>
+                ) : null}
+              </div>
+              <p className="text-xs text-muted">
                 {pick(
                   <>
-                    Minimal{' '}
+                    Min.{' '}
                     <span className="tabular-price font-medium text-ink">
                       {config.dpMinQty} pcs
                     </span>{' '}
-                    total untuk membuka pembayaran DP{' '}
-                    <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>.
+                    untuk opsi DP{' '}
+                    <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>
                   </>,
                   <>
-                    Minimum{' '}
+                    Min.{' '}
                     <span className="tabular-price font-medium text-ink">
                       {config.dpMinQty} pcs
                     </span>{' '}
-                    total to unlock{' '}
+                    for{' '}
                     <span className="tabular-price font-medium text-ink">{config.dpPercent}%</span>{' '}
-                    deposit.
+                    deposit
                   </>
                 )}
               </p>
@@ -1355,7 +1479,6 @@ export default function CustomLab() {
               sizes={sizes}
               quantities={draft.quantities}
               onChangeQuantity={(sizeId, nextQty) => {
-                setActionFeedback(null);
                 setDraft((prev) => {
                   const nextQuantities = { ...prev.quantities };
                   if (nextQty <= 0) {
@@ -1369,14 +1492,18 @@ export default function CustomLab() {
             />
           </section>
 
-          {/* 04 · Titik Sablon & Desain */}
+          {/* Desain Sablon */}
           <section
-            className="space-y-3 border-b border-line pb-6"
+            ref={printSectionRef}
+            className={`space-y-3 border-b border-line pb-6 transition-colors duration-300 ${
+              highlightedSection === 'print'
+                ? '-mx-3 rounded-sm bg-neutral-100/80 px-3 pt-3 ring-1 ring-ink'
+                : ''
+            }`}
             aria-labelledby="step-print-heading"
           >
             <h2 id="step-print-heading" className="font-display text-base font-semibold text-ink">
-              <span className="tabular-price mr-1.5 text-muted">04</span>{' '}
-              {pick('Titik Sablon & Desain', 'Print Spots & Artwork')}
+              {pick('Desain Sablon', 'Print Design')}
             </h2>
 
             <PrintSpotPicker
@@ -1394,32 +1521,41 @@ export default function CustomLab() {
             />
           </section>
 
-          {/* 05 · Catatan Produksi */}
+          {/* Catatan Produksi (Collapsible) */}
           <section className="space-y-3" aria-labelledby="step-notes-heading">
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="step-notes-heading" className="font-display text-base font-semibold text-ink">
-                <span className="tabular-price mr-1.5 text-muted">05</span>{' '}
-                {pick('Catatan Produksi', 'Production Notes')}
+                {pick('Catatan', 'Notes')}
               </h2>
-              <span className="text-xs text-muted">
-                {pick('Opsional · maks. 500 karakter', 'Optional · max 500 chars')}
-              </span>
+              <button
+                type="button"
+                aria-expanded={notesExpanded}
+                aria-controls="custom-lab-notes-panel"
+                onClick={() => setNotesExpanded((prev) => !prev)}
+                className="inline-flex min-h-[36px] items-center rounded-sm border border-line bg-white px-3 text-xs font-medium text-ink transition-colors hover:border-ink hover:bg-[#FAFAFA]"
+              >
+                {notesExpanded ? t('notes.hideProductionNote') : t('notes.addProductionNote')}
+              </button>
             </div>
-            <textarea
-              id="custom-lab-production-notes"
-              rows={3}
-              maxLength={500}
-              value={draft.productionNotes}
-              onChange={(event) => {
-                setActionFeedback(null);
-                setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
-              }}
-              placeholder={pick(
-                'Contoh: posisi logo 3 cm di bawah kerah, atau instruksi khusus untuk tim desain.',
-                'Example: logo 3 cm below collar, or specific notes for the design team.'
-              )}
-              className="input-sharp min-h-[88px] resize-y py-2.5"
-            />
+
+            {notesExpanded ? (
+              <div id="custom-lab-notes-panel" className="space-y-1.5">
+                <textarea
+                  id="custom-lab-production-notes"
+                  rows={3}
+                  maxLength={500}
+                  value={draft.productionNotes}
+                  onChange={(event) => {
+                    setDraft((prev) => ({ ...prev, productionNotes: event.target.value }));
+                  }}
+                  placeholder={t('notes.productionPlaceholder')}
+                  className="input-sharp min-h-[84px] resize-y py-2.5"
+                />
+                <p className="text-right font-mono text-[11px] text-muted tabular-nums">
+                  {draft.productionNotes.length}/500
+                </p>
+              </div>
+            ) : null}
           </section>
 
           <PriceSummary
@@ -1451,7 +1587,6 @@ export default function CustomLab() {
             }
             onAddToCart={handleAddToCart}
             onAskWhatsApp={handleAskWhatsApp}
-            actionFeedback={actionFeedback}
           />
         </div>
       </div>
@@ -1459,11 +1594,7 @@ export default function CustomLab() {
       <Modal
         open={catalogModalOpen}
         onClose={() => setCatalogModalOpen(false)}
-        title={pick('Pilih Model Pakaian', 'Select Garment Model')}
-        description={pick(
-          'Pilih siluet pakaian untuk dikonfigurasi di Custom Lab.',
-          'Pick a garment silhouette to configure in Custom Lab.'
-        )}
+        title={pick('Pilih Model', 'Select Model')}
         size="lg"
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1475,13 +1606,13 @@ export default function CustomLab() {
                 type="button"
                 onClick={() => handleSelectModel(model.id)}
                 aria-pressed={isSelected}
-                className={`flex flex-col overflow-hidden rounded-2xl border text-left transition-colors ${
+                className={`flex flex-col overflow-hidden rounded-sm border text-left transition-colors ${
                   isSelected
                     ? 'border-ink bg-ink text-white'
-                    : 'border-line bg-white text-ink hover:border-line-strong hover:bg-surface'
+                    : 'border-line bg-white text-ink hover:border-line-strong hover:bg-[#FAFAFA]'
                 }`}
               >
-                <div className="aspect-[4/5] w-full overflow-hidden bg-surface">
+                <div className="aspect-[4/5] w-full overflow-hidden bg-[#FAFAFA]">
                   {model.imageUrl ? (
                     <img
                       src={model.imageUrl}
@@ -1508,6 +1639,25 @@ export default function CustomLab() {
             );
           })}
         </div>
+      </Modal>
+
+      <Modal
+        open={sizeGuideOpen && Boolean(sizeChartImageUrl)}
+        onClose={() => setSizeGuideOpen(false)}
+        title={t('lab.sizeGuideTitle', { category: activeCategory?.name ?? '' })}
+        size="lg"
+      >
+        {sizeChartImageUrl ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-full overflow-hidden rounded-sm border border-line bg-[#FAFAFA]">
+              <img
+                src={sizeChartImageUrl}
+                alt={t('lab.sizeGuideTitle', { category: activeCategory?.name ?? '' })}
+                className="max-h-[75vh] w-full object-contain"
+              />
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </div>
   );

@@ -1,33 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ApiSuccessResponse, HealthStatusDto } from '@yng/shared';
-import { useEffect, useState } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
+import { motion } from 'framer-motion';
+import { ArrowRight, ChevronLeft, ChevronRight, Layers, PenTool, Truck } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CardSkeleton } from '../components/ui/Skeleton';
+import { EditorialCarousel } from '../components/home/EditorialCarousel';
+import { EditorialButton } from '../components/ui/EditorialButton';
+import { Skeleton } from '../components/ui/Skeleton';
 import { WishlistHeartButton } from '../components/ui/WishlistHeartButton';
 import { useLanguage } from '../context/LanguageContext';
-import api from '../services/api';
-import { catalogQueryKeys, getCatalogConfig, getCatalogModels } from '../services/catalogService';
-import { BRAND_LOGO_MAIN_URL } from '../utils/brandAssets';
+import {
+  catalogQueryKeys,
+  getCatalogCategories,
+  getCatalogFabrics,
+  getCatalogModels,
+} from '../services/catalogService';
 import { formatRupiah } from '../utils/formatRupiah';
-import { buildWaLink } from '../utils/whatsapp';
 
-interface HealthState {
-  status: 'loading' | 'ok' | 'offline';
-  message: string | null;
-}
+const REVEAL_TRANSITION = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
+const HERO_AUTOPLAY_MS = 5000;
 
 export default function Home() {
-  const { pick } = useLanguage();
-  const [health, setHealth] = useState<HealthState>({
-    status: 'loading',
-    message: null,
-  });
-
-  const configQuery = useQuery({
-    queryKey: catalogQueryKeys.config,
-    queryFn: getCatalogConfig,
-    retry: false,
-  });
+  const { t } = useLanguage();
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKeys.models,
@@ -35,359 +29,465 @@ export default function Home() {
     retry: false,
   });
 
+  const categoriesQuery = useQuery({
+    queryKey: catalogQueryKeys.categories,
+    queryFn: getCatalogCategories,
+    retry: false,
+  });
+
+  const fabricsQuery = useQuery({
+    queryKey: catalogQueryKeys.fabrics,
+    queryFn: getCatalogFabrics,
+    retry: false,
+  });
+
+  const models = useMemo(() => modelsQuery.data ?? [], [modelsQuery.data]);
+  const categories = useMemo(() => {
+    const raw = categoriesQuery.data ?? [];
+    return raw.map((category) => ({
+      ...category,
+      coverImageUrl:
+        models.find((m) => m.categoryId === category.id && Boolean(m.imageUrl))?.imageUrl ??
+        models.find((m) => m.categoryId === category.id)?.imageUrl ??
+        null,
+    }));
+  }, [categoriesQuery.data, models]);
+  const fabrics = useMemo(() => fabricsQuery.data ?? [], [fabricsQuery.data]);
+
+  const heroSlides = useMemo(() => {
+    const withImages = models.filter((model) => Boolean(model.imageUrl));
+    if (withImages.length > 0) return withImages;
+    if (models[0]) return [models[0]];
+    return [];
+  }, [models]);
+
+  const [heroEmblaRef, heroEmblaApi] = useEmblaCarousel({
+    loop: heroSlides.length > 1,
+    align: 'start',
+  });
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroPaused, setHeroPaused] = useState(false);
+
+  const syncHeroSlide = useCallback(() => {
+    if (!heroEmblaApi) return;
+    setHeroIndex(heroEmblaApi.selectedScrollSnap());
+  }, [heroEmblaApi]);
+
   useEffect(() => {
-    let active = true;
-
-    api
-      .get<ApiSuccessResponse<HealthStatusDto>>('/health')
-      .then((res) => {
-        if (!active) return;
-        setHealth({
-          status: 'ok',
-          message: res.data.message || null,
-        });
-      })
-      .catch((err: unknown) => {
-        if (!active) return;
-        const message = err instanceof Error ? err.message : null;
-        setHealth({
-          status: 'offline',
-          message,
-        });
-      });
-
+    if (!heroEmblaApi) return;
+    syncHeroSlide();
+    heroEmblaApi.on('select', syncHeroSlide);
+    heroEmblaApi.on('reInit', syncHeroSlide);
     return () => {
-      active = false;
+      heroEmblaApi.off('select', syncHeroSlide);
+      heroEmblaApi.off('reInit', syncHeroSlide);
     };
-  }, []);
+  }, [heroEmblaApi, syncHeroSlide]);
 
-  const config = configQuery.data;
-  const activeModels = modelsQuery.data ?? [];
-  const previewModels = activeModels.slice(0, 6);
-  const showCatalogPreview = modelsQuery.isLoading || previewModels.length > 0;
+  useEffect(() => {
+    if (!heroEmblaApi || heroSlides.length <= 1 || heroPaused) return;
+    const timer = window.setInterval(() => {
+      heroEmblaApi.scrollNext();
+    }, HERO_AUTOPLAY_MS);
+    return () => window.clearInterval(timer);
+  }, [heroEmblaApi, heroPaused, heroSlides.length]);
 
-  const waHref = config?.adminWhatsapp
-    ? buildWaLink(
-        config.adminWhatsapp,
-        pick(
-          'Halo admin YNG Apparel, saya ingin konsultasi pesanan custom.',
-          'Hello YNG Apparel admin, I would like to consult about a custom order.'
-        )
-      )
-    : null;
-
-  const resolvedHealthMessage =
-    health.message ??
-    (health.status === 'loading'
-      ? pick('Memeriksa koneksi API...', 'Checking API connection...')
-      : health.status === 'ok'
-        ? pick('API backend aktif.', 'Backend API is online.')
-        : pick('API backend belum terhubung.', 'Backend API is not connected.'));
+  const primaryHeroModel = heroSlides[0] ?? models[0] ?? null;
+  const lookbookLeftModel =
+    models.find((model) => Boolean(model.imageUrl) && model.id !== primaryHeroModel?.id) ??
+    primaryHeroModel;
+  const lookbookRightModel =
+    models.find(
+      (model) =>
+        Boolean(model.imageUrl) &&
+        model.id !== primaryHeroModel?.id &&
+        model.id !== lookbookLeftModel?.id
+    ) ?? null;
+  const lookbookRightImage =
+    lookbookRightModel?.imageUrl ??
+    fabrics.find((fabric) => Boolean(fabric.imageUrl))?.imageUrl ??
+    fabrics.find((fabric) => Boolean(fabric.macroImageUrl))?.macroImageUrl ??
+    primaryHeroModel?.imageUrl ??
+    null;
 
   return (
-    <div className="space-y-12 pb-6 sm:space-y-16">
-      <section className="grid items-center gap-8 lg:grid-cols-[1.18fr_0.82fr] xl:gap-14">
-        <div className="min-w-0 space-y-6">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="eyebrow">Batam, Indonesia · Est. 2022</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  health.status === 'ok'
-                    ? 'bg-status-ok'
-                    : health.status === 'loading'
-                      ? 'bg-neutral-400'
-                      : 'bg-status-warn'
-                }`}
-                aria-hidden="true"
-              />
-              {health.status === 'ok'
-                ? pick('Studio Online', 'Studio Online')
-                : health.status === 'loading'
-                  ? pick('Menghubungkan…', 'Connecting…')
-                  : pick('Mode Pratinjau', 'Preview Mode')}
-            </span>
-          </div>
-
-          <h1 className="text-balance font-display text-4xl font-semibold leading-[1.12] tracking-[-0.02em] text-ink sm:text-5xl lg:text-6xl">
-            {pick(
-              'Pakaian Custom & Sablon dengan Standar Studio.',
-              'Custom Apparel & Printing with Studio Precision.'
-            )}
-          </h1>
-
-          <p className="max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-            {pick(
-              'Rancang kaos, polo, hoodie, hingga jaket custom langsung di Custom Lab. Pilih bahan dan warna, atur matriks ukuran, dan pantau harga resmi secara transparan.',
-              'Design custom tees, polos, hoodies, and jackets directly in Custom Lab. Select fabrics and colors, set your size matrix, and get transparent server-verified pricing.'
-            )}
-          </p>
-
-          <div className="flex flex-col gap-3.5 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-            <Link to="/custom-lab" className="btn-primary w-full sm:w-auto">
-              {pick('Mulai Custom Lab', 'Start Custom Lab')}
-            </Link>
-            <Link to="/track" className="btn-secondary w-full sm:w-auto">
-              {pick('Lacak Pesanan', 'Track Order')}
-            </Link>
-            {waHref ? (
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-line bg-surface px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:border-ink hover:bg-white sm:w-auto"
-              >
-                {pick('Tanya via WhatsApp', 'Ask via WhatsApp')}
-              </a>
-            ) : null}
-          </div>
-        </div>
-
-        <aside className="min-w-0 rounded-3xl border border-line bg-surface p-6 sm:p-8">
-          <div className="flex items-center gap-4 border-b border-line pb-5">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-line bg-[#d9d9d9] sm:h-20 sm:w-20">
-              <img
-                src={BRAND_LOGO_MAIN_URL}
-                alt="YNG Apparel Studio"
-                className="h-full w-full scale-110 object-cover object-center"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-base font-semibold text-ink sm:text-lg">
-                YNG Apparel Studio
-              </p>
-              <p className="text-xs text-muted">
-                {pick('Batam · Custom & Retail Garment', 'Batam · Custom & Studio Garments')}
-              </p>
-              <span className="mt-2 inline-flex rounded-full border border-line bg-white px-3 py-0.5 text-xs font-medium text-ink">
-                @yng.apparel.official
-              </span>
-            </div>
-          </div>
-
-          <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="eyebrow">{pick('Skema Pembayaran', 'Payment Scheme')}</dt>
-              <dd className="mt-1 font-semibold text-ink">
-                {config ? (
-                  <>
-                    {pick('DP', 'Deposit')}{' '}
-                    <span className="tabular-price">{config.dpPercent}%</span> (min.{' '}
-                    <span className="tabular-price">{config.dpMinQty} pcs</span>)
-                  </>
-                ) : (
-                  pick('DP / Pelunasan', 'Deposit / Full Payment')
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="eyebrow">{pick('Estimasi Pengerjaan', 'Production Lead Time')}</dt>
-              <dd className="mt-1 font-semibold text-ink">
-                {config?.productionEstimateText ?? pick('7-14 hari kerja', '7-14 business days')}
-              </dd>
-            </div>
-            <div>
-              <dt className="eyebrow">{pick('Teknik Produksi', 'Production Technique')}</dt>
-              <dd className="mt-1 font-medium text-ink">
-                {pick('Sablon & Heat-Press Presisi', 'Precision Screen Print & Heat-Press')}
-              </dd>
-            </div>
-            <div>
-              <dt className="eyebrow">{pick('Pengiriman', 'Fulfillment')}</dt>
-              <dd className="mt-1 font-medium text-ink">
-                {pick('Seluruh Indonesia & Pickup', 'Nationwide Delivery & Workshop Pickup')}
-              </dd>
-            </div>
-          </dl>
-
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <p className="font-editorial text-lg italic text-muted">
-              {pick('Satuan maupun produksi tim', 'Single pieces or team runs')}
-            </p>
-            <Link
-              to="/custom-lab"
-              className="inline-flex min-h-touch items-center font-display text-xs font-semibold text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink"
-            >
-              {pick('Buka Konfigurator →', 'Open Configurator →')}
-            </Link>
-          </div>
-        </aside>
-      </section>
-
-      {showCatalogPreview ? (
-        <section aria-labelledby="home-catalog-heading" className="space-y-5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="eyebrow">{pick('Katalog Aktif', 'Active Catalog')}</p>
-              <h2
-                id="home-catalog-heading"
-                className="mt-1 font-display text-2xl font-semibold text-ink sm:text-3xl"
-              >
-                {pick('Pilih Siluet Pakaian', 'Choose Garment Silhouette')}
-              </h2>
-            </div>
-
-            <Link to="/katalog" className="btn-secondary rounded-sm px-5 py-2 text-xs">
-              {pick('Lihat Semua Koleksi', 'View All Collections')}
-            </Link>
-          </div>
-
-          {modelsQuery.isLoading ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:gap-7">
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
-            </div>
-          ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:gap-7">
-              {previewModels.map((model) => (
-                <article
-                  key={model.id}
-                  className="group relative flex flex-col overflow-hidden rounded-sm border border-line bg-white transition-colors hover:border-ink"
-                >
-                  <WishlistHeartButton
-                    modelSlug={model.slug}
-                    modelName={model.name}
-                    modelHint={model}
-                    variant="overlay"
-                    className="absolute right-2.5 top-2.5 z-10"
-                  />
-
-                  <Link
-                    to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
-                    className="flex flex-1 flex-col"
-                  >
-                    <div className="aspect-[3/4] w-full overflow-hidden bg-surface">
-                      {model.imageUrl ? (
-                        <img
-                          src={model.imageUrl}
-                          alt={model.name}
-                          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 px-5 text-center">
-                          <span className="font-display text-base font-semibold text-ink">
-                            {model.name}
-                          </span>
-                          <span className="text-xs text-muted">
-                            {pick('Foto katalog segera hadir', 'Catalog photo coming soon')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-1 flex-col justify-between gap-3 p-5">
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-display text-base font-semibold text-ink">
-                            {model.name}
-                          </h3>
-                          <span className="shrink-0 rounded-sm border border-line bg-surface px-2 py-0.5 text-[11px] text-muted">
-                            <span className="tabular-price font-medium text-ink">
-                              {model.fabricIds.length}
-                            </span>{' '}
-                            {pick('bahan', 'fabrics')}
-                          </span>
-                        </div>
-                        {model.description ? (
-                          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted">
-                            {model.description}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-line pt-3">
-                        <span className="text-sm font-semibold text-ink">
-                          {pick('Mulai', 'From')}{' '}
-                          <span className="tabular-price">{formatRupiah(model.basePrice)}</span>
-                        </span>
-                        <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">
-                          {pick('Rancang →', 'Design →')}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                </article>
+    <div className="w-full">
+      {/* 1. Hero Editorial Carousel */}
+      <section
+        aria-label={t('home.heroTitle')}
+        onMouseEnter={() => setHeroPaused(true)}
+        onMouseLeave={() => setHeroPaused(false)}
+        onFocusCapture={() => setHeroPaused(true)}
+        onBlurCapture={() => setHeroPaused(false)}
+        className="relative flex min-h-[68vh] w-full items-end overflow-hidden bg-[#0B0B0B] text-white md:min-h-[78vh]"
+      >
+        {heroSlides.length > 0 ? (
+          <div ref={heroEmblaRef} className="absolute inset-0 overflow-hidden">
+            <div className="flex h-full">
+              {heroSlides.map((slide) => (
+                <div key={slide.id} className="relative h-full min-w-0 flex-[0_0_100%]">
+                  {slide.imageUrl ? (
+                    <img
+                      src={slide.imageUrl}
+                      alt={slide.name}
+                      className="h-full w-full object-cover object-center opacity-75"
+                    />
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      className="h-full w-full bg-[radial-gradient(circle_at_75%_25%,#262626_0%,#0B0B0B_70%)]"
+                    />
+                  )}
+                </div>
               ))}
             </div>
+          </div>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_75%_25%,#262626_0%,#0B0B0B_70%)]"
+          />
+        )}
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/25"
+        />
+
+        {heroSlides.length > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => heroEmblaApi?.scrollPrev()}
+              aria-label={t('home.prevSlide')}
+              className="absolute left-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-sm border border-white/25 bg-black/40 text-white backdrop-blur-xs transition-colors hover:border-white hover:bg-black/70 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white md:inline-flex"
+            >
+              <ChevronLeft size={18} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => heroEmblaApi?.scrollNext()}
+              aria-label={t('home.nextSlide')}
+              className="absolute right-4 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-sm border border-white/25 bg-black/40 text-white backdrop-blur-xs transition-colors hover:border-white hover:bg-black/70 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white md:inline-flex"
+            >
+              <ChevronRight size={18} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </>
+        ) : null}
+
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={REVEAL_TRANSITION}
+          className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6 sm:py-16 lg:px-8 xl:px-12"
+        >
+          <p className="font-mono text-[11px] uppercase tracking-[0.26em] text-neutral-300">
+            {t('home.heroEyebrow')}
+          </p>
+          <h1 className="mt-3 max-w-2xl font-display text-4xl font-semibold uppercase leading-[1.04] tracking-[0.04em] text-white sm:text-5xl lg:text-6xl">
+            {t('home.heroTitle')}
+          </h1>
+
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <EditorialButton to="/custom-lab" variant="inverse" className="w-full sm:w-auto">
+              {t('home.heroCtaLab')}
+            </EditorialButton>
+            <EditorialButton to="/katalog" variant="outlineInverse" className="w-full sm:w-auto">
+              {t('home.heroCtaCatalog')}
+            </EditorialButton>
+          </div>
+
+          {heroSlides.length > 1 ? (
+            <div className="mt-6 flex items-center gap-2">
+              {heroSlides.map((slide, idx) => {
+                const isActive = idx === heroIndex;
+                return (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    onClick={() => heroEmblaApi?.scrollTo(idx)}
+                    aria-label={t('home.heroGoToSlide', { index: idx + 1 })}
+                    aria-current={isActive ? 'true' : undefined}
+                    className="inline-flex min-h-[28px] items-center py-2 focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
+                  >
+                    <span
+                      className={`block h-0.5 transition-all duration-300 ${
+                        isActive ? 'w-8 bg-white' : 'w-4 bg-white/35 hover:bg-white/60'
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </motion.div>
+      </section>
+
+      {/* 2. Carousel KATEGORI */}
+      {categoriesQuery.isLoading || categories.length > 0 ? (
+        <section
+          aria-labelledby="home-category-heading"
+          className="mx-auto w-full max-w-[1400px] px-4 py-14 sm:px-6 sm:py-20 lg:px-8 xl:px-12"
+        >
+          <h2
+            id="home-category-heading"
+            className="mb-8 text-center font-display text-lg font-semibold uppercase tracking-[0.28em] text-ink sm:mb-10 sm:text-xl"
+          >
+            {t('home.categoryHeading')}
+          </h2>
+
+          {categoriesQuery.isLoading ? (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <Skeleton className="aspect-[3/4] w-full rounded-none" />
+              <Skeleton className="aspect-[3/4] w-full rounded-none" />
+              <Skeleton className="hidden aspect-[3/4] w-full rounded-none md:block" />
+              <Skeleton className="hidden aspect-[3/4] w-full rounded-none md:block" />
+            </div>
+          ) : (
+            <EditorialCarousel
+              ariaLabel={t('home.categoryHeading')}
+              prevLabel={t('home.prevSlide')}
+              nextLabel={t('home.nextSlide')}
+            >
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="min-w-0 shrink-0 basis-[74%] pl-4 sm:basis-[44%] md:basis-[31%] lg:basis-[24%]"
+                >
+                  <Link
+                    to={`/katalog?kategori=${encodeURIComponent(category.slug)}`}
+                    className="group relative block aspect-[3/4] w-full overflow-hidden bg-surface focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+                  >
+                    {category.coverImageUrl ? (
+                      <img
+                        src={category.coverImageUrl}
+                        alt={category.name}
+                        className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-[#181818] px-4 text-center">
+                        <span className="font-display text-xs uppercase tracking-[0.2em] text-neutral-400">
+                          {category.name}
+                        </span>
+                      </div>
+                    )}
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent"
+                    />
+                    <div className="absolute inset-x-4 bottom-4 flex items-baseline justify-between gap-2 text-white">
+                      <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">
+                        {category.name}
+                      </span>
+                      <span className="font-mono text-[10px] tracking-[0.08em] text-neutral-300 tabular-nums">
+                        {t('home.categoryModelsCount', { count: category.activeModelCount })}
+                      </span>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </EditorialCarousel>
           )}
         </section>
       ) : null}
 
+      {/* 3. Editorial Lookbook Split Grid (2 Kolom) */}
       <section
-        aria-label={pick('Alur layanan YNG Apparel', 'YNG Apparel workflow')}
-        className="grid gap-5 md:grid-cols-3 xl:gap-6"
+        aria-label="Studio Lookbook"
+        className="mx-auto w-full max-w-[1400px] px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8 xl:px-12"
       >
-        <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
-          <p className="text-xs font-medium text-muted">
-            <span className="tabular-price font-semibold text-ink">01</span> ·{' '}
-            {pick('Konfigurasi', 'Configure')}
-          </p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-ink">
-            {pick('Rancang di Custom Lab', 'Design in Custom Lab')}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            {pick(
-              'Pilih model, bahan yang kompatibel, warna preset atau custom, matriks ukuran, dan titik sablon dengan kalkulasi harga real-time.',
-              'Pick your garment model, compatible fabric, preset or custom color, size matrix, and print spots with real-time pricing.'
-            )}
-          </p>
-        </article>
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
+          <Link
+            to="/custom-lab"
+            className="group relative flex aspect-[4/5] w-full items-end overflow-hidden bg-[#141414] focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 md:aspect-[5/6]"
+          >
+            {lookbookLeftModel?.imageUrl ? (
+              <img
+                src={lookbookLeftModel.imageUrl}
+                alt={t('home.lookbookLeftTitle')}
+                className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : null}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
+            />
+            <div className="relative z-10 p-6 text-white sm:p-8">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-300">
+                {t('home.lookbookLeftEyebrow')}
+              </p>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {t('home.lookbookLeftTitle')}
+              </h2>
+              <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white underline-offset-4 group-hover:underline">
+                <span>{t('home.lookbookLeftCta')}</span>
+                <ArrowRight size={14} strokeWidth={1.5} aria-hidden="true" />
+              </span>
+            </div>
+          </Link>
 
-        <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
-          <p className="text-xs font-medium text-muted">
-            <span className="tabular-price font-semibold text-ink">02</span> ·{' '}
-            {pick('Produksi', 'Production')}
-          </p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-ink">
-            {pick('Transparan & Terpantau', 'Transparent & Trackable')}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            {pick(
-              'Pantau setiap tahap produksi mulai dari cek desain, cetak sablon, pressing & QC, hingga nomor resi pengiriman.',
-              'Track every production step from design check, screen printing, pressing & QC, up to shipping tracking numbers.'
-            )}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-line bg-surface p-6 sm:p-7">
-          <p className="text-xs font-medium text-muted">
-            <span className="tabular-price font-semibold text-ink">03</span> ·{' '}
-            {pick('Kualitas', 'Craftsmanship')}
-          </p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-ink">
-            {pick('Dikerjakan di Batam', 'Crafted in Batam')}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            {pick(
-              'Mendukung pesanan satuan maupun produksi komunitas/tim ke seluruh Indonesia dengan konsultasi langsung via WhatsApp.',
-              'Supporting single pieces and community/brand runs shipped across Indonesia with direct WhatsApp consultation.'
-            )}
-          </p>
-        </article>
-      </section>
-
-      <section className="flex flex-col justify-between gap-4 rounded-2xl bg-ink px-6 py-7 text-white sm:flex-row sm:items-center sm:px-8">
-        <div>
-          <p className="text-xs font-medium text-neutral-400">Workshop Batam</p>
-          <p className="mt-1.5 font-display text-xl font-semibold leading-snug sm:text-2xl">
-            {pick(
-              'Siap wujudkan apparel custom untuk tim atau brand Anda?',
-              'Ready to bring custom apparel for your team or brand to life?'
-            )}
-          </p>
+          <Link
+            to="/katalog"
+            className="group relative flex aspect-[4/5] w-full items-end overflow-hidden bg-[#1D1D1D] focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 md:aspect-[5/6]"
+          >
+            {lookbookRightImage ? (
+              <img
+                src={lookbookRightImage}
+                alt={t('home.lookbookRightTitle')}
+                className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : null}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
+            />
+            <div className="relative z-10 p-6 text-white sm:p-8">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-300">
+                {t('home.lookbookRightEyebrow')}
+              </p>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {t('home.lookbookRightTitle')}
+              </h2>
+              <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white underline-offset-4 group-hover:underline">
+                <span>{t('home.lookbookRightCta')}</span>
+                <ArrowRight size={14} strokeWidth={1.5} aria-hidden="true" />
+              </span>
+            </div>
+          </Link>
         </div>
-        <Link
-          to="/custom-lab"
-          className="inline-flex min-h-touch shrink-0 items-center justify-center rounded-full bg-white px-6 py-2.5 font-display text-sm font-semibold text-ink transition-colors hover:bg-neutral-200"
-        >
-          {pick('Simulasi Harga Sekarang', 'Estimate Price Now')}
-        </Link>
       </section>
 
-      <p className="text-xs text-muted" aria-live="polite">
-        {pick('Status server:', 'Server status:')} {resolvedHealthMessage}
-      </p>
+      {/* 4. Carousel KOLEKSI PILIHAN (Tanpa Kotak Berat) */}
+      {modelsQuery.isLoading || models.length > 0 ? (
+        <section
+          aria-labelledby="home-collection-heading"
+          className="mx-auto w-full max-w-[1400px] px-4 pb-16 sm:px-6 sm:pb-24 lg:px-8 xl:px-12"
+        >
+          <div className="mb-8 flex flex-wrap items-baseline justify-between gap-3">
+            <h2
+              id="home-collection-heading"
+              className="font-display text-base font-semibold uppercase tracking-[0.22em] text-ink sm:text-lg"
+            >
+              {t('home.collectionHeading')}
+            </h2>
+            <Link
+              to="/katalog"
+              className="inline-flex min-h-touch items-center text-xs font-semibold uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+            >
+              {t('home.viewAll')}
+            </Link>
+          </div>
+
+          {modelsQuery.isLoading ? (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <Skeleton className="aspect-[3/4] w-full rounded-none" />
+              <Skeleton className="aspect-[3/4] w-full rounded-none" />
+              <Skeleton className="hidden aspect-[3/4] w-full rounded-none md:block" />
+              <Skeleton className="hidden aspect-[3/4] w-full rounded-none md:block" />
+            </div>
+          ) : (
+            <EditorialCarousel
+              ariaLabel={t('home.collectionHeading')}
+              prevLabel={t('home.prevSlide')}
+              nextLabel={t('home.nextSlide')}
+            >
+              {models.map((model) => (
+                <div
+                  key={model.id}
+                  className="min-w-0 shrink-0 basis-[66%] pl-4 sm:basis-[44%] md:basis-[31%] lg:basis-[24%]"
+                >
+                  <article className="group relative flex flex-col">
+                    <WishlistHeartButton
+                      modelSlug={model.slug}
+                      modelName={model.name}
+                      modelHint={model}
+                      variant="overlay"
+                      size="sm"
+                      className="absolute right-2.5 top-2.5 z-10"
+                    />
+
+                    <Link
+                      to={`/custom-lab?model=${encodeURIComponent(model.slug)}`}
+                      className="flex flex-col focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+                    >
+                      <div className="aspect-[3/4] w-full overflow-hidden bg-surface">
+                        {model.imageUrl ? (
+                          <img
+                            src={model.imageUrl}
+                            alt={model.name}
+                            className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center px-4 text-center text-xs font-medium text-muted">
+                            {model.name}
+                          </div>
+                        )}
+                      </div>
+
+                      <h3 className="mt-3 line-clamp-1 font-display text-sm font-medium text-ink group-hover:underline sm:text-[15px]">
+                        {model.name}
+                      </h3>
+                      <p className="mt-1 tabular-price text-xs font-medium text-muted sm:text-sm">
+                        {formatRupiah(model.basePrice)}
+                      </p>
+                    </Link>
+                  </article>
+                </div>
+              ))}
+            </EditorialCarousel>
+          )}
+        </section>
+      ) : null}
+
+      {/* 5. Strip Alur Studio Ringkas (3 Langkah, 1 Baris) */}
+      <section aria-label="Studio Workflow" className="w-full border-t border-line bg-[#F8F8F8]">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-8 px-4 py-10 sm:px-6 md:grid-cols-3 md:gap-10 md:py-12 lg:px-8 xl:px-12">
+          <div className="flex items-start gap-3.5">
+            <Layers
+              size={20}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              className="mt-0.5 shrink-0 text-ink"
+            />
+            <div>
+              <h3 className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink">
+                {t('home.step1Title')}
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{t('home.step1Body')}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3.5">
+            <PenTool
+              size={20}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              className="mt-0.5 shrink-0 text-ink"
+            />
+            <div>
+              <h3 className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink">
+                {t('home.step2Title')}
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{t('home.step2Body')}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3.5">
+            <Truck
+              size={20}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              className="mt-0.5 shrink-0 text-ink"
+            />
+            <div>
+              <h3 className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-ink">
+                {t('home.step3Title')}
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{t('home.step3Body')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

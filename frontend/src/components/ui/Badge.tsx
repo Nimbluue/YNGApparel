@@ -46,7 +46,7 @@ const DOT_CLASSES: Record<BadgeVariant, string> = {
 export function Badge({ variant = 'neutral', children, className = '', dot = false }: BadgeProps) {
   return (
     <span
-      className={`inline-flex min-h-7 items-center gap-2 rounded-full border px-3 py-1 font-sans text-xs font-medium ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex min-h-7 items-center gap-2 rounded-sm border px-2.5 py-0.5 font-sans text-xs font-medium ${VARIANT_CLASSES[variant]} ${className}`}
     >
       {dot && (
         <span
