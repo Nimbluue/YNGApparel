@@ -414,9 +414,7 @@ export default function MyOrderDetail() {
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">
-                  {pick('01 · Pembayaran Bertahap', '01 · Staged Payments')}
-                </p>
+                <p className="eyebrow">{pick('Pembayaran Bertahap', 'Staged Payments')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                   {pick('Tagihan & Status Verifikasi', 'Invoices & Verification Status')}
                 </h2>
@@ -783,9 +781,7 @@ export default function MyOrderDetail() {
           <section className="rounded-sm border border-line bg-white p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
               <div>
-                <p className="eyebrow">
-                  {pick('02 · Spesifikasi Terkunci', '02 · Locked Specifications')}
-                </p>
+                <p className="eyebrow">{pick('Spesifikasi Terkunci', 'Locked Specifications')}</p>
                 <h2 className="mt-1 font-display text-lg font-semibold text-ink">
                   {pick('Rincian Item & Sablon', 'Items & Print Breakdown')} ({order.items.length})
                 </h2>

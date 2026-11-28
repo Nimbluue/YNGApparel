@@ -20,6 +20,19 @@ import { formatRupiah } from '../utils/formatRupiah';
 const REVEAL_TRANSITION = { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
 const HERO_AUTOPLAY_MS = 5000;
 
+function getCategoryGridClass(count: number): string {
+  if (count === 1) {
+    return 'mx-auto grid max-w-sm grid-cols-1 gap-4 sm:gap-6';
+  }
+  if (count === 2) {
+    return 'mx-auto grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2';
+  }
+  if (count === 3) {
+    return 'mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3';
+  }
+  return 'mx-auto grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4';
+}
+
 export default function Home() {
   const { t } = useLanguage();
 
@@ -109,6 +122,39 @@ export default function Home() {
     fabrics.find((fabric) => Boolean(fabric.macroImageUrl))?.macroImageUrl ??
     primaryHeroModel?.imageUrl ??
     null;
+
+  const renderCategoryCard = (category: (typeof categories)[number]) => (
+    <Link
+      to={`/katalog?kategori=${encodeURIComponent(category.slug)}`}
+      className="group relative block aspect-[3/4] w-full overflow-hidden bg-surface focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
+    >
+      {category.coverImageUrl ? (
+        <img
+          src={category.coverImageUrl}
+          alt={category.name}
+          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-[#181818] px-4 text-center">
+          <span className="font-display text-xs uppercase tracking-[0.2em] text-neutral-400">
+            {category.name}
+          </span>
+        </div>
+      )}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent"
+      />
+      <div className="absolute inset-x-4 bottom-4 flex items-baseline justify-between gap-2 text-white">
+        <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">
+          {category.name}
+        </span>
+        <span className="font-mono text-[10px] tracking-[0.08em] text-neutral-300 tabular-nums">
+          {t('home.categoryModelsCount', { count: category.activeModelCount })}
+        </span>
+      </div>
+    </Link>
+  );
 
   return (
     <div className="w-full">
@@ -223,7 +269,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* 2. Carousel KATEGORI */}
+      {/* 2. KATEGORI (Grid simetris rata tengah saat <= 4, Carousel saat > 4) */}
       {categoriesQuery.isLoading || categories.length > 0 ? (
         <section
           aria-labelledby="home-category-heading"
@@ -237,11 +283,18 @@ export default function Home() {
           </h2>
 
           {categoriesQuery.isLoading ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
               <Skeleton className="aspect-[3/4] w-full rounded-none" />
               <Skeleton className="aspect-[3/4] w-full rounded-none" />
-              <Skeleton className="hidden aspect-[3/4] w-full rounded-none md:block" />
-              <Skeleton className="hidden aspect-[3/4] w-full rounded-none md:block" />
+              <Skeleton className="hidden aspect-[3/4] w-full rounded-none lg:block" />
+            </div>
+          ) : categories.length <= 4 ? (
+            <div className={getCategoryGridClass(categories.length)}>
+              {categories.map((category) => (
+                <div key={category.id} className="min-w-0">
+                  {renderCategoryCard(category)}
+                </div>
+              ))}
             </div>
           ) : (
             <EditorialCarousel
@@ -254,36 +307,7 @@ export default function Home() {
                   key={category.id}
                   className="min-w-0 shrink-0 basis-[74%] pl-4 sm:basis-[44%] md:basis-[31%] lg:basis-[24%]"
                 >
-                  <Link
-                    to={`/katalog?kategori=${encodeURIComponent(category.slug)}`}
-                    className="group relative block aspect-[3/4] w-full overflow-hidden bg-surface focus:outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
-                  >
-                    {category.coverImageUrl ? (
-                      <img
-                        src={category.coverImageUrl}
-                        alt={category.name}
-                        className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[#181818] px-4 text-center">
-                        <span className="font-display text-xs uppercase tracking-[0.2em] text-neutral-400">
-                          {category.name}
-                        </span>
-                      </div>
-                    )}
-                    <div
-                      aria-hidden="true"
-                      className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent"
-                    />
-                    <div className="absolute inset-x-4 bottom-4 flex items-baseline justify-between gap-2 text-white">
-                      <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] sm:text-sm">
-                        {category.name}
-                      </span>
-                      <span className="font-mono text-[10px] tracking-[0.08em] text-neutral-300 tabular-nums">
-                        {t('home.categoryModelsCount', { count: category.activeModelCount })}
-                      </span>
-                    </div>
-                  </Link>
+                  {renderCategoryCard(category)}
                 </div>
               ))}
             </EditorialCarousel>

@@ -333,9 +333,15 @@ export default function CustomLab() {
     [modelDetailQuery.data]
   );
 
+  const isModelDetailSynced = Boolean(
+    selectedModel && modelDetailQuery.data && modelDetailQuery.data.id === selectedModel.id
+  );
+  const singleCompatibleFabric =
+    isModelDetailSynced && availableFabrics.length === 1 ? availableFabrics[0]! : null;
+
   const selectedFabric = useMemo(
-    () => availableFabrics.find((f) => f.id === draft.fabricId) ?? null,
-    [availableFabrics, draft.fabricId]
+    () => availableFabrics.find((f) => f.id === draft.fabricId) ?? singleCompatibleFabric ?? null,
+    [availableFabrics, draft.fabricId, singleCompatibleFabric]
   );
 
   const activeCategory = modelDetailQuery.data?.category ?? selectedModel?.category ?? null;
@@ -390,15 +396,30 @@ export default function CustomLab() {
     }
   }, [models, draft.modelId, requestedModelSlug, setSearchParams]);
 
-  // Validasi ulang bahan dari draft hanya setelah detail model selesai dimuat
+  // Validasi ulang & otomatis pilih jika model hanya memiliki 1 bahan kompatibel
   useEffect(() => {
     if (!selectedModel || !modelDetailQuery.data) return;
     if (modelDetailQuery.data.id !== selectedModel.id) return;
 
-    if (
-      draft.fabricId !== null &&
-      !modelDetailQuery.data.fabrics.some((f) => f.id === draft.fabricId)
-    ) {
+    const modelFabrics = modelDetailQuery.data.fabrics;
+
+    if (modelFabrics.length === 1) {
+      const onlyFabric = modelFabrics[0]!;
+      if (draft.fabricId !== onlyFabric.id) {
+        setDraft((prev) => ({
+          ...prev,
+          fabricId: onlyFabric.id,
+          isCustomColor: false,
+          fabricColorId: null,
+          customColorName: '',
+          customColorHex: '',
+        }));
+        setServerQuote(null);
+      }
+      return;
+    }
+
+    if (draft.fabricId !== null && !modelFabrics.some((f) => f.id === draft.fabricId)) {
       setDraft((prev) => ({
         ...prev,
         fabricId: null,
@@ -1283,97 +1304,149 @@ export default function CustomLab() {
             }`}
             aria-labelledby="step-fabric-heading"
           >
-            <h2 id="step-fabric-heading" className="font-display text-base font-semibold text-ink">
-              {pick('Bahan', 'Fabric')}
-            </h2>
-
             {modelDetailQuery.isLoading ? (
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                <CardSkeleton />
-                <CardSkeleton />
-              </div>
+              <>
+                <h2
+                  id="step-fabric-heading"
+                  className="font-display text-base font-semibold text-ink"
+                >
+                  {pick('Bahan', 'Fabric')}
+                </h2>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <CardSkeleton />
+                  <CardSkeleton />
+                </div>
+              </>
             ) : modelDetailQuery.error ? (
-              <ErrorState
-                eyebrow={t('common.errorEyebrow')}
-                retryLabel={t('common.retry')}
-                title={pick('Gagal memuat bahan model', 'Failed to load model fabrics')}
-                message={
-                  extractApiError(
-                    modelDetailQuery.error,
-                    pick('Tidak dapat mengambil daftar bahan.', 'Could not fetch fabric list.')
-                  ).message
-                }
-                retry={() => void modelDetailQuery.refetch()}
-              />
+              <>
+                <h2
+                  id="step-fabric-heading"
+                  className="font-display text-base font-semibold text-ink"
+                >
+                  {pick('Bahan', 'Fabric')}
+                </h2>
+                <ErrorState
+                  eyebrow={t('common.errorEyebrow')}
+                  retryLabel={t('common.retry')}
+                  title={pick('Gagal memuat bahan model', 'Failed to load model fabrics')}
+                  message={
+                    extractApiError(
+                      modelDetailQuery.error,
+                      pick('Tidak dapat mengambil daftar bahan.', 'Could not fetch fabric list.')
+                    ).message
+                  }
+                  retry={() => void modelDetailQuery.refetch()}
+                />
+              </>
             ) : availableFabrics.length === 0 ? (
-              <p className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4 text-sm text-muted">
-                {pick(
-                  'Belum ada bahan aktif yang terhubung dengan model ini.',
-                  'No active fabrics are linked to this model yet.'
-                )}
-              </p>
+              <>
+                <h2
+                  id="step-fabric-heading"
+                  className="font-display text-base font-semibold text-ink"
+                >
+                  {pick('Bahan', 'Fabric')}
+                </h2>
+                <p className="rounded-sm border border-dashed border-line-strong bg-[#FAFAFA] p-4 text-sm text-muted">
+                  {pick(
+                    'Belum ada bahan aktif yang terhubung dengan model ini.',
+                    'No active fabrics are linked to this model yet.'
+                  )}
+                </p>
+              </>
+            ) : singleCompatibleFabric ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-[#FAFAFA] px-4 py-3">
+                <h2
+                  id="step-fabric-heading"
+                  className="font-display text-xs font-semibold uppercase tracking-[0.14em] text-muted"
+                >
+                  {pick('Bahan', 'Fabric')}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-display text-sm font-semibold text-ink">
+                    {singleCompatibleFabric.name}
+                  </span>
+                  {singleCompatibleFabric.gsmWeight ? (
+                    <span className="rounded-sm border border-line bg-white px-2 py-0.5 font-mono text-[11px] text-muted tabular-nums">
+                      {singleCompatibleFabric.gsmWeight} GSM
+                    </span>
+                  ) : null}
+                  {singleCompatibleFabric.additionalPrice > 0 ? (
+                    <span className="tabular-price text-xs font-medium text-muted">
+                      +{formatRupiah(singleCompatibleFabric.additionalPrice)} / pcs
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             ) : (
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                {availableFabrics.map((fabric) => {
-                  const isSelected = selectedFabric?.id === fabric.id;
-                  return (
-                    <button
-                      key={fabric.id}
-                      type="button"
-                      onClick={() => handleSelectFabric(fabric.id)}
-                      aria-pressed={isSelected}
-                      className={`flex flex-col justify-between rounded-sm border p-3.5 text-left transition-colors ${
-                        isSelected
-                          ? 'border-ink bg-ink text-white'
-                          : 'border-line bg-white text-ink hover:border-line-strong hover:bg-[#FAFAFA]'
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-display text-sm font-semibold">{fabric.name}</p>
-                          {fabric.gsmWeight ? (
-                            <span
-                              className={`shrink-0 rounded-sm px-2 py-0.5 font-mono text-[11px] ${
-                                isSelected
-                                  ? 'bg-neutral-800 text-neutral-200'
-                                  : 'bg-[#FAFAFA] text-muted'
-                              }`}
-                            >
-                              {fabric.gsmWeight} GSM
-                            </span>
-                          ) : null}
-                        </div>
-                        {fabric.description ? (
-                          <p
-                            className={`line-clamp-2 text-xs leading-relaxed ${
-                              isSelected ? 'text-neutral-300' : 'text-muted'
-                            }`}
-                          >
-                            {fabric.description}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <p
-                        className={`mt-2.5 text-xs font-semibold ${
-                          isSelected ? 'text-white' : 'text-ink'
+              <>
+                <h2
+                  id="step-fabric-heading"
+                  className="font-display text-base font-semibold text-ink"
+                >
+                  {pick('Bahan', 'Fabric')}
+                </h2>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {availableFabrics.map((fabric) => {
+                    const isSelected = selectedFabric?.id === fabric.id;
+                    return (
+                      <button
+                        key={fabric.id}
+                        type="button"
+                        onClick={() => handleSelectFabric(fabric.id)}
+                        aria-pressed={isSelected}
+                        className={`flex flex-col justify-between rounded-sm border p-3.5 text-left transition-colors ${
+                          isSelected
+                            ? 'border-ink bg-ink text-white'
+                            : 'border-line bg-white text-ink hover:border-line-strong hover:bg-[#FAFAFA]'
                         }`}
                       >
-                        {fabric.additionalPrice > 0 ? (
-                          <>
-                            <span className="tabular-price">
-                              +{formatRupiah(fabric.additionalPrice)}
-                            </span>{' '}
-                            / pcs
-                          </>
-                        ) : (
-                          pick('Termasuk harga dasar', 'Included in base price')
-                        )}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
+                        <div className="space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-display text-sm font-semibold">{fabric.name}</p>
+                            {fabric.gsmWeight ? (
+                              <span
+                                className={`shrink-0 rounded-sm px-2 py-0.5 font-mono text-[11px] ${
+                                  isSelected
+                                    ? 'bg-neutral-800 text-neutral-200'
+                                    : 'bg-[#FAFAFA] text-muted'
+                                }`}
+                              >
+                                {fabric.gsmWeight} GSM
+                              </span>
+                            ) : null}
+                          </div>
+                          {fabric.description ? (
+                            <p
+                              className={`line-clamp-2 text-xs leading-relaxed ${
+                                isSelected ? 'text-neutral-300' : 'text-muted'
+                              }`}
+                            >
+                              {fabric.description}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <p
+                          className={`mt-2.5 text-xs font-semibold ${
+                            isSelected ? 'text-white' : 'text-ink'
+                          }`}
+                        >
+                          {fabric.additionalPrice > 0 ? (
+                            <>
+                              <span className="tabular-price">
+                                +{formatRupiah(fabric.additionalPrice)}
+                              </span>{' '}
+                              / pcs
+                            </>
+                          ) : (
+                            pick('Termasuk harga dasar', 'Included in base price')
+                          )}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </section>
 

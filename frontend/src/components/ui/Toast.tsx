@@ -1,6 +1,7 @@
 /**
- * Editorial Dark Toast notification system — muncul di pojok kiri bawah desktop (aman di mobile 360px),
- * dengan framer-motion spring, progress bar 2px, pause-on-hover, stacking maks 3, dan tombol aksi opsional.
+ * Editorial Light Toast notification system — muncul di tengah atas layar (top-center) di bawah Navbar,
+ * dengan kartu putih elevated berkontras tinggi, aksen kiri 3px, badge ikon semantik, framer-motion spring,
+ * progress bar 2px, pause-on-hover/focus, stacking maks 3, dan tombol aksi opsional.
  */
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { AlertCircle, Check, Info, X, XCircle } from 'lucide-react';
@@ -14,52 +15,55 @@ import {
 
 const MAX_VISIBLE_TOASTS = 3;
 
-const PROGRESS_CLASSES: Record<ToastVariant, string> = {
-  ok: 'bg-emerald-400/80',
-  warn: 'bg-amber-400/80',
-  err: 'bg-rose-400/80',
-  info: 'bg-white/60',
+const VARIANT_STYLES: Record<
+  ToastVariant,
+  { accentBar: string; progressBar: string; iconBadge: string; iconText: string }
+> = {
+  ok: {
+    accentBar: 'bg-[#059669]',
+    progressBar: 'bg-[#059669]',
+    iconBadge: 'bg-[#ECFDF5]',
+    iconText: 'text-[#059669]',
+  },
+  warn: {
+    accentBar: 'bg-[#D97706]',
+    progressBar: 'bg-[#D97706]',
+    iconBadge: 'bg-[#FFFBEB]',
+    iconText: 'text-[#D97706]',
+  },
+  err: {
+    accentBar: 'bg-[#DC2626]',
+    progressBar: 'bg-[#DC2626]',
+    iconBadge: 'bg-[#FEF2F2]',
+    iconText: 'text-[#DC2626]',
+  },
+  info: {
+    accentBar: 'bg-[#111111]',
+    progressBar: 'bg-[#111111]',
+    iconBadge: 'bg-[#F5F5F5]',
+    iconText: 'text-[#111111]',
+  },
 };
 
 function ToastVariantIcon({ variant }: { variant: ToastVariant }) {
-  switch (variant) {
-    case 'ok':
-      return (
-        <Check
-          size={16}
-          strokeWidth={1.5}
-          className="shrink-0 text-emerald-400"
-          aria-hidden="true"
-        />
-      );
-    case 'warn':
-      return (
-        <AlertCircle
-          size={16}
-          strokeWidth={1.5}
-          className="shrink-0 text-amber-400"
-          aria-hidden="true"
-        />
-      );
-    case 'err':
-      return (
-        <XCircle
-          size={16}
-          strokeWidth={1.5}
-          className="shrink-0 text-rose-400"
-          aria-hidden="true"
-        />
-      );
-    default:
-      return (
-        <Info
-          size={16}
-          strokeWidth={1.5}
-          className="shrink-0 text-neutral-300"
-          aria-hidden="true"
-        />
-      );
-  }
+  const style = VARIANT_STYLES[variant];
+  const Icon =
+    variant === 'ok'
+      ? Check
+      : variant === 'warn'
+        ? AlertCircle
+        : variant === 'err'
+          ? XCircle
+          : Info;
+
+  return (
+    <span
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm ${style.iconBadge} ${style.iconText}`}
+      aria-hidden="true"
+    >
+      <Icon size={15} strokeWidth={1.75} />
+    </span>
+  );
 }
 
 function ToastRow({ item, onDismiss }: { item: ToastEntry; onDismiss: (id: string) => void }) {
@@ -131,33 +135,37 @@ function ToastRow({ item, onDismiss }: { item: ToastEntry; onDismiss: (id: strin
     }
   }
 
+  const style = VARIANT_STYLES[item.variant];
+
   return (
     <motion.div
       layout
       role={item.variant === 'err' ? 'alert' : 'status'}
       aria-live={item.variant === 'err' ? 'assertive' : 'polite'}
-      initial={{ opacity: 0, y: 14, scale: 0.96 }}
+      initial={{ opacity: 0, y: -16, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: -20, scale: 0.96 }}
+      exit={{ opacity: 0, y: -12, scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 420, damping: 32 }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
-      className="pointer-events-auto relative overflow-hidden rounded-sm border border-white/10 bg-[#111111] px-4 py-3 text-white shadow-lg"
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setPaused(false);
+        }
+      }}
+      className="pointer-events-auto relative overflow-hidden rounded-sm border border-neutral-200/90 bg-white/95 text-neutral-900 shadow-xl backdrop-blur-md"
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5">
-          <ToastVariantIcon variant={item.variant} />
-        </div>
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[3px] ${style.accentBar}`} />
+
+      <div className="flex items-start gap-3 py-3 pl-4 pr-3">
+        <ToastVariantIcon variant={item.variant} />
 
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium leading-relaxed text-white sm:text-[13px]">
-            {item.message}
-          </p>
+          <p className="text-sm font-medium leading-snug text-neutral-900">{item.message}</p>
 
           {item.details && item.details.length > 0 ? (
-            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug text-neutral-300">
+            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-snug text-neutral-600">
               {item.details.slice(0, 3).map((detail, idx) => (
                 <li key={`${idx}-${detail}`}>{detail}</li>
               ))}
@@ -170,7 +178,7 @@ function ToastRow({ item, onDismiss }: { item: ToastEntry; onDismiss: (id: strin
                 type="button"
                 disabled={runningAction}
                 onClick={() => void handleActionClick()}
-                className="inline-flex items-center rounded-sm border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-white hover:text-[#111111] disabled:opacity-50"
+                className="inline-flex items-center rounded-sm bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-neutral-800 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 disabled:opacity-50"
               >
                 {item.action.label}
               </button>
@@ -185,15 +193,18 @@ function ToastRow({ item, onDismiss }: { item: ToastEntry; onDismiss: (id: strin
             onDismissRef.current(item.id);
           }}
           aria-label="Tutup notifikasi"
-          className="-mr-1 -mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+          className="-mr-1 -mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900"
         >
-          <X size={14} strokeWidth={1.5} aria-hidden="true" />
+          <X size={15} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </div>
 
-      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[2px] bg-white/10">
+      <div
+        aria-hidden="true"
+        className="absolute bottom-0 left-[3px] right-0 h-[2px] bg-neutral-200/70"
+      >
         <div
-          className={`h-full origin-left ${PROGRESS_CLASSES[item.variant]}`}
+          className={`h-full origin-left ${style.progressBar}`}
           style={{ transform: `scaleX(${progress})` }}
         />
       </div>
@@ -249,7 +260,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <MotionConfig reducedMotion="user">
         <div
           aria-live="polite"
-          className="pointer-events-none fixed inset-x-3 bottom-4 z-[9999] flex flex-col gap-2.5 sm:inset-x-auto sm:bottom-5 sm:left-5 sm:w-[380px]"
+          className="pointer-events-none fixed left-1/2 top-20 z-[70] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 flex-col gap-2.5"
         >
           <AnimatePresence initial={false} mode="popLayout">
             {toasts.map((item) => (
